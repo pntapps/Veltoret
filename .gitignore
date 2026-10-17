@@ -1,12 +1,10 @@
 *.iml
 .gradle
 /local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
+# Android Studio settings are per person (devices, run targets, caches); Studio recreates them on open.
+# Only the shared code style is kept so contributors format code the same way.
+/.idea/*
+!/.idea/codeStyles/
 .DS_Store
 /build
 /captures

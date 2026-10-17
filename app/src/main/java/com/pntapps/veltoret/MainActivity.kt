@@ -18,6 +18,9 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pntapps.veltoret.data.settings.AppSettings
 import com.pntapps.veltoret.ui.AppShell
+import com.pntapps.veltoret.ui.tv.TvApp
+import com.pntapps.veltoret.ui.tv.TvOnboarding
+import com.pntapps.veltoret.ui.util.isTv
 import com.pntapps.veltoret.ui.onboarding.OnboardingScreen
 import com.pntapps.veltoret.ui.onboarding.OnboardingStep
 import com.pntapps.veltoret.ui.theme.VeltoretTheme
@@ -44,6 +47,7 @@ class MainActivity : ComponentActivity() {
         val previewStep = if (BuildConfig.DEBUG) {
             intent.getStringExtra("preview_onboarding")?.let { name -> OnboardingStep.entries.firstOrNull { it.name == name } }
         } else null
+        val tv = isTv()
         setContent {
             val settings: AppSettings? by settingsFlow.collectAsStateWithLifecycle(initialValue = null)
             SideEffect { if (settings != null) settingsLoaded = true }
@@ -57,9 +61,10 @@ class MainActivity : ComponentActivity() {
                         val current = settings
                         when {
                             current == null -> Unit
-                            previewStep != null -> OnboardingScreen(startStep = previewStep)
-                            !current.onboardingComplete -> OnboardingScreen()
-                            else -> AppShell()
+                            previewStep != null -> if (tv) TvOnboarding(startStep = previewStep) else OnboardingScreen(startStep = previewStep)
+                            !current.onboardingComplete -> if (tv) TvOnboarding() else OnboardingScreen()
+                            // TVs get the remote-first interface; phones, tablets and foldables the touch one.
+                            else -> if (tv) TvApp() else AppShell()
                         }
                     }
                 }

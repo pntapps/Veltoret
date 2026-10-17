@@ -23,6 +23,9 @@ class LocalStorage(private val context: Context) {
 
     private val resolver get() = context.contentResolver
 
+    /** The TV path: videos indexed by Android, used where the folder picker doesn't exist. */
+    val media = MediaLibrary(context)
+
     /** Keeps access to a folder picked with ACTION_OPEN_DOCUMENT_TREE and returns it as a folder item. */
     suspend fun adopt(treeUri: Uri): DriveFile = withContext(Dispatchers.IO) {
         val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
@@ -32,8 +35,12 @@ class LocalStorage(private val context: Context) {
         describe(doc) ?: throw FileNotFoundException("That folder isn't available")
     }
 
-    /** Folders the user has granted, shown as the top level of "This device". */
+    /** Folders the user has granted (plus, on TVs, each storage volume), shown as the top level of "This device". */
     suspend fun roots(): List<DriveFile> = withContext(Dispatchers.IO) {
+        grantedRoots() + if (media.folderPickerAvailable) emptyList() else media.roots()
+    }
+
+    private fun grantedRoots(): List<DriveFile> =
         resolver.persistedUriPermissions
             .filter { it.isReadPermission && DocumentsContract.isTreeUri(it.uri) }
             .mapNotNull { perm ->
@@ -42,9 +49,9 @@ class LocalStorage(private val context: Context) {
                 }.getOrNull()
             }
             .sortedBy { it.name.lowercase() }
-    }
 
     suspend fun listChildren(folderId: String): List<DriveFile> = withContext(Dispatchers.IO) {
+        if (MediaLibrary.isMediaLibraryId(folderId)) return@withContext media.listChildren(folderId)
         val folder = Uri.parse(folderId)
         val tree = treeOf(folder)
         val children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, DocumentsContract.getDocumentId(folder))
@@ -60,14 +67,17 @@ class LocalStorage(private val context: Context) {
 
     /** Renames and returns the item's new id (document URIs can change on rename). */
     suspend fun rename(id: String, newName: String): String = withContext(Dispatchers.IO) {
+        readOnlyCheck(id)
         (DocumentsContract.renameDocument(resolver, Uri.parse(id), newName) ?: Uri.parse(id)).toString()
     }
 
     suspend fun delete(id: String) = withContext(Dispatchers.IO) {
+        readOnlyCheck(id)
         if (!DocumentsContract.deleteDocument(resolver, Uri.parse(id))) throw FileNotFoundException("Couldn't delete it")
     }
 
     suspend fun move(id: String, fromParent: String, toParent: String): String = withContext(Dispatchers.IO) {
+        readOnlyCheck(id)
         try {
             DocumentsContract.moveDocument(resolver, Uri.parse(id), Uri.parse(fromParent), Uri.parse(toParent))?.toString()
                 ?: throw UnsupportedOperationException()
@@ -77,6 +87,7 @@ class LocalStorage(private val context: Context) {
     }
 
     suspend fun createFolder(parentId: String, name: String): String = withContext(Dispatchers.IO) {
+        readOnlyCheck(parentId)
         DocumentsContract.createDocument(resolver, Uri.parse(parentId), Document.MIME_TYPE_DIR, name)?.toString()
             ?: throw FileNotFoundException("Couldn't create the folder here")
     }
@@ -95,6 +106,12 @@ class LocalStorage(private val context: Context) {
                         (if (it.isWritePermission) Intent.FLAG_GRANT_WRITE_URI_PERMISSION else 0),
                 )
             }
+        }
+    }
+
+    private fun readOnlyCheck(id: String) {
+        if (MediaLibrary.isMediaLibraryId(id)) {
+            throw UnsupportedOperationException("Files in the TV's media library can't be changed from here")
         }
     }
 

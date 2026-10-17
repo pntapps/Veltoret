@@ -32,6 +32,7 @@ import androidx.media3.common.VideoSize
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import com.pntapps.veltoret.ui.theme.VeltoretTheme
+import com.pntapps.veltoret.ui.util.isTv
 import com.pntapps.veltoret.ui.util.container
 import kotlinx.coroutines.launch
 
@@ -41,6 +42,7 @@ class PlayerActivity : ComponentActivity() {
         viewModelFactory { initializer { PlayerViewModel(container, argsFrom(intent)) } }
     }
 
+    private val tv by lazy { isTv() }
     private var session: MediaSession? = null
     private var attached: ExoPlayer? = null
     private val inPip = mutableStateOf(false)
@@ -97,6 +99,10 @@ class PlayerActivity : ComponentActivity() {
 
         setContent {
             VeltoretTheme {
+                if (tv) {
+                    TvPlayerScreen(viewModel = viewModel, onExit = { finish() })
+                    return@VeltoretTheme
+                }
                 PlayerScreen(
                     viewModel = viewModel,
                     inPip = inPip.value,
@@ -127,6 +133,7 @@ class PlayerActivity : ComponentActivity() {
     // ---- Orientation ---------------------------------------------------------------------------
 
     private fun applyOrientation() {
+        if (tv) return // TVs are always landscape
         val size = viewModel.player.videoSize
         val portraitVideo = size.width > 0 && size.height > size.width
         requestedOrientation = orientationChoice ?: if (portraitVideo) {
@@ -184,6 +191,7 @@ class PlayerActivity : ComponentActivity() {
     }
 
     private fun updatePipParams() {
+        if (tv) return
         runCatching { setPictureInPictureParams(pipParams()) }
     }
 
@@ -193,7 +201,7 @@ class PlayerActivity : ComponentActivity() {
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S && viewModel.player.isPlaying) enterPip()
+        if (!tv && Build.VERSION.SDK_INT < Build.VERSION_CODES.S && viewModel.player.isPlaying) enterPip()
     }
 
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
@@ -204,6 +212,8 @@ class PlayerActivity : ComponentActivity() {
     // ---- Keyboard (tablets with keyboards, Chromebooks) ----------------------------------------
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        // On TV the remote is handled by TvPlayerScreen; arrows that reach here must not seek.
+        if (tv) return super.onKeyDown(keyCode, event)
         val player = viewModel.player
         when (keyCode) {
             KeyEvent.KEYCODE_SPACE, KeyEvent.KEYCODE_K -> if (player.isPlaying) player.pause() else player.play()

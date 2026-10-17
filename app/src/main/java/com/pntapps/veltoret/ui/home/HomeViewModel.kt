@@ -51,6 +51,18 @@ data class PlayItem(
     val showId: Int?,
 )
 
+/** Everything the TV home's header shows for the focused title. Keys: "movie:<id>" / "show:<id>". */
+data class HeroInfo(
+    val title: String,
+    val backdropUrl: String?,
+    val meta: List<String?>,
+    val overview: String,
+    val rating: Double,
+    val genres: List<String>,
+)
+
+fun heroKey(isShow: Boolean, id: Int) = if (isShow) "show:$id" else "movie:$id"
+
 data class HomeUiState(
     val loading: Boolean = true,
     val hasFolders: Boolean = true,
@@ -64,6 +76,7 @@ data class HomeUiState(
     val unmatchedCount: Int = 0,
     val archiveCount: Int = 0,
     val scan: ScanState = ScanState(),
+    val heroes: Map<String, HeroInfo> = emptyMap(),
 ) {
     val isEmpty get() = recentMovies.isEmpty() && recentShows.isEmpty()
 }
@@ -228,6 +241,21 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
             genreRows = genreRows,
             unmatchedCount = unmatched,
             scan = scan,
+            heroes = s.movies.associate { row ->
+                val m = row.movie
+                heroKey(false, m.tmdbId) to HeroInfo(
+                    m.title, TmdbImages.backdrop(m.backdropPath),
+                    listOf(m.year?.toString(), m.certification, Format.runtime(m.runtimeMin)),
+                    m.overview, m.rating, m.genres.split(',').filter { it.isNotBlank() },
+                )
+            } + s.shows.associate { row ->
+                val sh = row.show
+                heroKey(true, sh.tmdbId) to HeroInfo(
+                    sh.name, TmdbImages.backdrop(sh.backdropPath),
+                    listOf(sh.year?.toString(), sh.certification, "${sh.seasonCount} season${if (sh.seasonCount == 1) "" else "s"}"),
+                    sh.overview, sh.rating, sh.genres.split(',').filter { it.isNotBlank() },
+                )
+            },
         )
     }
 }

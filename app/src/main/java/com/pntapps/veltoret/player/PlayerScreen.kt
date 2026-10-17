@@ -160,7 +160,7 @@ private data class SeekFeedback(val forward: Boolean, val seconds: Int, val stam
 
 /** Fast-changing playback numbers live here so only the timeline and subtitles recompose. */
 @Stable
-private class PlaybackClock {
+internal class PlaybackClock {
     var position by mutableLongStateOf(0L)
     var duration by mutableLongStateOf(0L)
     var buffered by mutableLongStateOf(0L)
@@ -730,7 +730,7 @@ fun PlayerScreen(
 
 @OptIn(UnstableApi::class)
 @Composable
-private fun SubtitleLayer(
+internal fun SubtitleLayer(
     viewModel: PlayerViewModel,
     ui: PlayerUi,
     clock: PlaybackClock,

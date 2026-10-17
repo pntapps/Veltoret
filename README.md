@@ -45,6 +45,11 @@ them with a full-featured player.
   back into Drive with one tap. The archive streams through the phone (nothing is stored on it),
   resumes after interruptions, and the new folder is added to the library automatically.
 - **Multiple Google accounts**, merged into one library.
+- **Android TV / Google TV**: the same APK installs on TVs and switches to a remote-first interface:
+  a navigation rail, a Home header that follows focus, poster rows that keep focus in a fixed spot,
+  side panels for choices, and a player built for the D-pad (OK pauses, ← → seek with acceleration,
+  ↓ shows the controls, media keys work). Google Drive sign-in works with the TV's Google account;
+  videos on the TV's own storage and USB drives come from the TV's media library.
 - Adaptive layouts for phones, tablets and foldables. Premium dark theme, no gradients.
 
 ## Tech

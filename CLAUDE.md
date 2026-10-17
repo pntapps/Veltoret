@@ -137,6 +137,22 @@ Each rule below exists because breaking it caused a real bug.
   screens use. If you change an image size in a screen, update `ArtworkPrefetch` too, or that artwork
   won't be available offline.
 
+**Android TV (`ui/tv`, `player/TvPlayerScreen.kt`)**
+- One APK. `Context.isTv()` (leanback feature or TV UI mode) makes `MainActivity` show `TvApp` /
+  `TvOnboarding` and `PlayerActivity` show `TvPlayerScreen`; phones and tablets are unaffected. Screens
+  reuse the phone ViewModels; only the UI differs. Don't call phone screens from TV code or vice versa.
+- Every focusable thing is a `TvSurface` (or `TvButton`/`TvChip`/`TvListItem`/cards built on it) so focus
+  looks the same everywhere. Each screen requests initial focus with `focusSoon()` (plain
+  `requestFocus()` in the first frame can be dropped, leaving the remote with nothing focused).
+- Rows/grids use `PivotScrolling` so focus stays at a fixed spot. Text fields need `tvTextFieldExit()`,
+  otherwise ↑/↓ are trapped inside the field.
+- Back order: content → rail → Home → exit. The rail's `focusProperties` keep ↑/↓ inside it.
+- TVs have no real folder picker (`MediaLibrary.folderPickerAvailable` is false; only a stub answers).
+  "Videos on this TV" asks for `READ_MEDIA_VIDEO` and browses MediaStore by path (`ms:` folder ids,
+  `content://media/` file ids, read-only). Phones keep using SAF.
+- Test TV changes on a Google TV emulator with the D-pad only (`adb shell input keyevent KEYCODE_DPAD_*`):
+  check focus is always visible, never lost, and Back behaves.
+
 **Device storage (SAF)**
 - Device folders are granted with `ACTION_OPEN_DOCUMENT_TREE` and **persisted URI permissions**; there is no
   broad storage permission. Release a permission (`LocalStorage.release`) only when no library folder

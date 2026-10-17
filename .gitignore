@@ -17,3 +17,12 @@ local.properties
 
 # Personal Claude Code settings
 /.claude/settings.local.json
+
+# Release signing keys: never commit
+*.jks
+*.keystore
+keystore.properties
+
+# Built apps (a private release build may contain your TMDB key)
+*.apk
+*.aab

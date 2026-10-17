@@ -32,7 +32,7 @@ data class AppSettings(
     val subtitleBackground: Boolean = false,
     val lastScanAt: Long = 0,
 ) {
-    val tmdbKey: String get() = tmdbKeyOverride.ifBlank { BuildConfig.DEV_TMDB_KEY }
+    val tmdbKey: String get() = tmdbKeyOverride.ifBlank { BuildConfig.BUNDLED_TMDB_KEY }
 }
 
 class SettingsRepository(private val context: Context) {

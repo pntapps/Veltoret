@@ -1,5 +1,7 @@
 package com.pntapps.veltoret.ui.home
 
+import com.pntapps.veltoret.ui.util.rememberOnline
+import androidx.compose.material.icons.rounded.CloudOff
 import com.pntapps.veltoret.ui.util.gutter
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -88,6 +90,7 @@ fun HomeScreen(navigator: Navigator) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val width = LocalWidthClass.current
+    val online = rememberOnline()
     val posterWidth = when (width) {
         WidthClass.Compact -> 124.dp
         WidthClass.Medium -> 150.dp
@@ -137,6 +140,13 @@ fun HomeScreen(navigator: Navigator) {
                     "Found ${state.scan.filesFound} videos so far. Posters will appear here as titles are matched.",
                 )
             }
+            state.isEmpty && !online -> item("offline-empty") {
+                EmptyState(
+                    Icons.Rounded.CloudOff,
+                    "Nothing on this device",
+                    "Your library is on Google Drive. Connect to the internet to watch it, or add a folder from this device in Settings.",
+                )
+            }
             state.isEmpty -> item("empty") {
                 EmptyState(
                     Icons.Rounded.VideoLibrary,
@@ -163,7 +173,8 @@ fun HomeScreen(navigator: Navigator) {
             }
         }
 
-        if (state.unmatchedCount > 0) {
+        // Matching needs TMDB, so the prompt waits until the device is back online.
+        if (state.unmatchedCount > 0 && online) {
             item("unmatched") {
                 Panel(
                     Modifier

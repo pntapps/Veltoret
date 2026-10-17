@@ -54,10 +54,22 @@ object PlayTargets {
 }
 
 /** Resolves what a "Play" button should start. */
-class PlaybackResolver(private val files: MediaFileDao, private val watch: WatchDao) {
-    /** Best version of a movie: highest resolution, then largest file. */
-    suspend fun movieFile(movieId: Int): MediaFileEntity? = files.forMovie(movieId).firstOrNull()
+class PlaybackResolver(
+    private val files: MediaFileDao,
+    private val watch: WatchDao,
+    private val connectivity: com.pntapps.veltoret.data.net.Connectivity,
+) {
+    /** Best version of a movie: a device copy first, then highest resolution and largest file. */
+    suspend fun movieFile(movieId: Int): MediaFileEntity? = playable(files.forMovie(movieId)).firstOrNull()
 
     suspend fun showTarget(showId: Int): EpisodeTarget? =
-        PlayTargets.nextEpisode(files.forShow(showId), watch.forShow(showId))
+        PlayTargets.nextEpisode(playable(files.forShow(showId)), watch.forShow(showId))
+
+    /** What "Play" on a show starts: the next episode, or episode 1 again once everything is watched. */
+    suspend fun showPlayTarget(showId: Int): EpisodeTarget? =
+        showTarget(showId) ?: PlayTargets.nextEpisode(playable(files.forShow(showId)), emptyList())
+
+    /** Offline, only device copies can play. */
+    private fun playable(list: List<MediaFileEntity>) =
+        if (connectivity.isOnline) list else list.filter { com.pntapps.veltoret.data.storage.LocalStorage.isLocal(it.accountEmail) }
 }

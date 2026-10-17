@@ -20,6 +20,10 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         val container = (applicationContext as VeltoretApp).container
         return try {
             container.scanner.scanAll()
+            // Keep artwork on the device for offline use; a failure here never fails the sync.
+            if (container.connectivity.isOnline) {
+                runCatching { ArtworkPrefetch(applicationContext, container.database.catalogDao()).run() }
+            }
             Result.success()
         } catch (e: Exception) {
             if (runAttemptCount < 2) Result.retry() else Result.failure()

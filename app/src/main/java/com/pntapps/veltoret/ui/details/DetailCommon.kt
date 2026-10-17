@@ -1,5 +1,8 @@
 package com.pntapps.veltoret.ui.details
 
+import com.pntapps.veltoret.ui.util.rememberOnline
+import com.pntapps.veltoret.ui.util.canPlayNow
+import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -237,10 +240,12 @@ fun VersionsSection(files: List<MediaFileEntity>, onPlay: (MediaFileEntity) -> U
 
 @Composable
 fun FileRow(file: MediaFileEntity, onClick: () -> Unit) {
+    val playable = canPlayNow(file.accountEmail, rememberOnline())
     Panel(
         Modifier
             .clip(CardShape)
-            .clickable(onClick = onClick),
+            .alpha(if (playable) 1f else 0.45f)
+            .clickable(enabled = playable, onClick = onClick),
         padding = PaddingValues(14.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -268,7 +273,11 @@ fun FileRow(file: MediaFileEntity, onClick: () -> Unit) {
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(
-                        if (onDevice) "On this device" else file.accountEmail,
+                        when {
+                            onDevice -> "On this device"
+                            !playable -> "Google Drive · needs internet"
+                            else -> file.accountEmail
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = if (onDevice) VColors.AmberSoft else VColors.TextFaint,
                         maxLines = 1,

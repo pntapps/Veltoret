@@ -302,9 +302,13 @@ class PlayerViewModel(private val container: AppContainer, args: PlayerArgs) : V
         loadJob = viewModelScope.launch { load(args.fileId, args.accountEmail, args.fromStart) }
     }
 
-    private suspend fun load(id: String, emailHint: String?, fromStart: Boolean) {
+    private suspend fun load(requestedId: String, emailHint: String?, fromStart: Boolean) {
+        var found = library.file(requestedId)
+        // Offline, a Drive file can't stream, but the same movie or episode may be stored on this device.
+        if (found != null && !container.connectivity.isOnline) library.deviceCopy(found)?.let { found = it }
+        val entity = found
+        val id = entity?.driveId ?: requestedId
         fileId = id
-        val entity = library.file(id)
         file = entity
         email = entity?.accountEmail ?: emailHint
         externals.clear()
@@ -782,6 +786,10 @@ class PlayerViewModel(private val container: AppContainer, args: PlayerArgs) : V
             cause = cause.cause
         }
         val message = error.cause?.message.orEmpty()
+        if (!container.storage.isLocal(email) && !container.connectivity.isOnline) {
+            return "You're offline. This video is on Google Drive, so it needs an internet connection. " +
+                "Videos on this device still play."
+        }
         if (container.storage.isLocal(email) && error.errorCode in setOf(
                 PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND,
                 PlaybackException.ERROR_CODE_IO_NO_PERMISSION,

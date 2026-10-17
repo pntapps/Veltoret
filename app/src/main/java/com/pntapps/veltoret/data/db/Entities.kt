@@ -203,10 +203,14 @@ data class MovieRow(
     val addedAt: Long,
     val maxHeight: Int,
     val fileCount: Int,
+    /** Copies stored on this device (playable offline). */
+    val deviceFiles: Int,
 )
 
 data class ShowRow(
     @Embedded val show: ShowEntity,
     val addedAt: Long,
     val availableEpisodes: Int,
+    /** Episodes with a copy on this device (playable offline). */
+    val deviceEpisodes: Int,
 )

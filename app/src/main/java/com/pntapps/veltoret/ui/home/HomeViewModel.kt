@@ -101,7 +101,7 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
     fun scanNow() = SyncWorker.runNow(container.appContext)
 
     suspend fun playTarget(isShow: Boolean, id: Int): String? =
-        if (isShow) container.playback.showTarget(id)?.file?.driveId else container.playback.movieFile(id)?.driveId
+        if (isShow) container.playback.showPlayTarget(id)?.file?.driveId else container.playback.movieFile(id)?.driveId
 
     private fun build(s: LibrarySnapshot, unmatched: Int, folders: List<LibraryFolderEntity>, scan: ScanState): HomeUiState {
         val statesByKey = s.states.associateBy { it.key }
@@ -138,6 +138,8 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
                             TmdbImages.backdrop(row.movie.backdropPath, "w780"), st.progress, null, row.movie.tmdbId, null,
                         )
                     }
+                    // Offline, episodeFiles only holds device copies, so this drops Drive-only episodes.
+                    st.showId != null && s.episodeFiles.none { it.showId == st.showId && it.season == st.season && it.episode == st.episode } -> null
                     st.showId != null -> showsById[st.showId]?.let { row ->
                         val ep = episodesByKey[Triple(st.showId, st.season, st.episode)]
                         PlayItem(

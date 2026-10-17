@@ -12,6 +12,7 @@ import com.pntapps.veltoret.data.db.MediaKind
 import com.pntapps.veltoret.data.db.SubtitleFileEntity
 import com.pntapps.veltoret.data.demo.DemoLibrary
 import com.pntapps.veltoret.data.drive.DriveFile
+import com.pntapps.veltoret.data.net.Connectivity
 import com.pntapps.veltoret.data.storage.Storage
 import com.pntapps.veltoret.data.settings.SettingsRepository
 import com.pntapps.veltoret.data.tmdb.TmdbKeyMissingException
@@ -44,6 +45,7 @@ class LibraryScanner(
     private val storage: Storage,
     private val tmdb: TmdbRepository,
     private val settings: SettingsRepository,
+    private val connectivity: Connectivity,
 ) {
     private val mutex = Mutex()
     private val _state = MutableStateFlow(ScanState())
@@ -55,7 +57,11 @@ class LibraryScanner(
             val errors = mutableListOf<String>()
             _state.value = ScanState(running = true, phase = "Reading your folders")
             // The debug demo library has no real Drive folders behind it.
+            // Offline: device folders still refresh; Drive folders and TMDB wait for the connection to return
+            // (VeltoretApp rescans when it does). Skipping them also keeps Drive titles in the library.
+            val online = connectivity.isOnline
             for (folder in accounts.folders().filter { it.accountEmail != DemoLibrary.EMAIL }) {
+                if (!online && !storage.isLocal(folder.accountEmail)) continue
                 try {
                     scanFolder(folder)
                 } catch (e: CancellationException) {
@@ -64,7 +70,7 @@ class LibraryScanner(
                     errors += "${folder.name}: ${e.message ?: e.javaClass.simpleName}"
                 }
             }
-            try {
+            if (online) try {
                 matchPending()
                 refreshShows()
             } catch (e: CancellationException) {

@@ -36,6 +36,9 @@ them with a full-featured player.
   system folder picker (no broad storage permission). They join the same library, play instantly
   and work offline. When a title exists both on the device and in Drive, the device copy is played.
   Google is optional: the app works with device folders alone.
+- **Offline mode**: with no internet the library shows what's stored on this device, with posters,
+  details and watch progress (artwork is cached after each scan). Drive-only titles step aside until
+  you're back online, then the library catches up by itself.
 - **Files**: a full file manager for Drive and the device: browse, play, rename, move, delete or
   trash, new folder, multi-select, search, plus background uploads and "Shared with me" for Drive.
 - **ZIP extraction**: season packs uploaded as `.zip` are found during scans and can be unpacked
@@ -69,6 +72,10 @@ app/src/main/java/com/pntapps/veltoret/
 Follow the **[Setup Guide](SETUP.md)**. It takes about 15 minutes, costs nothing, and walks you
 through building the app, connecting your own Google Cloud project for Drive access, and adding
 a free TMDB key for posters.
+
+Want to give the app to friends and family? The guide's
+**[Share section](SETUP.md#-share-veltoret-with-friends-and-family-optional)** covers the release
+key, Google sign-in for other people, an optional built-in TMDB key, and installing the APK.
 
 ### Demo library (for contributors)
 

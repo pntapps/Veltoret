@@ -1,6 +1,12 @@
 package com.pntapps.veltoret.ui
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.CloudOff
+import com.pntapps.veltoret.ui.util.rememberOnline
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -79,6 +85,7 @@ fun AppShell() {
     val navigator = remember(backStack) { Navigator(backStack) }
     val useRail = LocalWidthClass.current != WidthClass.Compact
     val current = navigator.currentTopLevel
+    val online = rememberOnline()
 
     val content: @Composable BoxScope.() -> Unit = {
         NavDisplay(
@@ -122,7 +129,7 @@ fun AppShell() {
 
     if (useRail) {
         Row(Modifier.fillMaxSize()) {
-            NavRail(current) { navigator.selectTab(it) }
+            NavRail(current, online) { navigator.selectTab(it) }
             Box(
                 Modifier
                     .weight(1f)
@@ -137,8 +144,32 @@ fun AppShell() {
                     .weight(1f)
                     .fillMaxWidth()
             ) { content() }
+            AnimatedVisibility(!online, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
+                OfflineStrip()
+            }
             BottomBar(current) { navigator.selectTab(it) }
         }
+    }
+}
+
+/** Phones: a slim note above the bottom bar while there's no internet. */
+@Composable
+private fun OfflineStrip() {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .background(VColors.AmberDim)
+            .padding(horizontal = 16.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        Icon(Icons.Rounded.CloudOff, null, tint = VColors.AmberSoft, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(
+            "Offline · showing videos on this device",
+            style = MaterialTheme.typography.labelMedium,
+            color = VColors.AmberSoft,
+        )
     }
 }
 
@@ -199,7 +230,7 @@ private fun BottomBar(current: NavKey, onSelect: (NavKey) -> Unit) {
 }
 
 @Composable
-private fun NavRail(current: NavKey, onSelect: (NavKey) -> Unit) {
+private fun NavRail(current: NavKey, online: Boolean, onSelect: (NavKey) -> Unit) {
     Row(Modifier.fillMaxHeight()) {
         Column(
             Modifier
@@ -245,6 +276,14 @@ private fun NavRail(current: NavKey, onSelect: (NavKey) -> Unit) {
                         style = MaterialTheme.typography.labelSmall,
                         color = if (selected) VColors.Amber else VColors.TextMuted,
                     )
+                }
+            }
+            Spacer(Modifier.weight(1f))
+            AnimatedVisibility(!online, enter = fadeIn(), exit = fadeOut()) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Rounded.CloudOff, "Offline", tint = VColors.AmberSoft, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.height(4.dp))
+                    Text("Offline", style = MaterialTheme.typography.labelSmall, color = VColors.AmberSoft)
                 }
             }
         }

@@ -1,5 +1,6 @@
 package com.pntapps.veltoret.ui.details
 
+import com.pntapps.veltoret.ui.util.canPlayNow
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -96,6 +97,8 @@ data class EpisodeUi(
     val file: MediaFileEntity?,
     val watched: Boolean,
     val progress: Float?,
+    /** Offline and only stored on Drive. */
+    val needsInternet: Boolean = false,
 )
 
 data class SeasonUi(val number: Int, val label: String, val watched: Int, val available: Int)
@@ -119,14 +122,17 @@ class ShowDetailViewModel(private val container: AppContainer, private val id: I
         library.show(id), library.seasons(id), library.episodes(id), library.showFiles(id), container.watchRepository.observeForShow(id),
     ) { show, seasons, episodes, files, states -> Base(show, seasons, episodes, files, states) }
 
-    val state: StateFlow<ShowDetailState> = combine(base, library.credits("tv", id), selected) { b, cast, sel ->
+    val state: StateFlow<ShowDetailState> = combine(
+        base, library.credits("tv", id), selected, container.connectivity.online,
+    ) { b, cast, sel, online ->
         val statesByKey = b.states.associateBy { it.key }
         val filesByEpisode = b.files.filter { it.season != null && it.episode != null }
             .groupBy { it.season!! to it.episode!! }
         val tmdbEpisodes = b.episodes.associateBy { it.seasonNumber to it.episodeNumber }
         val keys = (filesByEpisode.keys + tmdbEpisodes.keys.filter { (s, _) -> filesByEpisode.keys.any { it.first == s } })
         val seasonNumbers = keys.map { it.first }.distinct().sortedBy { if (it == 0) Int.MAX_VALUE else it }
-        val target = PlayTargets.nextEpisode(b.files, b.states)
+        // Offline, "Play" picks among the episodes stored on this device.
+        val target = PlayTargets.nextEpisode(b.files.filter { canPlayNow(it.accountEmail, online) }, b.states)
         val current = sel ?: target?.file?.season ?: seasonNumbers.firstOrNull() ?: 1
 
         fun isWatched(s: Int, e: Int) = statesByKey[WatchKeys.episode(id, s, e)]?.watched == true
@@ -155,6 +161,7 @@ class ShowDetailViewModel(private val container: AppContainer, private val id: I
                 file = file,
                 watched = st?.watched == true,
                 progress = st?.takeIf { !it.watched && it.positionMs > 30_000 }?.progress,
+                needsInternet = file != null && !canPlayNow(file.accountEmail, online),
             )
         }
         ShowDetailState(false, b.show, seasons, current, episodes, target, cast, b.files.map { it.driveId })
@@ -306,7 +313,7 @@ fun ShowDetailScreen(id: Int, navigator: Navigator) {
 
 @Composable
 private fun EpisodeRow(ep: EpisodeUi, wide: Boolean, onPlay: () -> Unit, onToggleWatched: () -> Unit, modifier: Modifier = Modifier) {
-    val available = ep.file != null
+    val available = ep.file != null && !ep.needsInternet
     Row(
         modifier
             .fillMaxWidth()
@@ -348,7 +355,11 @@ private fun EpisodeRow(ep: EpisodeUi, wide: Boolean, onPlay: () -> Unit, onToggl
             )
             Spacer(Modifier.height(3.dp))
             Text(
-                listOfNotNull(ep.runtime, ep.airDate, if (!available) "Not in library" else null).joinToString(" · "),
+                listOfNotNull(ep.runtime, ep.airDate, when {
+                    ep.needsInternet -> "On Google Drive · needs internet"
+                    ep.file == null -> "Not in library"
+                    else -> null
+                }).joinToString(" · "),
                 style = MaterialTheme.typography.bodySmall,
                 color = VColors.TextMuted,
             )

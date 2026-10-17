@@ -1,5 +1,7 @@
 package com.pntapps.veltoret.ui.library
 
+import com.pntapps.veltoret.ui.util.rememberOnline
+import androidx.compose.material.icons.rounded.CloudOff
 import com.pntapps.veltoret.ui.util.gutter
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -209,6 +211,7 @@ private fun LibraryGridScreen(
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     val width = LocalWidthClass.current
+    val online = rememberOnline()
     var sortOpen by remember { mutableStateOf(false) }
     var genreOpen by remember { mutableStateOf(false) }
 
@@ -233,6 +236,11 @@ private fun LibraryGridScreen(
 
         when {
             state.loading -> LoadingBox()
+            state.total == 0 && !online -> EmptyState(
+                Icons.Rounded.CloudOff, "No ${title.lowercase()} on this device",
+                "Your ${title.lowercase()} are on Google Drive. Connect to the internet to watch them, " +
+                    "or add a folder from this device in Settings.",
+            )
             state.total == 0 && state.unmatched == 0 -> EmptyState(
                 icon, "No ${title.lowercase()} yet",
                 "Add a ${title.lowercase()} folder in Settings, or wait for the library scan to finish.",
@@ -252,7 +260,7 @@ private fun LibraryGridScreen(
             ) {
                 item(span = { GridItemSpan(maxLineSpan) }, key = "chips") {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 4.dp)) {
-                        if (state.unmatched > 0) {
+                        if (state.unmatched > 0 && online) {
                             item {
                                 SelectChip("${state.unmatched} unmatched", false, { navigator.navigate(UnmatchedRoute) }, icon = Icons.Rounded.ErrorOutline)
                             }

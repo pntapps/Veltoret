@@ -89,12 +89,13 @@ class AppContainer(context: Context) {
     val storage = com.pntapps.veltoret.data.storage.Storage(driveRepository, localStorage)
     val tmdbRepository = TmdbRepository(tmdbApi, database.catalogDao())
     val watchRepository = WatchRepository(database.watchDao())
-    val libraryRepository = LibraryRepository(database.catalogDao(), database.mediaFileDao())
+    val connectivity = com.pntapps.veltoret.data.net.Connectivity(appContext)
+    val libraryRepository = LibraryRepository(database.catalogDao(), database.mediaFileDao(), connectivity)
     val accountRepository = AccountRepository(
         database.accountDao(), database.mediaFileDao(), database.catalogDao(), driveRepository, localStorage, auth,
     )
-    val playback = com.pntapps.veltoret.data.library.PlaybackResolver(database.mediaFileDao(), database.watchDao())
+    val playback = com.pntapps.veltoret.data.library.PlaybackResolver(database.mediaFileDao(), database.watchDao(), connectivity)
     val scanner = LibraryScanner(
-        database.accountDao(), database.mediaFileDao(), database.catalogDao(), storage, tmdbRepository, settings,
+        database.accountDao(), database.mediaFileDao(), database.catalogDao(), storage, tmdbRepository, settings, connectivity,
     )
 }

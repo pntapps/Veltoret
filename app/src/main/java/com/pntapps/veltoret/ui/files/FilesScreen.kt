@@ -89,6 +89,7 @@ import com.pntapps.veltoret.data.db.LibraryType
 import com.pntapps.veltoret.data.drive.DriveFile
 import com.pntapps.veltoret.data.library.FilenameParser
 import com.pntapps.veltoret.data.storage.LocalStorage
+import com.pntapps.veltoret.ui.util.rememberOnline
 import com.pntapps.veltoret.player.playFile
 import com.pntapps.veltoret.ui.components.EmptyState
 import com.pntapps.veltoret.ui.components.LoadingBox
@@ -132,11 +133,19 @@ fun FilesScreen(navigator: Navigator) {
     var addMenu by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val local = LocalStorage.isLocal(state.account)
+    val online = rememberOnline()
+    val driveOffline = !local && !online
     val pickDeviceFolder = rememberLocalFolderPicker { uri ->
         scope.launch { vm.adoptDeviceFolder(uri)?.let { dialog = FileDialog.AddToLibrary(it) } }
     }
 
     LaunchedEffect(Unit) { vm.messages.collect { snackbar.showSnackbar(it) } }
+    // Back online: reload the Drive folder that couldn't load while offline.
+    var wasOffline by remember { mutableStateOf(false) }
+    LaunchedEffect(online) {
+        if (online && wasOffline && !local) vm.load(refresh = true)
+        wasOffline = !online
+    }
     BackHandler(enabled = state.selecting || state.searchQuery != null || state.stack.size > 1) { vm.back() }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
@@ -244,11 +253,11 @@ fun FilesScreen(navigator: Navigator) {
                         .widthIn(max = 720.dp),
                 )
             } else {
-                if (!local) Row(Modifier.padding(horizontal = gutter()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (!local && !driveOffline) Row(Modifier.padding(horizontal = gutter()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     SelectChip("My Drive", !state.sharedRoot, { vm.setSharedRoot(false) })
                     SelectChip("Shared with me", state.sharedRoot, { vm.setSharedRoot(true) })
                 }
-                Breadcrumbs(state.stack, horizontalPadding = gutter() - 6.dp) { vm.goTo(it) }
+                if (!driveOffline) Breadcrumbs(state.stack, horizontalPadding = gutter() - 6.dp) { vm.goTo(it) }
             }
 
             PullToRefreshBox(
@@ -257,6 +266,11 @@ fun FilesScreen(navigator: Navigator) {
                 modifier = Modifier.weight(1f),
             ) {
                 when {
+                    driveOffline -> EmptyState(
+                        Icons.Rounded.CloudOff, "You're offline",
+                        "Google Drive needs an internet connection. Folders on this device still work.",
+                        actionLabel = "Show this device", onAction = vm::useDevice,
+                    )
                     state.loading -> LoadingBox()
                     state.error != null -> EmptyState(
                         if (local) Icons.Rounded.FolderOff else Icons.Rounded.CloudOff,
@@ -324,7 +338,7 @@ fun FilesScreen(navigator: Navigator) {
             uploads.take(3).forEach { up ->
                 TransferCard(UploadIcon, up.name, null, up.progress, up.state, Modifier.padding(bottom = 10.dp).width(300.dp))
             }
-            if (!state.selecting && !state.atSharedRoot) {
+            if (!state.selecting && !state.atSharedRoot && !driveOffline) {
                 Box {
                     Box(
                         Modifier

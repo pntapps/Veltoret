@@ -79,6 +79,15 @@ interface MediaFileDao {
     @Query("SELECT * FROM media_files WHERE kind = 'EPISODE' AND showId IS NOT NULL")
     fun observeEpisodeFiles(): Flow<List<MediaFileEntity>>
 
+    @Query("SELECT * FROM media_files WHERE movieId = :movieId AND accountEmail = 'device' ORDER BY height DESC, sizeBytes DESC LIMIT 1")
+    suspend fun deviceCopyOfMovie(movieId: Int): MediaFileEntity?
+
+    @Query(
+        "SELECT * FROM media_files WHERE showId = :showId AND season = :season AND episode = :episode " +
+            "AND accountEmail = 'device' ORDER BY height DESC LIMIT 1"
+    )
+    suspend fun deviceCopyOfEpisode(showId: Int, season: Int, episode: Int): MediaFileEntity?
+
     @Query("SELECT DISTINCT showId, season FROM media_files WHERE showId IS NOT NULL AND season IS NOT NULL")
     suspend fun showSeasons(): List<ShowSeason>
 
@@ -140,7 +149,8 @@ interface MediaFileDao {
 @Dao
 interface CatalogDao {
     @Query(
-        """SELECT m.*, MIN(f.addedAt) AS addedAt, MAX(f.height) AS maxHeight, COUNT(f.driveId) AS fileCount
+        """SELECT m.*, MIN(f.addedAt) AS addedAt, MAX(f.height) AS maxHeight, COUNT(f.driveId) AS fileCount,
+                  SUM(CASE WHEN f.accountEmail = 'device' THEN 1 ELSE 0 END) AS deviceFiles
            FROM movies m JOIN media_files f ON f.movieId = m.tmdbId
            GROUP BY m.tmdbId"""
     )
@@ -148,7 +158,8 @@ interface CatalogDao {
 
     @Query(
         """SELECT s.*, MAX(f.addedAt) AS addedAt,
-                  COUNT(DISTINCT (f.season * 10000 + f.episode)) AS availableEpisodes
+                  COUNT(DISTINCT (f.season * 10000 + f.episode)) AS availableEpisodes,
+                  COUNT(DISTINCT CASE WHEN f.accountEmail = 'device' THEN f.season * 10000 + f.episode END) AS deviceEpisodes
            FROM shows s JOIN media_files f ON f.showId = s.tmdbId
            GROUP BY s.tmdbId"""
     )

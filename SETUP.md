@@ -26,6 +26,7 @@ Google Drive. **It takes about 15 minutes** and you only do it once.
 | **6** | [Register the app with Google](#step-6--register-the-app-with-google) | 2 min |
 | **7** | [Get a TMDB key for posters](#step-7--get-a-tmdb-key-for-posters) | 3 min |
 | **8** | [Connect and enjoy](#step-8--connect-and-enjoy) | 1 min |
+| ➕ | [Share with friends and family](#-share-veltoret-with-friends-and-family-optional) (optional) | 15 min |
 
 **You'll need:**
 
@@ -274,12 +275,117 @@ Veltoret understands messy file names, but this layout matches almost perfectly 
 
 </details>
 
+## 📦 Share Veltoret with friends and family (optional)
+
+Build an APK that people you know can install, with both device folders and Google Drive working.
+You do steps 1–3 once; after that, each new version is a single build.
+
+> [!IMPORTANT]
+> Device folders work for everyone straight away. **Google Drive only works for accounts you add as
+> test users** (step 3). That's how Google's *Testing* mode works, and it allows up to 100 people.
+
+### 1. Create a release signing key (once)
+
+In Android Studio: **Build → Generate Signed App Bundle or APK → APK → Next → Create new…**, or from a terminal:
+
+```bash
+keytool -genkeypair -v -keystore veltoret-release.jks -alias veltoret -keyalg RSA -keysize 4096 -validity 10000
+```
+
+> [!CAUTION]
+> Keep the `.jks` file **outside the project folder**, back it up, and remember its passwords. Every
+> update must be signed with the same key. If you lose it, everyone has to uninstall before they can
+> install a new version. `*.jks` and `*.keystore` are git-ignored as a safety net, but don't rely on
+> that alone.
+
+`keytool` ships with Android Studio, in `C:\Program Files\Android\Android Studio\jbr\bin` on Windows
+or `/Applications/Android Studio.app/Contents/jbr/Contents/Home/bin` on macOS.
+
+### 2. Register the release key with Google (once)
+
+Google recognises the app by its signing fingerprint, and the release key has a different one from
+your debug builds. Without this step, Drive sign-in fails in the shared APK.
+
+1. Print the release SHA-1:
+   ```bash
+   keytool -list -v -keystore /path/to/veltoret-release.jks -alias veltoret
+   ```
+2. In Google Cloud, go to **APIs & Services → Credentials → Create credentials → OAuth client ID**,
+   choose **Android**, and enter the **same package name** as in Step 6 with the **release SHA-1**.
+   Keep your debug client too; each build type needs its own.
+
+### 3. Add each person as a test user
+
+Go to **Google Auth Platform → Audience → Test users → Add users** and enter each person's Gmail
+address. Keep the app in **Testing** mode. When they connect Drive they'll see *"Google hasn't
+verified this app"*; they tap **Continue**, then **Allow**.
+
+> [!NOTE]
+> Publishing the app (leaving Testing mode) requires Google's verification, and for full Drive access
+> that includes a paid security assessment. Testing mode is meant for exactly this kind of
+> personal sharing.
+
+### 4. Include your TMDB key (optional)
+
+Normally every user pastes their own TMDB key during setup. For an APK you share privately, you can
+build your key in, so posters work with no setup. Add this to `local.properties` next to `tmdb.apiKey`:
+
+```properties
+tmdb.embedInRelease=true
+```
+
+Onboarding then shows *"Posters & details are ready"*, and people can still switch to their own key
+in **Settings → TMDB**.
+
+> [!WARNING]
+> `local.properties` is git-ignored, so the key never reaches GitHub. **The APK itself does contain
+> it**, so only send that APK to people you trust, and never attach it to a public GitHub release.
+> Signed APKs are written to `app/release/` and `app/build/`, both of which are git-ignored.
+> Public builds (anyone cloning the repo) never include a key.
+
+### 5. Build the APK
+
+**From Android Studio:** **Build → Generate Signed App Bundle or APK → APK**, pick your key, choose
+**release**, and click **Create**. The APK is saved as `app/release/app-release.apk`.
+
+**Or with one command:** create `keystore.properties` in the project root (git-ignored):
+
+```properties
+storeFile=C:/Users/you/keys/veltoret-release.jks
+storePassword=your-store-password
+keyAlias=veltoret
+keyPassword=your-key-password
+```
+
+then run:
+
+```bash
+./gradlew :app:assembleRelease
+```
+
+The APK is saved as `app/build/outputs/apk/release/app-release.apk`.
+
+### 6. Install it on their phones
+
+1. Send the APK through Google Drive, WhatsApp, Telegram, email or a USB cable.
+2. On their phone, tap the file and allow **Install unknown apps** for the app they opened it from.
+3. If Play Protect says the app is from an unknown developer, tap **More details → Install anyway**.
+   This happens because the app isn't from the Play Store.
+4. Open Veltoret and choose **Connect Google account**, **Use files on this device**, or both.
+
+### Updates
+
+Increase `versionCode` (and `versionName`) in `app/build.gradle.kts`, build again with **the same
+key**, and send the new APK. It installs over the old version and keeps everyone's library, watch
+progress and settings.
+
 ---
 
 ## 🛠️ Troubleshooting
 
 | What you see | What it means | How to fix it |
 | --- | --- | --- |
+| A shared APK installs, but Drive sign-in fails for a friend | Release key not registered, or they aren't a test user | Add the **release** SHA-1 as an Android client and add their Gmail as a test user ([Share section](#-share-veltoret-with-friends-and-family-optional)). |
 | **"Google didn't grant access"** and the Google screen closes instantly | Google doesn't recognise this build | Check the **package name** and **SHA-1** in Step 6 match the app (see the app's *Setup details* card). Wait 10 minutes after creating the client. |
 | **"Access blocked: Veltoret has not completed the Google verification process"** | Your account isn't a test user | Add it in **Step 5b**. |
 | **Error 403: access_denied** | Same as above | Add the account as a test user (**Step 5b**). |
@@ -328,6 +434,8 @@ Release builds are signed with your release key, which has a different SHA-1. Ge
 `signingReport` (look under `Variant: release`) or, for Play Store builds, from
 **Play Console → Protected with Play → Play Store protection → Manage Play app signing**.
 Add a new **Android** client for that SHA-1 in Step 6. You can have as many clients as you like.
+For sharing an APK with friends and family, follow the
+[Share section](#-share-veltoret-with-friends-and-family-optional).
 
 </details>
 

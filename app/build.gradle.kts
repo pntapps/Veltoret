@@ -7,12 +7,22 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
-// Developer-only secrets live in local.properties (git-ignored). Never commit keys.
+// Secrets live in local.properties (git-ignored). Never commit keys.
+//   tmdb.apiKey=...              built into debug builds
+//   tmdb.embedInRelease=true     also build it into release APKs you share privately (see SETUP.md)
 val localProps = Properties().apply {
     val file = rootProject.file("local.properties")
     if (file.exists()) file.inputStream().use { load(it) }
 }
-val devTmdbKey: String = localProps.getProperty("tmdb.apiKey", "")
+val tmdbKey: String = localProps.getProperty("tmdb.apiKey", "")
+val embedTmdbKeyInRelease: Boolean = localProps.getProperty("tmdb.embedInRelease", "false").toBoolean()
+
+// Optional release signing from keystore.properties (git-ignored), so `./gradlew assembleRelease`
+// produces an installable APK. Without the file, release builds are unsigned.
+val keystoreProps = Properties().apply {
+    val file = rootProject.file("keystore.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
 
 android {
     namespace = "com.pntapps.veltoret"
@@ -30,13 +40,26 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (keystoreProps.getProperty("storeFile") != null) {
+            create("release") {
+                storeFile = file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         debug {
-            buildConfigField("String", "DEV_TMDB_KEY", "\"$devTmdbKey\"")
+            buildConfigField("String", "BUNDLED_TMDB_KEY", "\"$tmdbKey\"")
         }
         release {
-            // Release builds never embed a key; users provide their own in the app.
-            buildConfigField("String", "DEV_TMDB_KEY", "\"\"")
+            // Public builds carry no key (users bring their own). Private builds for friends and family
+            // can opt in with tmdb.embedInRelease=true in local.properties.
+            buildConfigField("String", "BUNDLED_TMDB_KEY", "\"${if (embedTmdbKeyInRelease) tmdbKey else ""}\"")
+            signingConfigs.findByName("release")?.let { signingConfig = it }
             optimization {
                 enable = true
             }

@@ -136,7 +136,8 @@ class OnboardingViewModel(private val container: AppContainer) : ViewModel() {
     val accounts = container.accountRepository.observeAccounts().stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     val folders = container.accountRepository.observeFolders().stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     val scan = container.scanner.state
-    val initialKey: String get() = BuildConfig.DEV_TMDB_KEY
+    /** This copy was built with a TMDB key (debug builds, or a private release for friends and family). */
+    val hasBundledKey: Boolean get() = BuildConfig.BUNDLED_TMDB_KEY.isNotBlank()
 
     private val _keyStatus = MutableStateFlow<KeyStatus>(KeyStatus.Idle)
     val keyStatus = _keyStatus.asStateFlow()
@@ -666,10 +667,46 @@ private fun ColumnScope.FoldersStep(vm: OnboardingViewModel, onNext: () -> Unit)
 
 @Composable
 private fun ColumnScope.TmdbStep(vm: OnboardingViewModel, onNext: () -> Unit) {
-    var key by rememberSaveable { mutableStateOf(vm.initialKey) }
+    var key by rememberSaveable { mutableStateOf("") }
     var visible by remember { mutableStateOf(false) }
     val status by vm.keyStatus.collectAsStateWithLifecycle()
     val uri = LocalUriHandler.current
+    // With a built-in key there's nothing to set up; people can still switch to their own key.
+    var useOwnKey by rememberSaveable { mutableStateOf(false) }
+    if (vm.hasBundledKey && !useOwnKey) {
+        StepLayout(
+            illustration = { MetadataIllustration(it.widthIn(max = 420.dp)) },
+            wideScale = 1.15f,
+            bottom = {
+                VButton("Build my library", onNext, icon = Icons.AutoMirrored.Rounded.ArrowForward, modifier = Modifier.fillMaxWidth())
+            },
+        ) {
+            StepHeader(
+                "Step 3 · Artwork", "Posters & details are ready",
+                "This copy of Veltoret comes with a TMDB key, so posters, cast and episode guides work without any setup.",
+            )
+            Row(
+                Modifier
+                    .padding(top = 4.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { useOwnKey = true }
+                    .padding(vertical = 6.dp)
+                    .entrance(4),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Rounded.Key, null, tint = VColors.Amber, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Use my own TMDB key instead", style = MaterialTheme.typography.labelLarge, color = VColors.Amber)
+            }
+            Spacer(Modifier.height(16.dp))
+            Text(
+                "This product uses the TMDB API but is not endorsed or certified by TMDB.",
+                style = MaterialTheme.typography.bodySmall,
+                color = VColors.TextFaint,
+            )
+        }
+        return
+    }
 
     StepLayout(
         illustration = { MetadataIllustration(it.widthIn(max = 420.dp)) },

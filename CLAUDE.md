@@ -126,6 +126,17 @@ Each rule below exists because breaking it caused a real bug.
   manual `Migration`, and commit the new schema JSON in `app/schemas`. Never use destructive fallback;
   users would lose their libraries and watch history.
 
+**Offline mode**
+- `Connectivity` (in `data/net`) exposes `online`. Offline, `LibraryRepository.movies()` / `shows()` /
+  `episodeFiles()` return only titles and episodes with a device copy, and `PlaybackResolver` and the
+  player prefer or substitute device copies (`LibraryRepository.deviceCopy`). Screens use
+  `rememberOnline()` / `canPlayNow()` from `ui/util/Online.kt`. New lists of playable things must respect this.
+- Offline scans skip Drive folders and TMDB rather than failing; coming back online triggers a rescan
+  (`VeltoretApp`).
+- After each online scan `ArtworkPrefetch` warms Coil's disk cache with the exact poster/backdrop URLs the
+  screens use. If you change an image size in a screen, update `ArtworkPrefetch` too, or that artwork
+  won't be available offline.
+
 **Device storage (SAF)**
 - Device folders are granted with `ACTION_OPEN_DOCUMENT_TREE` and **persisted URI permissions**; there is no
   broad storage permission. Release a permission (`LocalStorage.release`) only when no library folder
@@ -152,7 +163,11 @@ Each rule below exists because breaking it caused a real bug.
 ## Public repository rules
 
 - **Never commit secrets.** The TMDB key lives only in git-ignored `local.properties` (`tmdb.apiKey=…`)
-  and is compiled into **debug builds only** as `BuildConfig.DEV_TMDB_KEY`. Each user registers their own
+  and is compiled into debug builds as `BuildConfig.BUNDLED_TMDB_KEY`. Release builds include it **only**
+  when the maintainer sets `tmdb.embedInRelease=true` in `local.properties` for APKs shared privately
+  (SETUP.md "Share" section); public builds never contain a key. Release signing comes from git-ignored
+  `keystore.properties`. Never commit `*.jks`, `*.keystore`, `keystore.properties`, APKs/AABs or
+  `app/release/`; those built APKs may contain the key. Each user registers their own
   Google OAuth client (package name + SHA-1) as described in `SETUP.md`; nothing Google-specific is in
   the repo. Don't add real SHA-1 fingerprints, emails, device serials or personal file paths to code,
   tests or docs.

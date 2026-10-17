@@ -1,5 +1,7 @@
 package com.pntapps.veltoret.ui.details
 
+import com.pntapps.veltoret.ui.util.rememberOnline
+import com.pntapps.veltoret.ui.util.canPlayNow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -140,7 +142,7 @@ fun MovieDetailScreen(id: Int, navigator: Navigator) {
                         },
                         onClick = { best?.let { context.playFile(it.driveId, it.accountEmail, fromStart = watch?.watched == true) } },
                         icon = if (watch?.watched == true) Icons.Rounded.Replay else Icons.Rounded.PlayArrow,
-                        enabled = best != null,
+                        enabled = best != null && canPlayNow(best.accountEmail, rememberOnline()),
                         modifier = Modifier.weight(1f, fill = !wide),
                     )
                     VButton(

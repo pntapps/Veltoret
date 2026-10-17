@@ -424,7 +424,7 @@ private fun TmdbKeyPanel(current: String, onSave: (String) -> Unit) {
         Column {
             Text(
                 "Paste your TMDB API key or API Read Access Token. Get one free at themoviedb.org → Settings → API." +
-                    if (current.isBlank() && BuildConfig.DEV_TMDB_KEY.isNotBlank()) "\nCurrently using the developer key from local.properties." else "",
+                    if (current.isBlank() && BuildConfig.BUNDLED_TMDB_KEY.isNotBlank()) "\nCurrently using the key built into this copy of the app. Paste your own to replace it." else "",
                 style = MaterialTheme.typography.bodySmall,
                 color = VColors.TextMuted,
             )

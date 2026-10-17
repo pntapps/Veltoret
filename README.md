@@ -89,6 +89,8 @@ TMDB titles backed by placeholder files, so you can work on every screen (phone,
 without connecting Google Drive. Remove it any time from **Settings** by removing the
 "Demo Library" account. Playback isn't available for demo items.
 
+What changed recently: see **[CHANGELOG.md](CHANGELOG.md)**.
+
 ## Roadmap
 
 - Android TV (Compose for TV, D-pad focus)

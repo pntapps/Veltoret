@@ -22,15 +22,13 @@ This app has many features that depend on each other and were tuned on real devi
    or emulator and say what you tested. If you couldn't test something, say so plainly.
 6. **Ask when a change is destructive or ambiguous**: database schema changes, deleting files or data,
    changing how files are matched, or anything that affects users' existing libraries.
-7. **Keep this file up to date, in the same change.** Every feature, bug fix or behavior change must
-   update `CLAUDE.md` before the work is considered done:
-   - add a line to the **Project log** at the bottom (date, what changed, where);
-   - if you fixed a bug that could come back, add a rule to **Don't break these** saying what must stay true
-     and why;
-   - if you added a module, screen or important class, update **Architecture**;
-   - if a rule here is no longer true, fix or remove it rather than leaving it stale.
-   Keep entries short and factual. Never put secrets, emails, device serials or personal paths here.
-   Also update `README.md` / `SETUP.md` when user-visible features or setup steps change.
+7. **Keep the docs true, in the same change.** A feature, fix or behavior change isn't done until:
+   - **this file** is still accurate: add a rule to **Don't break these** for any bug that could come back
+     (what must stay true and why), update **Architecture** for new modules, screens or key classes, and
+     fix or delete anything that's no longer true. This file holds instructions only, not history, so keep it short;
+   - **`CHANGELOG.md`** has a line under *Unreleased* describing the change for people using the app;
+   - **`README.md` / `SETUP.md`** reflect any user-visible feature or setup change.
+   Never put secrets, emails, device serials or personal paths in any of these.
 
 ## Build and test
 
@@ -213,23 +211,3 @@ Don't reverse these without the maintainer:
 - Users bring their own TMDB key and Google Cloud OAuth client; the app has no server.
 - Google is optional; device-only use is fully supported.
 - No software video decoding library: modern devices decode 10-bit HEVC in hardware.
-
-## Project log
-
-Newest first. One or two lines per change: what and where. Add to this with every change (rule 7).
-
-- 2026-10-17 · Android TV / Google TV interface (`ui/tv`, `player/TvPlayerScreen.kt`): rail, focus-following
-  Home header, grids, details, search, files, settings, onboarding, D-pad player; TV videos via MediaStore
-  (`data/storage/MediaLibrary.kt`); launcher banner.
-- 2026-10-17 · Private sharing: optional TMDB key in release builds (`tmdb.embedInRelease`), release signing
-  from `keystore.properties`; SETUP.md "Share" section. Fix: Play on a fully watched show restarts at E1.
-- 2026-10-17 · Offline mode (`data/net/Connectivity.kt`, `ArtworkPrefetch`, `ui/util/Online.kt`): device-only
-  library offline, device-copy substitution, artwork prefetch, offline indicators, rescan on reconnect.
-- 2026-10-17 · `CLAUDE.md` added; `.idea/` ignored except code styles; `gradlew` executable.
-- 2026-10-17 · Playback start speed for device files (`BufferedDataSource`, ~24 s → ~1 s); MKV extractor
-  ignores SeekHead entries past end of file (incomplete downloads).
-- 2026-10-17 · UI/bug pass: stricter TMDB matching, hero prefers rated titles, Ignore for non-movies
-  (`MatchState.IGNORED`), release-site track labels hidden, Pure black backgrounds, portrait-tablet hero.
-- 2026-10-17 · Device storage (SAF folders on internal storage, SD card, USB); Google optional.
-- Earlier · Core app: Drive library + TMDB, Media3 player (patched MKV extractor, FFmpeg audio, per-video
-  track memory), file manager, ZIP extraction, multi-account, phone/tablet/foldable layouts.

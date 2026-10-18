@@ -35,7 +35,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.focusGroup
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
@@ -244,6 +246,7 @@ private fun versionDetail(f: MediaFileEntity, online: Boolean): String = listOfN
 // Show
 // ---------------------------------------------------------------------------------------------
 
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun TvShowDetailScreen(id: Int, navigator: Navigator) {
     val vm = appViewModel("tv-show-$id") { ShowDetailViewModel(it, id) }
@@ -295,9 +298,15 @@ fun TvShowDetailScreen(id: Int, navigator: Navigator) {
         }
         if (state.seasons.size > 1) {
             item("seasons") {
+                // Coming back up from the episodes lands on the selected season, not the chip that happens to be
+                // above: chips select on focus, so the nearest one would switch seasons under the user.
+                val seasonRequesters = remember { mutableMapOf<Int, FocusRequester>() }
                 PivotScrolling {
                     LazyRow(
-                        Modifier.padding(top = 22.dp),
+                        Modifier
+                            .padding(top = 22.dp)
+                            .focusProperties { enter = { seasonRequesters[state.selectedSeason] ?: FocusRequester.Default } }
+                            .focusGroup(),
                         contentPadding = PaddingValues(horizontal = TvDimens.Edge, vertical = 6.dp),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
@@ -305,6 +314,7 @@ fun TvShowDetailScreen(id: Int, navigator: Navigator) {
                             TvChip(
                                 "${s.label}  ${s.watched}/${s.available}",
                                 selected = s.number == state.selectedSeason,
+                                focusRequester = seasonRequesters.getOrPut(s.number) { FocusRequester() },
                                 // Focusing a season shows its episodes: no extra press needed.
                                 onClick = { vm.selectSeason(s.number) },
                                 onFocused = { vm.selectSeason(s.number) },

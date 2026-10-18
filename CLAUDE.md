@@ -174,6 +174,13 @@ Each rule below exists because breaking it caused a real bug.
 - Every focusable thing is a `TvSurface` (or `TvButton`/`TvChip`/`TvListItem`/cards built on it) so focus
   looks the same everywhere. Each screen requests initial focus with `focusSoon()` (plain
   `requestFocus()` in the first frame can be dropped, leaving the remote with nothing focused).
+  If the first item depends on data that loads later, request focus again when it arrives.
+- Side panels and pickers hand focus back to the item that opened them: `TvSurface` records itself in
+  `TvFocusMemory`, and `TvSidePanel` / `TvFolderPicker` call `ReturnFocusWhenClosed()`. Any new full-screen
+  `Dialog` must call it too. Screens refocus their list only when `awaitReturn()` fails (opener gone).
+- Going back up a folder (Files, folder picker) focuses the folder you came out of. Coming back from a
+  detail page focuses the card that opened it (Home, grids, Search). Rows whose items act on focus
+  (season chips) use `focusProperties { enter }` so entering them lands on the selected item.
 - Rows/grids use `PivotScrolling` so focus stays at a fixed spot. Text fields need `tvTextFieldExit()`,
   otherwise ↑/↓ are trapped inside the field.
 - A focused item that changes with state (e.g. the Settings scan row while scanning) must stay one

@@ -31,7 +31,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -46,7 +49,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.AndroidUiDispatcher
 import androidx.compose.ui.zIndex
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
@@ -95,12 +102,20 @@ fun TvSurface(
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
     val scale by animateFloatAsState(if (focused) focusedScale else 1f, tween(160), label = "tvScale")
-    LaunchedEffect(focused) { if (focused) onFocused?.invoke() }
+    // Every surface can be focused again by TvFocusMemory, so side panels hand focus back to their opener.
+    val requester = focusRequester ?: remember { FocusRequester() }
+    val memory = LocalTvFocusMemory.current
+    LaunchedEffect(focused) {
+        if (focused) {
+            memory.last = requester
+            onFocused?.invoke()
+        }
+    }
     Box(
         modifier
             .zIndex(if (focused) 1f else 0f)
             .graphicsLayer { scaleX = scale; scaleY = scale }
-            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+            .focusRequester(requester)
             .clip(shape)
             .background(if (focused) focusedColor else color)
             .then(if (focused && showRing) Modifier.border(ringWidth, FocusRing, shape) else Modifier)
@@ -474,8 +489,58 @@ fun Modifier.tvTextFieldExit(): Modifier {
  * be dropped, which leaves the remote with nothing focused; this retries for a few frames.
  */
 suspend fun FocusRequester.focusSoon() {
+    tryFocusSoon()
+}
+
+/** [focusSoon] that says whether it worked (false when the target never appeared or left the screen). */
+suspend fun FocusRequester.tryFocusSoon(): Boolean {
     repeat(8) {
         androidx.compose.runtime.withFrameNanos { }
-        if (runCatching { requestFocus() }.getOrDefault(false)) return
+        if (runCatching { requestFocus() }.getOrDefault(false)) return true
     }
+    return false
+}
+
+/**
+ * Remembers the last focused [TvSurface], so a side panel or picker can give focus back to the item
+ * that opened it (Google TV behaviour). Panels are separate windows; without this, the screen behind
+ * could only refocus its list, which lands on the first row.
+ */
+@Stable
+class TvFocusMemory {
+    internal var last: FocusRequester? = null
+    private var target: FocusRequester? = null
+    private var restore: Deferred<Boolean>? = null
+
+    /** The item a panel opening now should return to: a pending return target (panel after panel), or the last focused. */
+    internal fun opener(): FocusRequester? = target ?: last
+
+    internal fun returnTo(opener: FocusRequester?) {
+        target = opener
+        // The opener often never lost focus inside its own window, so it won't report focus again; record it
+        // now, or the next panel would capture the closed panel's item as its opener.
+        last = opener
+        restore = opener?.let { t ->
+            // The panel's own scope is gone once it closes; the UI dispatcher carries the frame clock focusSoon needs.
+            CoroutineScope(AndroidUiDispatcher.Main).async {
+                t.tryFocusSoon().also { ok ->
+                    if (target === t) target = null
+                    if (!ok && last === t) last = null
+                }
+            }
+        }
+    }
+
+    /** After a panel closes: true if focus went back to the item that opened it. Screens refocus their list otherwise. */
+    suspend fun awaitReturn(): Boolean = restore?.await() ?: false
+}
+
+val LocalTvFocusMemory = staticCompositionLocalOf { TvFocusMemory() }
+
+/** Put in a panel or picker: when it closes, focus goes back to the item that opened it. */
+@Composable
+fun ReturnFocusWhenClosed() {
+    val memory = LocalTvFocusMemory.current
+    val opener = remember { memory.opener() }
+    DisposableEffect(Unit) { onDispose { memory.returnTo(opener) } }
 }

@@ -91,17 +91,28 @@ fun TvFilesScreen(navigator: Navigator) {
     val online = rememberOnline()
     val local = LocalStorage.isLocal(state.account)
     var action by remember { mutableStateOf<FileAction?>(null) }
-    val firstItem = remember { FocusRequester() }
+    val itemRequesters = remember { mutableMapOf<String, FocusRequester>() }
     val firstChip = remember { FocusRequester() }
+    // Going up a level focuses the folder you came out of, not the first row.
+    var leftFolder by remember { mutableStateOf<String?>(null) }
 
-    BackHandler(enabled = state.stack.size > 1) { vm.back() }
-    // After an action panel closes, focus returns to the file it was opened for.
+    BackHandler(enabled = state.stack.size > 1) {
+        leftFolder = state.current.id
+        vm.back()
+    }
+    // After an action panel closes, focus returns to the file it was opened for (TvFocusMemory); the list
+    // is the fallback when that file is gone (deleted, moved).
     val list = remember { FocusRequester() }
+    val focusMemory = LocalTvFocusMemory.current
     var opened by remember { mutableStateOf(false) }
-    LaunchedEffect(action == null) { if (action != null) opened = true else if (opened) list.focusSoon() }
+    LaunchedEffect(action == null) {
+        if (action != null) opened = true else if (opened && !focusMemory.awaitReturn()) list.focusSoon()
+    }
     LaunchedEffect(state.loading, state.current.id) {
         if (state.loading) return@LaunchedEffect
-        (if (state.items.isNotEmpty()) firstItem else firstChip).focusSoon()
+        val target = (state.items.firstOrNull { it.id == leftFolder } ?: state.items.firstOrNull())?.let { itemRequesters[it.id] }
+        leftFolder = null
+        (target ?: firstChip).focusSoon()
     }
 
     if (accounts.isEmpty()) {
@@ -175,7 +186,7 @@ fun TvFilesScreen(navigator: Navigator) {
                             }
                         },
                         onLongClick = { action = FileAction.Menu(file) },
-                        focusRequester = if (file == state.items.first()) firstItem else null,
+                        focusRequester = itemRequesters.getOrPut(file.id) { FocusRequester() },
                     )
                 }
             }

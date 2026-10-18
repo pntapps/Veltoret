@@ -27,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -58,8 +59,16 @@ fun TvSearchScreen(navigator: Navigator) {
     // Focus returns to the box only when the keyboard closes on it, not when the user arrows away.
     var focusBox by remember { mutableStateOf(true) }
     var fieldHadFocus by remember { mutableStateOf(false) }
+    // Coming back from a detail page focuses the result that was opened, like Home and the grids.
+    var lastOpened by rememberSaveable { mutableStateOf<String?>(null) }
+    val resultRequesters = remember { mutableMapOf<String, FocusRequester>() }
     LaunchedEffect(editing) {
-        if (editing) field.focusSoon() else if (focusBox) box.focusSoon()
+        val opened = lastOpened?.let { resultRequesters[it] }
+        when {
+            editing -> field.focusSoon()
+            opened != null && opened.tryFocusSoon() -> Unit
+            focusBox -> box.focusSoon()
+        }
     }
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = TvDimens.Top, bottom = 80.dp)) {
@@ -70,7 +79,10 @@ fun TvSearchScreen(navigator: Navigator) {
                 if (editing) {
                     VTextField(
                         value = query,
-                        onValueChange = { vm.query.value = it },
+                        onValueChange = {
+                            vm.query.value = it
+                            lastOpened = null
+                        },
                         label = "Titles, actors, collections",
                         leadingIcon = Icons.Rounded.Search,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -123,18 +135,25 @@ fun TvSearchScreen(navigator: Navigator) {
                 }
             }
         }
-        if (state.movies.isNotEmpty()) item("movies") { ResultRow("Movies", state.movies, navigator) }
-        if (state.shows.isNotEmpty()) item("shows") { ResultRow("TV Shows", state.shows, navigator) }
+        val open = { item: PosterItem ->
+            lastOpened = resultKey(item)
+            navigator.navigate(if (item.isShow) ShowRoute(item.id) else MovieRoute(item.id))
+        }
+        val requesterFor = { key: String -> resultRequesters.getOrPut(key) { FocusRequester() } }
+        if (state.movies.isNotEmpty()) item("movies") { ResultRow("Movies", state.movies, requesterFor, open) }
+        if (state.shows.isNotEmpty()) item("shows") { ResultRow("TV Shows", state.shows, requesterFor, open) }
     }
 }
 
+private fun resultKey(item: PosterItem) = "${item.isShow}-${item.id}"
+
 @Composable
-private fun ResultRow(title: String, items: List<PosterItem>, navigator: Navigator) {
+private fun ResultRow(title: String, items: List<PosterItem>, requesterFor: (String) -> FocusRequester, onOpen: (PosterItem) -> Unit) {
     Column(Modifier.padding(top = 12.dp)) {
         TvRowTitle(title)
         PivotScrolling {
             LazyRow(contentPadding = TvRowPadding, horizontalArrangement = TvRowArrangement) {
-                items(items, key = { "${it.isShow}-${it.id}" }) { item ->
+                items(items, key = { resultKey(it) }) { item ->
                     TvPosterCard(
                         title = item.title,
                         subtitle = item.subtitle,
@@ -142,7 +161,8 @@ private fun ResultRow(title: String, items: List<PosterItem>, navigator: Navigat
                         progress = item.progress,
                         watched = item.watched,
                         width = 116.dp,
-                        onClick = { navigator.navigate(if (item.isShow) ShowRoute(item.id) else MovieRoute(item.id)) },
+                        focusRequester = requesterFor(resultKey(item)),
+                        onClick = { onOpen(item) },
                     )
                 }
             }

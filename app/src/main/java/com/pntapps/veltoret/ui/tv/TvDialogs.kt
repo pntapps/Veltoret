@@ -55,6 +55,7 @@ fun TvSidePanel(
     initialFocus: FocusRequester? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    ReturnFocusWhenClosed()
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         Box(Modifier.fillMaxSize()) {
             Column(

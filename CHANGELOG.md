@@ -29,6 +29,11 @@ Notable changes to Veltoret. Newest first. Detailed history is in the git log.
 - When a title isn't found, Veltoret also tries the file's own name and trimmed variants (exact matches only).
 
 ### Fixed
+- Android TV remote: closing a side panel or picker now returns focus to the row or button that opened
+  it (it used to jump to the top of the list); going up a folder in Files or the folder picker focuses
+  the folder you came from; coming back from a title in Search focuses that result; Settings opens on the
+  first row; returning to the season chips keeps the selected season instead of switching to the nearest
+  one; and starting or cancelling a scan no longer drops focus to the navigation rail.
 - TV shows in folders like "Show.S01.1080p…" were searched as "Show S01" and never matched; season tags
   (S01, S01-S03, Season 2, Complete) are now dropped from show names, and language tags ("Hindi English",
   "MSubs") from titles.

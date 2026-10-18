@@ -99,7 +99,9 @@ fun TvSettingsScreen(navigator: Navigator) {
     val context = LocalContext.current
     var dialog by remember { mutableStateOf<SettingsDialog?>(null) }
     val first = remember { FocusRequester() }
-    LaunchedEffect(Unit) { first.focusSoon() }
+    // Accounts load a moment after the screen appears; until then "first" sits on "Add Google account", so
+    // focus again once they arrive.
+    LaunchedEffect(accounts.isEmpty()) { first.focusSoon() }
 
     val connector = rememberAccountConnector(
         onConnected = { dialog = SettingsDialog.Message("Connected ${it.email}. Add its library folders below.") },
@@ -112,11 +114,13 @@ fun TvSettingsScreen(navigator: Navigator) {
     )
     val hasDevice = accounts.any { LocalStorage.isLocal(it.email) }
 
-    // After a panel or picker closes, focus goes back to the row that opened it.
+    // After a panel or picker closes, focus goes back to the row that opened it (TvFocusMemory); the
+    // list is the fallback when that row is gone.
     val list = remember { FocusRequester() }
+    val focusMemory = LocalTvFocusMemory.current
     var opened by remember { mutableStateOf(false) }
     LaunchedEffect(dialog == null) {
-        if (dialog != null) opened = true else if (opened) list.focusSoon()
+        if (dialog != null) opened = true else if (opened && !focusMemory.awaitReturn()) list.focusSoon()
     }
 
     LazyColumn(
@@ -388,8 +392,10 @@ fun TvFolderPicker(email: String, onDismiss: () -> Unit, onPick: (Crumb, Library
     val current = stack.value.last()
     var folders by remember { mutableStateOf<List<DriveFile>?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
-    val firstItem = remember { FocusRequester() }
+    val itemRequesters = remember { mutableMapOf<String, FocusRequester>() }
     val useMovies = remember { FocusRequester() }
+    // Back goes up a level and focuses the folder you came out of.
+    var leftFolder by remember { mutableStateOf<String?>(null) }
     // The top of "This TV" is only the list of drives; a real folder has to be chosen.
     val pickable = !(storage.isLocal(email) && stack.value.size == 1)
 
@@ -405,11 +411,20 @@ fun TvFolderPicker(email: String, onDismiss: () -> Unit, onPick: (Crumb, Library
     }
     LaunchedEffect(folders) {
         if (folders == null) return@LaunchedEffect
-        (if (folders!!.isNotEmpty()) firstItem else useMovies).focusSoon()
+        val list = folders!!
+        val target = (list.firstOrNull { it.id == leftFolder } ?: list.firstOrNull())?.let { itemRequesters[it.id] }
+        leftFolder = null
+        (target ?: useMovies).focusSoon()
     }
+    ReturnFocusWhenClosed()
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
-        BackHandler { if (stack.value.size > 1) stack.value = stack.value.dropLast(1) else onDismiss() }
+        BackHandler {
+            if (stack.value.size > 1) {
+                leftFolder = current.id
+                stack.value = stack.value.dropLast(1)
+            } else onDismiss()
+        }
         Box(
             Modifier
                 .fillMaxSize()
@@ -454,7 +469,7 @@ fun TvFolderPicker(email: String, onDismiss: () -> Unit, onPick: (Crumb, Library
                                 title = folder.name,
                                 leading = Icons.Rounded.Folder,
                                 onClick = { stack.value = stack.value + Crumb(folder.id, folder.name) },
-                                focusRequester = if (folder == list.first()) firstItem else null,
+                                focusRequester = itemRequesters.getOrPut(folder.id) { FocusRequester() },
                             )
                         }
                     }

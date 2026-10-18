@@ -184,8 +184,11 @@ Each rule below exists because breaking it caused a real bug.
 - **Android 17 needs `ACCESS_LOCAL_NETWORK`** (Nearby devices) for any LAN traffic, including connecting.
   Ask through `rememberLocalNetworkAccess` before scanning for or connecting to servers.
 - SMB titles are "needs the network" like Drive (`canPlayNow`); away from home they fail with a clear message.
-- Adding servers is phone/tablet only for now (`AddServerDialog` in Settings). TV Settings has no
-  add-server screen yet, so don't advertise network shares on TV until it does.
+- Adding a server: `AddServerViewModel` (shared) behind `AddServerDialog` (phone/tablet Settings) and
+  `TvAddServerScreen` (TV Settings and onboarding). Keep the logic in the view model. On TV the Connect
+  button stays enabled while connecting (a disabled button drops the remote's focus) and ↓ from the
+  Username/Guest chips goes to the next field or Connect, not the nearest button.
+- `TvFolderPicker` won't pick a server's top level (its list of shares), like the "This TV" root.
 
 **Offline mode**
 - `Connectivity` (in `data/net`) exposes `online`. Offline, `LibraryRepository.movies()` / `shows()` /

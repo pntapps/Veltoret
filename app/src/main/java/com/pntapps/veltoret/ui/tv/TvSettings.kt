@@ -78,7 +78,8 @@ import kotlinx.coroutines.launch
 private sealed interface SettingsDialog {
     data class AccountActions(val account: AccountEntity) : SettingsDialog
     data class FolderActions(val folder: LibraryFolderEntity) : SettingsDialog
-    data class Pick(val email: String) : SettingsDialog
+    data class Pick(val email: String, val startAt: List<Crumb> = emptyList()) : SettingsDialog
+    data object AddServer : SettingsDialog
     data class TypeFor(val folder: DriveFile) : SettingsDialog
     data object Skip : SettingsDialog
     data object Seek : SettingsDialog
@@ -178,6 +179,14 @@ fun TvSettingsScreen(navigator: Navigator) {
                 leading = Icons.Rounded.PersonAdd,
                 onClick = { connector.connect() },
                 focusRequester = if (accounts.isEmpty()) first else null,
+            )
+        }
+        item("add-server") {
+            TvListItem(
+                title = "Add network server",
+                subtitle = "Shared folders on a router, NAS or computer",
+                leading = Icons.Rounded.Dns,
+                onClick = { dialog = SettingsDialog.AddServer },
             )
         }
         if (!hasDevice) {
@@ -290,7 +299,13 @@ fun TvSettingsScreen(navigator: Navigator) {
         is SettingsDialog.Pick -> TvFolderPicker(
             email = d.email,
             onDismiss = { dialog = null },
+            startAt = d.startAt,
             onPick = { crumb, type -> vm.addFolder(d.email, crumb.id, crumb.name, type); dialog = null },
+        )
+        SettingsDialog.AddServer -> TvAddServerScreen(
+            onDismiss = { dialog = null },
+            // Straight on to choosing a library folder, inside the typed path if there was one.
+            onAdded = { server, crumbs -> dialog = SettingsDialog.Pick(server.account, crumbs) },
         )
         is SettingsDialog.TypeFor -> TvChoiceDialog(
             title = "What's in \"${d.folder.name}\"?",
@@ -396,9 +411,9 @@ fun rememberTvDeviceSource(onReady: () -> Unit, onPicked: (DriveFile) -> Unit, o
  */
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
-fun TvFolderPicker(email: String, onDismiss: () -> Unit, onPick: (Crumb, LibraryType) -> Unit) {
+fun TvFolderPicker(email: String, onDismiss: () -> Unit, startAt: List<Crumb> = emptyList(), onPick: (Crumb, LibraryType) -> Unit) {
     val storage = LocalContext.current.container.storage
-    val stack = remember { mutableStateOf(listOf(Crumb(storage.rootId(email), if (storage.isLocal(email)) "This TV" else storage.rootName(email)))) }
+    val stack = remember { mutableStateOf(listOf(Crumb(storage.rootId(email), if (storage.isLocal(email)) "This TV" else storage.rootName(email))) + startAt) }
     val current = stack.value.last()
     var folders by remember { mutableStateOf<List<DriveFile>?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -406,8 +421,8 @@ fun TvFolderPicker(email: String, onDismiss: () -> Unit, onPick: (Crumb, Library
     val useMovies = remember { FocusRequester() }
     // Back goes up a level and focuses the folder you came out of.
     var leftFolder by remember { mutableStateOf<String?>(null) }
-    // The top of "This TV" is only the list of drives; a real folder has to be chosen.
-    val pickable = !(storage.isLocal(email) && stack.value.size == 1)
+    // The top of "This TV" is only the list of drives, and a server's top its shared folders; a real folder has to be chosen.
+    val pickable = !((storage.isLocal(email) || storage.isSmb(email)) && stack.value.size == 1)
 
     LaunchedEffect(current.id) {
         folders = null
@@ -462,8 +477,11 @@ fun TvFolderPicker(email: String, onDismiss: () -> Unit, onPick: (Crumb, Library
                     list == null -> Text("Loading…", style = MaterialTheme.typography.bodyLarge, color = VColors.TextMuted)
                     error != null -> Text(error!!, style = MaterialTheme.typography.bodyLarge, color = VColors.Danger)
                     list.isEmpty() -> Text(
-                        if (storage.isLocal(email) && stack.value.size == 1) "No videos found on this TV or its USB drives."
-                        else "No folders inside. You can use this folder.",
+                        when {
+                            storage.isLocal(email) && stack.value.size == 1 -> "No videos found on this TV or its USB drives."
+                            storage.isSmb(email) && stack.value.size == 1 -> "This server doesn't share any folders this user can open."
+                            else -> "No folders inside. You can use this folder."
+                        },
                         style = MaterialTheme.typography.bodyLarge,
                         color = VColors.TextMuted,
                     )

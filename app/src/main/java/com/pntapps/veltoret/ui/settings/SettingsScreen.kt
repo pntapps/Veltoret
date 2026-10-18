@@ -46,13 +46,13 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -90,7 +90,6 @@ import com.pntapps.veltoret.ui.files.rememberLocalFolderPicker
 import com.pntapps.veltoret.ui.files.rememberNotificationPermission
 import com.pntapps.veltoret.ui.files.DriveFolderPicker
 import com.pntapps.veltoret.ui.files.Crumb
-import com.pntapps.veltoret.data.smb.SmbServer
 import com.pntapps.veltoret.data.smb.SmbPath
 import androidx.compose.material.icons.rounded.Dns
 import com.pntapps.veltoret.ui.files.PickerAction
@@ -153,10 +152,6 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
 
     fun removeFolder(folder: LibraryFolderEntity) = viewModelScope.launch {
         container.accountRepository.removeLibraryFolder(folder)
-    }
-
-    fun addServer(server: SmbServer) = viewModelScope.launch {
-        container.accountRepository.addServerAccount(server)
     }
 
     fun removeAccount(email: String) = viewModelScope.launch {
@@ -393,7 +388,6 @@ fun SettingsScreen(navigator: Navigator) {
             onDismiss = { addingServer = false },
             onAdded = { server, crumbs ->
                 addingServer = false
-                vm.addServer(server)
                 vm.messages.tryEmit("Connected to ${server.name}. Choose a Movies or TV Shows folder.")
                 // Straight on to choosing a library folder, inside the typed path if there was one.
                 pickerStart = crumbs

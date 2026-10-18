@@ -280,6 +280,7 @@ class SmbStorage(private val servers: SmbServerStore) {
     companion object {
         private const val STYPE_DISKTREE = 0
         const val WRONG_LOGIN = "Wrong username or password"
+        const val ACCOUNT_DISABLED = "This user account is disabled on the server"
         private val CAPABILITIES = DriveCapabilities(canRename = true, canTrash = true, canDelete = true, canAddChildren = true)
 
         fun mimeFor(name: String): String =
@@ -296,7 +297,7 @@ class SmbStorage(private val servers: SmbServerStore) {
                         return "Couldn't reach the server. Check that it's on and that you're on the same Wi-Fi."
                     is SMBApiException -> when (cause.status) {
                         NtStatus.STATUS_LOGON_FAILURE -> return WRONG_LOGIN
-                        NtStatus.STATUS_ACCOUNT_DISABLED -> return "This user account is disabled on the server"
+                        NtStatus.STATUS_ACCOUNT_DISABLED -> return ACCOUNT_DISABLED
                         NtStatus.STATUS_PASSWORD_EXPIRED -> return "This user's password has expired on the server"
                         NtStatus.STATUS_ACCESS_DENIED -> return "This user isn't allowed to open that folder"
                         NtStatus.STATUS_BAD_NETWORK_NAME -> return "The server has no shared folder with that name"

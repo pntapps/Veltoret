@@ -22,6 +22,8 @@ Notable changes to Veltoret. Newest first. Detailed history is in the git log.
   failed with "Can't scale timecode prior to timecodeScale being set"; they now play and seek.
 
 ### Added
+- **Network shares on Android TV**: add a server from TV Settings or first-run setup, with the same
+  automatic search; pick it with the remote, sign in, then choose Movies and TV Shows folders.
 - **Network shares (SMB)**: add a router's USB drive, a NAS or a shared folder on a PC as a source.
   Servers on your Wi-Fi are found automatically (or type the address), passwords are stored
   encrypted, and Movies and TV Shows folders scan, play (with instant seeking) and appear in Files

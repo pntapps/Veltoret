@@ -85,6 +85,9 @@ class SmbDiscovery(private val context: Context) {
         true
     }.getOrDefault(false)
 
+    /** The machine's own name (e.g. "MYNAS") for an address someone typed; null if it doesn't answer. */
+    suspend fun nameOf(address: String): String? = kotlinx.coroutines.withContext(Dispatchers.IO) { netBiosName(address) }
+
     private fun netBiosName(address: String): String? = runCatching {
         DatagramSocket().use { socket ->
             socket.soTimeout = NETBIOS_TIMEOUT_MS

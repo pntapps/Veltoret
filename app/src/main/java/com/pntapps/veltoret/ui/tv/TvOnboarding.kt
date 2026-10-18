@@ -41,6 +41,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.rounded.Dns
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -212,12 +213,14 @@ private fun SourcesStep(vm: OnboardingViewModel, onNext: () -> Unit) {
     val drive = remember { FocusRequester() }
     val google = accounts.filterNot { LocalStorage.isLocal(it.email) || SmbPath.isSmb(it.email) }
     val hasDevice = accounts.any { LocalStorage.isLocal(it.email) }
+    val servers = accounts.filter { SmbPath.isSmb(it.email) }
+    var addingServer by remember { mutableStateOf(false) }
     val device = rememberTvDeviceSource(onReady = {}, onPicked = {}, onDenied = { error = "Allow access to videos to use this TV's storage and USB drives." })
     LaunchedEffect(Unit) { drive.focusSoon() }
 
     StepFrame(
         "Step 1 of 4", "Where are your videos?",
-        "Connect the Google Drive that holds them, use videos on this TV and its USB drives, or both.",
+        "Connect the Google Drive that holds them, use videos on this TV and its USB drives, or a network server. Any mix works.",
         Icons.Rounded.Cloud,
     ) {
         SourceCard(
@@ -235,10 +238,20 @@ private fun SourcesStep(vm: OnboardingViewModel, onNext: () -> Unit) {
             done = hasDevice,
             onClick = { error = null; vm.useDevice(); device.open() },
         )
+        Spacer(Modifier.height(14.dp))
+        SourceCard(
+            Icons.Rounded.Dns,
+            if (servers.isEmpty()) "Network server" else "Add another network server",
+            servers.joinToString { it.displayName }.ifBlank { "A router's USB drive, a NAS or a computer's shared folders" },
+            done = servers.isNotEmpty(),
+            onClick = { error = null; addingServer = true },
+        )
         error?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = VColors.Danger, modifier = Modifier.padding(top = 14.dp)) }
         Spacer(Modifier.height(24.dp))
         TvButton("Continue", onNext, icon = Icons.AutoMirrored.Rounded.ArrowForward, enabled = accounts.isNotEmpty())
     }
+    // Folders are chosen in the next step, like for the other sources.
+    if (addingServer) TvAddServerScreen(onDismiss = { addingServer = false }, onAdded = { _, _ -> addingServer = false })
 }
 
 @Composable
@@ -269,8 +282,12 @@ private fun FoldersStep(vm: OnboardingViewModel, onNext: () -> Unit) {
                 }
                 item("add-${acc.email}") {
                     TvListItem(
-                        title = if (local) "Add a folder from this TV" else "Add a Drive folder",
-                        subtitle = if (local) null else acc.email,
+                        title = when {
+                            local -> "Add a folder from this TV"
+                            SmbPath.isSmb(acc.email) -> "Add a folder from ${acc.displayName}"
+                            else -> "Add a Drive folder"
+                        },
+                        subtitle = if (local) null else if (SmbPath.isSmb(acc.email)) SmbPath.parse(acc.email).host else acc.email,
                         leading = Icons.Rounded.CreateNewFolder,
                         onClick = { if (local) device.open() else pickFor = acc.email },
                         focusRequester = if (i == 0) first else null,

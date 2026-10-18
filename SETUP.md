@@ -264,6 +264,8 @@ Windows PC, Veltoret can read them over Wi-Fi (Windows file sharing, also called
 4. Pick the folder with your movies or shows and tap **Movies** or **TV Shows**.
 
 The server shows up in **Settings** like your other sources, where you can add more folders.
+On **Android TV** it's the same: **Settings → Add network server** (or **Network server** during first-run
+setup); pick the server with the remote and type the username and password with the TV keyboard.
 Network shares only work while this device is on the same network as the server. Deleting a file
 from a network share in **Files** is permanent (there's no trash). On Android 17 and later,
 Veltoret asks for the **Nearby devices** permission the first time, to reach your home network.

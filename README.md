@@ -44,7 +44,8 @@ them with a full-featured player.
   **Settings → Add network server** finds servers on your Wi-Fi by itself (or takes a typed or pasted
   address like `\\192.168.0.10\Movies`), signs in with a username and password or as a guest, and
   adds Movies and TV Shows folders like any other source. Videos stream straight from the server with
-  instant seeking; passwords are stored encrypted on the device. Works on the same network only.
+  instant seeking; passwords are stored encrypted on the device. Works on the same network only,
+  on phones, tablets and Android TV (Settings or first-run setup).
 - **Offline mode**: with no internet the library shows what's stored on this device, with posters,
   details and watch progress (artwork is cached after each scan). Drive-only titles step aside until
   you're back online, then the library catches up by itself.

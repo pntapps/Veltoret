@@ -91,6 +91,8 @@ fun TvFilesScreen(navigator: Navigator) {
     val online = rememberOnline()
     val local = LocalStorage.isLocal(state.account)
     var action by remember { mutableStateOf<FileAction?>(null) }
+    // The TV shows folders and videos only: nothing else can be opened with the remote.
+    val items = state.items.filter { it.isFolder || isVideo(it) }
     val itemRequesters = remember { mutableMapOf<String, FocusRequester>() }
     val firstChip = remember { FocusRequester() }
     // Going up a level focuses the folder you came out of, not the first row.
@@ -110,7 +112,7 @@ fun TvFilesScreen(navigator: Navigator) {
     }
     LaunchedEffect(state.loading, state.current.id) {
         if (state.loading) return@LaunchedEffect
-        val target = (state.items.firstOrNull { it.id == leftFolder } ?: state.items.firstOrNull())?.let { itemRequesters[it.id] }
+        val target = (items.firstOrNull { it.id == leftFolder } ?: items.firstOrNull())?.let { itemRequesters[it.id] }
         leftFolder = null
         (target ?: firstChip).focusSoon()
     }
@@ -150,7 +152,7 @@ fun TvFilesScreen(navigator: Navigator) {
             !local && !online -> TvMessage(Icons.Rounded.CloudOff, "You're offline", "Google Drive needs an internet connection. Videos on this TV still work.")
             state.loading -> Text("Loading…", style = MaterialTheme.typography.bodyLarge, color = VColors.TextMuted, modifier = Modifier.padding(start = TvDimens.Edge + 6.dp))
             state.error != null -> Text(state.error!!, style = MaterialTheme.typography.bodyLarge, color = VColors.Danger, modifier = Modifier.padding(start = TvDimens.Edge + 6.dp))
-            state.items.isEmpty() -> Text(
+            items.isEmpty() -> Text(
                 if (local && state.stack.size == 1) "No videos found on this TV or its USB drives yet." else "This folder is empty.",
                 style = MaterialTheme.typography.bodyLarge, color = VColors.TextMuted, modifier = Modifier.padding(start = TvDimens.Edge + 6.dp),
             )
@@ -162,7 +164,7 @@ fun TvFilesScreen(navigator: Navigator) {
                 contentPadding = PaddingValues(start = TvDimens.Edge - 12.dp, bottom = 80.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                items(state.items, key = { it.id }) { file ->
+                items(items, key = { it.id }) { file ->
                     val libType = libraryFolders[file.id]
                     TvListItem(
                         title = file.name,

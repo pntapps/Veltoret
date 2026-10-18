@@ -29,5 +29,7 @@ object VColors {
 
     /** Flat (single-tone) dim used when anything must sit on top of imagery. */
     val ImageDim = Color(0x99000000)
+    /** Stronger flat dim for full-screen TV backdrops that carry titles and rows on top. */
+    val BackdropDim = Color(0xB8000000)
     val PlayerChrome = Color(0x8C000000)
 }

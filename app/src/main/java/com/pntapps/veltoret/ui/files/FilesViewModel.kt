@@ -14,6 +14,7 @@ import com.pntapps.veltoret.data.drive.DriveRepository
 import com.pntapps.veltoret.data.drive.ExtractWorker
 import com.pntapps.veltoret.data.drive.ZipAfterExtract
 import com.pntapps.veltoret.data.drive.UploadWorker
+import com.pntapps.veltoret.data.library.FilenameParser
 import com.pntapps.veltoret.data.library.SyncWorker
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -167,7 +168,12 @@ class FilesViewModel(private val container: AppContainer) : ViewModel() {
                     s.atSharedRoot -> drive.listSharedWithMe(email)
                     else -> storage.list(email, s.current.id)
                 }
-                _state.update { it.copy(items = sorted(items, it.sort), loading = false, refreshing = false) }
+                // Only what Veltoret can use: folders, videos, subtitles (loaded in the player) and ZIPs (extracted).
+                val useful = items.filter {
+                    it.isFolder || FilenameParser.isVideo(it.name, it.mimeType) || it.mimeType.startsWith("video/") ||
+                        FilenameParser.isSubtitle(it.name) || FilenameParser.isArchive(it.name)
+                }
+                _state.update { it.copy(items = sorted(useful, it.sort), loading = false, refreshing = false) }
             } catch (e: Exception) {
                 _state.update { it.copy(loading = false, refreshing = false, error = e.message ?: "Couldn't load this folder") }
             }

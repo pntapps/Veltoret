@@ -2,6 +2,7 @@ package com.pntapps.veltoret.ui.tv
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -499,6 +500,28 @@ suspend fun FocusRequester.tryFocusSoon(): Boolean {
         if (runCatching { requestFocus() }.getOrDefault(false)) return true
     }
     return false
+}
+
+/**
+ * Full-screen backdrop behind a TV page (Home spotlight, detail pages): the picture fills the screen and a
+ * flat dim (no gradient) keeps titles, buttons and rows readable on top. Cross-fades when [url] changes.
+ */
+@Composable
+fun TvBackdrop(url: String?, modifier: Modifier = Modifier) {
+    androidx.compose.animation.AnimatedContent(
+        targetState = url,
+        transitionSpec = {
+            androidx.compose.animation.fadeIn(tween(400)) togetherWith androidx.compose.animation.fadeOut(tween(300))
+        },
+        label = "backdrop",
+        modifier = modifier.fillMaxSize(),
+    ) { u ->
+        if (u == null) return@AnimatedContent
+        Box(Modifier.fillMaxSize()) {
+            VImage(u, null, Modifier.fillMaxSize(), fallbackText = null)
+            Box(Modifier.fillMaxSize().background(VColors.BackdropDim))
+        }
+    }
 }
 
 /**

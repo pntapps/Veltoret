@@ -21,6 +21,12 @@ Notable changes to Veltoret. Newest first. Detailed history is in the git log.
 - **Ignore** for files that aren't movies or shows.
 
 ### Changed
+- **Android TV redesign**: Home and detail pages show the title's artwork full-screen behind the text
+  (it used to sit in a corner and overlap the description); the last setup step shows a summary card
+  with the "Start watching" button inside it.
+- **TV player**: a picture-size button cycles Fit, Fill screen (zoom) and Stretch.
+- **Files** lists only what Veltoret can use: folders, videos, subtitles and ZIPs on phones and tablets,
+  folders and videos on TV. PDFs, text files and the like are hidden.
 - **Smarter file-name recognition**: release-site names ("www.Site.com - …", "….SiteName.army"),
   audio tags ("(Hindi Dubbed)", "Dual Audio [Hindi + Telugu]"), `S01-E02` / `S01.EP02` / `S01E01-03`,
   daily shows, anime episodes past 999, Japanese episode numbers, scene-style `Show.105`, season folders

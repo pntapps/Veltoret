@@ -181,6 +181,9 @@ Each rule below exists because breaking it caused a real bug.
 - Going back up a folder (Files, folder picker) focuses the folder you came out of. Coming back from a
   detail page focuses the card that opened it (Home, grids, Search). Rows whose items act on focus
   (season chips) use `focusProperties { enter }` so entering them lands on the selected item.
+- Home and detail pages draw artwork with `TvBackdrop` (full-screen picture + flat `VColors.BackdropDim`,
+  no gradient) using the default `w1280` backdrop URL that `ArtworkPrefetch` caches; keep text in the
+  left column at most ~560dp wide so it stays readable.
 - Rows/grids use `PivotScrolling` so focus stays at a fixed spot. Text fields need `tvTextFieldExit()`,
   otherwise ↑/↓ are trapped inside the field.
 - A focused item that changes with state (e.g. the Settings scan row while scanning) must stay one

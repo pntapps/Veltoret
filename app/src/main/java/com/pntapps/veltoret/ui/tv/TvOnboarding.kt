@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -334,6 +335,15 @@ private fun TmdbStep(vm: OnboardingViewModel, onNext: () -> Unit) {
 }
 
 @Composable
+private fun ReadyLine(icon: ImageVector, text: String) {
+    Row(Modifier.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, tint = VColors.Amber, modifier = Modifier.size(22.dp))
+        Spacer(Modifier.width(14.dp))
+        Text(text, style = MaterialTheme.typography.titleSmall, color = VColors.Text)
+    }
+}
+
+@Composable
 private fun ScanStep(vm: OnboardingViewModel) {
     val scan by vm.scan.collectAsStateWithLifecycle()
     val done = remember { FocusRequester() }
@@ -348,12 +358,30 @@ private fun ScanStep(vm: OnboardingViewModel) {
         else "Finding your videos and matching them with TMDB. You can start watching while this finishes.",
         Icons.Rounded.AutoAwesome,
     ) {
-        if (!finished) {
-            Text("${scan.phase.ifBlank { "Starting" }}… ${scan.filesFound} files", style = MaterialTheme.typography.titleMedium, color = VColors.Text)
-            Spacer(Modifier.height(12.dp))
-            LinearProgressIndicator(Modifier.width(360.dp), color = VColors.Amber, trackColor = VColors.Outline)
-            Spacer(Modifier.height(28.dp))
+        // One card holds the status and the only action, so the focused button reads as part of the step
+        // instead of floating on its own.
+        Column(
+            Modifier
+                .width(440.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(VColors.Surface)
+                .border(1.dp, VColors.Outline, RoundedCornerShape(24.dp))
+                .padding(28.dp),
+        ) {
+            if (finished) {
+                ReadyLine(Icons.Rounded.CheckCircle, "${scan.filesFound} video${if (scan.filesFound == 1) "" else "s"} in your library")
+                ReadyLine(Icons.Rounded.Movie, "Movies and shows are waiting on Home")
+                ReadyLine(Icons.Rounded.CreateNewFolder, "Add or change folders any time in Settings")
+            } else {
+                Text("${scan.phase.ifBlank { "Starting" }}… ${scan.filesFound} files", style = MaterialTheme.typography.titleMedium, color = VColors.Text)
+                Spacer(Modifier.height(12.dp))
+                LinearProgressIndicator(Modifier.fillMaxWidth(), color = VColors.Amber, trackColor = VColors.Outline)
+            }
+            Spacer(Modifier.height(24.dp))
+            TvButton(
+                if (finished) "Start watching" else "Continue in background", { vm.finish() },
+                icon = Icons.AutoMirrored.Rounded.ArrowForward, focusRequester = done, modifier = Modifier.fillMaxWidth(),
+            )
         }
-        TvButton(if (finished) "Start watching" else "Continue in background", { vm.finish() }, icon = Icons.AutoMirrored.Rounded.ArrowForward, focusRequester = done)
     }
 }

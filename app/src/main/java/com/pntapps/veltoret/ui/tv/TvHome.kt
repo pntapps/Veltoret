@@ -104,7 +104,10 @@ fun TvHomeScreen(navigator: Navigator) {
         state.loading -> LoadingBox(Modifier.fillMaxSize())
         rows.isEmpty() -> TvHomeEmpty(state.hasFolders, online, state.scan.running, state.scan.filesFound) { navigator.selectTab(SettingsRoute) }
         else -> Box(Modifier.fillMaxSize()) {
-            Header(shown?.let { state.heroes[it.key] }, shown?.extra)
+            val hero = shown?.let { state.heroes[it.key] }
+            // The focused title's backdrop fills the screen behind the header and the rows.
+            TvBackdrop(hero?.backdropUrl)
+            Header(hero, shown?.extra)
             // Rows settle just below the header with their title visible.
             PivotScrolling(leading = 44.dp) {
                 LazyColumn(
@@ -203,20 +206,11 @@ private fun Header(hero: HeroInfo?, extra: String?) {
         ) { h ->
             if (h == null) return@AnimatedContent
             Box(Modifier.fillMaxSize()) {
-                VImage(
-                    h.backdropUrl, h.title,
-                    Modifier
-                        .align(Alignment.TopEnd)
-                        .width(470.dp)
-                        .height(HeaderHeight - 8.dp)
-                        .clip(RoundedCornerShape(bottomStart = 28.dp)),
-                    fallbackText = null,
-                )
                 Column(
                     Modifier
                         .align(Alignment.CenterStart)
                         .padding(start = TvDimens.Edge, top = TvDimens.Top)
-                        .width(360.dp),
+                        .width(520.dp),
                 ) {
                     Text(
                         h.title,
@@ -247,7 +241,7 @@ private fun Header(hero: HeroInfo?, extra: String?) {
                         Text(
                             h.overview,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = VColors.TextMuted,
+                            color = VColors.Text.copy(alpha = 0.82f),
                             maxLines = 3,
                             overflow = TextOverflow.Ellipsis,
                         )

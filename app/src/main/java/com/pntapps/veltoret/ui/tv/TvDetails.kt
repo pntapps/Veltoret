@@ -73,29 +73,21 @@ import com.pntapps.veltoret.ui.util.rememberOnline
 private fun DetailHeader(
     title: String,
     tagline: String?,
-    backdropUrl: String?,
     rating: Double,
     meta: List<String?>,
     pills: List<String>,
     overview: String,
 ) {
+    // The backdrop itself is drawn full-screen behind the page (TvBackdrop); this is the text over it.
     Box(
         Modifier
             .fillMaxWidth()
             .height(318.dp)
     ) {
-        VImage(
-            backdropUrl, title,
-            Modifier
-                .align(Alignment.TopEnd)
-                .width(540.dp)
-                .aspectRatio(16f / 9f)
-                .clip(RoundedCornerShape(bottomStart = 32.dp)),
-        )
         Column(
             Modifier
                 .padding(start = TvDimens.Edge, top = TvDimens.Top + 12.dp)
-                .width(380.dp)
+                .width(560.dp)
         ) {
             Text(title, style = MaterialTheme.typography.displaySmall, color = VColors.Text, maxLines = 2, overflow = TextOverflow.Ellipsis)
             if (!tagline.isNullOrBlank()) {
@@ -120,7 +112,7 @@ private fun DetailHeader(
             }
             if (overview.isNotBlank()) {
                 Spacer(Modifier.height(12.dp))
-                Text(overview, style = MaterialTheme.typography.bodyMedium, color = VColors.TextMuted, maxLines = 4, overflow = TextOverflow.Ellipsis)
+                Text(overview, style = MaterialTheme.typography.bodyMedium, color = VColors.Text.copy(alpha = 0.82f), maxLines = 4, overflow = TextOverflow.Ellipsis)
             }
         }
     }
@@ -175,12 +167,13 @@ fun TvMovieDetailScreen(id: Int, navigator: Navigator) {
     LaunchedEffect(Unit) { primary.focusSoon() }
 
     // The action buttons sit just under the header, so the title never scrolls away while they're focused.
+    Box(Modifier.fillMaxSize()) {
+    TvBackdrop(TmdbImages.backdrop(movie.backdropPath))
     PivotScrolling(leading = 322.dp) { LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 60.dp)) {
         item("header") {
             DetailHeader(
                 title = movie.title,
                 tagline = movie.tagline,
-                backdropUrl = TmdbImages.backdrop(movie.backdropPath),
                 rating = movie.rating,
                 meta = listOf(movie.year?.toString(), movie.certification, Format.runtime(movie.runtimeMin), movie.director?.let { "Dir. $it" }),
                 pills = best?.let { FilenameParser.qualityTags(it.name, it.height) }.orEmpty() + movie.genres.split(',').filter { it.isNotBlank() }.take(2),
@@ -215,6 +208,7 @@ fun TvMovieDetailScreen(id: Int, navigator: Navigator) {
         }
         item("cast") { CastRow(state.cast) }
     } }
+    }
 
     if (versions) {
         TvChoiceDialog(
@@ -265,12 +259,13 @@ fun TvShowDetailScreen(id: Int, navigator: Navigator) {
     val seasonWatched = state.episodes.filter { it.file != null }.let { eps -> eps.isNotEmpty() && eps.all { it.watched } }
 
     // The action buttons sit just under the header, so the title never scrolls away while they're focused.
+    Box(Modifier.fillMaxSize()) {
+    TvBackdrop(TmdbImages.backdrop(show.backdropPath))
     PivotScrolling(leading = 322.dp) { LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 60.dp)) {
         item("header") {
             DetailHeader(
                 title = show.name,
                 tagline = show.tagline,
-                backdropUrl = TmdbImages.backdrop(show.backdropPath),
                 rating = show.rating,
                 meta = listOf(show.year?.toString(), show.certification, show.network, "${show.seasonCount} season${if (show.seasonCount == 1) "" else "s"}"),
                 pills = show.genres.split(',').filter { it.isNotBlank() }.take(3),
@@ -353,6 +348,7 @@ fun TvShowDetailScreen(id: Int, navigator: Navigator) {
         }
         item("cast") { CastRow(state.cast) }
     } }
+    }
 
     actionsFor?.let { ep ->
         val file = ep.file

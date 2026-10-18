@@ -32,6 +32,7 @@ import androidx.compose.material.icons.rounded.FastForward
 import androidx.compose.material.icons.rounded.FastRewind
 import androidx.compose.material.icons.rounded.Forward10
 import androidx.compose.material.icons.rounded.GraphicEq
+import androidx.compose.material.icons.rounded.AspectRatio
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -121,6 +122,9 @@ fun TvPlayerScreen(viewModel: PlayerViewModel, onExit: () -> Unit) {
     var controls by remember { mutableStateOf(true) }
     var interaction by remember { mutableIntStateOf(0) }
     var sheet by remember { mutableStateOf<TvSheet?>(null) }
+    // Picture size: Fit (whole picture), Fill (zoom to fill the screen, crops edges) or Stretch. Shared with the
+    // phone player's setting.
+    var resize by remember { mutableStateOf(viewModel.prefs.resizeMode) }
     var hint by remember { mutableStateOf<SeekHint?>(null) }
 
     val root = remember { FocusRequester() }
@@ -241,7 +245,11 @@ fun TvPlayerScreen(viewModel: PlayerViewModel, onExit: () -> Unit) {
             }
             .focusable(),
     ) {
-        ContentFrame(player = player, modifier = Modifier.fillMaxSize(), surfaceType = SURFACE_TYPE_SURFACE_VIEW, contentScale = ContentScale.Fit)
+        ContentFrame(player = player, modifier = Modifier.fillMaxSize(), surfaceType = SURFACE_TYPE_SURFACE_VIEW, contentScale = when (resize) {
+            ResizeMode.Fit -> ContentScale.Fit
+            ResizeMode.Fill -> ContentScale.Crop
+            ResizeMode.Stretch -> ContentScale.FillBounds
+        })
         SubtitleLayer(viewModel, ui, clock, cues, inPip = false, raised = controls)
 
         if (playbackState == Player.STATE_BUFFERING && ui.error == null) {
@@ -312,6 +320,12 @@ fun TvPlayerScreen(viewModel: PlayerViewModel, onExit: () -> Unit) {
                 onTogglePlay = ::togglePlay,
                 onSeekBy = { viewModel.seekBy(it); interaction++ },
                 onSheet = { sheet = it },
+                resize = resize,
+                onResize = {
+                    resize = ResizeMode.entries[(resize.ordinal + 1) % ResizeMode.entries.size]
+                    viewModel.prefs.resizeMode = resize
+                    interaction++
+                },
                 onStartOver = { viewModel.startOver() },
                 onPrevious = viewModel::playPrevious,
                 onNext = viewModel::playNext,
@@ -351,6 +365,8 @@ private fun BoxScope.Controls(
     onTogglePlay: () -> Unit,
     onSeekBy: (Long) -> Unit,
     onSheet: (TvSheet) -> Unit,
+    resize: ResizeMode,
+    onResize: () -> Unit,
     onStartOver: () -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
@@ -398,12 +414,23 @@ private fun BoxScope.Controls(
                 PlayerButton(Icons.Rounded.GraphicEq, "Audio", { onSheet(TvSheet.Audio) }, focusedAs)
                 PlayerButton(Icons.Rounded.ClosedCaption, "Subtitles", { onSheet(TvSheet.Subtitles) }, focusedAs)
                 PlayerButton(Icons.Rounded.Speed, if (speed == 1f) "Playback speed" else "Playback speed · ${speed}×", { onSheet(TvSheet.Speed) }, focusedAs)
+                PlayerButton(Icons.Rounded.AspectRatio, resizeLabel(resize), {
+                    onResize()
+                    // The caption shows the new mode right away (it otherwise changes only when focus moves).
+                    caption = resizeLabel(ResizeMode.entries[(resize.ordinal + 1) % ResizeMode.entries.size])
+                }, focusedAs)
                 PlayerButton(Icons.Rounded.Info, "Video info", { onSheet(TvSheet.Info) }, focusedAs)
             }
         }
         Spacer(Modifier.height(12.dp))
         Text(if (buttonsFocused) caption else "", style = MaterialTheme.typography.titleSmall, color = VColors.Text, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
+}
+
+private fun resizeLabel(mode: ResizeMode) = "Picture size · " + when (mode) {
+    ResizeMode.Fit -> "Fit (whole picture)"
+    ResizeMode.Fill -> "Fill screen (zoom)"
+    ResizeMode.Stretch -> "Stretch"
 }
 
 /** Round control; the focused one's name is shown in the caption under the row. */

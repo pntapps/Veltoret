@@ -41,7 +41,8 @@ export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"
 ./gradlew :app:assembleDebugAndroidTest        # builds device tests
 ```
 
-- **Unit tests** (`app/src/test`): `FilenameParserTest`, `PlayTargetsTest`, `DriveStreamingUploadTest`. Run
+- **Unit tests** (`app/src/test`): `FilenameParserTest`, `FilenameParserCorpusTest` (one line per naming
+  style; add a line for every name that parses wrong), `PlayTargetsTest`, `DriveStreamingUploadTest`. Run
   them after any change to parsing, play targets or uploads, and add cases for new behavior.
 - **Device tests** (`app/src/androidTest`): **do not run `connectedAndroidTest`**. It uninstalls the app
   afterwards, which wipes the tester's library, accounts and folder permissions, and it runs on every
@@ -71,7 +72,7 @@ app/src/main/java/com/pntapps/veltoret/
 │   ├── db/              Room: Entities, Daos, VeltoretDatabase (schemas exported to app/schemas)
 │   ├── drive/           Drive REST (Retrofit), DriveRepository, UploadWorker, ExtractWorker (ZIPs)
 │   ├── storage/         LocalStorage (SAF device folders) + Storage (one facade for Drive and device)
-│   ├── library/         FilenameParser, LibraryScanner, repositories, PlayTargets, SyncWorker
+│   ├── library/         FilenameParser, LibraryScanner, repositories, PlayTargets, SyncWorker (+ scan notification)
 │   ├── tmdb/            TMDB API, models, matching (TmdbRepository.pickBest) and caching
 │   ├── settings/        DataStore preferences
 │   └── demo/            Debug-only demo library
@@ -127,8 +128,30 @@ Each rule below exists because breaking it caused a real bug.
   the names are close in length or the year matches, and a short year-less name only matches a title
   with a real vote count. Loosening this lets random clips ("vids.mp4") become featured junk titles.
 - **Device copies win**: Room queries order device files first (`accountEmail = 'device'`), then by quality.
-- **`FilenameParser` regexes run on Android's ICU engine.** Escape `}` and similar characters;
-  `FilenameParserDeviceTest` exists because the JVM accepted a pattern that crashed on devices.
+- **`FilenameParser` regexes run on Android's ICU engine.** Escape `}` and similar characters, and write
+  non-ASCII as `\x{hhhh}`; `FilenameParserDeviceTest` exists because the JVM accepted a pattern that crashed
+  on devices.
+- **TMDB fallbacks stay strict.** `movieCandidates` / `showCandidates` give the parser's guess first, then
+  other folder/file titles, then trimmed variants marked `exactOnly` (exact title, close year). Trimmed
+  variants must keep two words or a year. `LibraryScanner` tries at most `MAX_CANDIDATES` per title.
+- **Show folder = nearest folder that names something.** Season folders, category folders ("English
+  Shows") and quality folders ("480p x264") are skipped (`isNoiseFolder`); only plural category words
+  count, so a show called "Show" or "Film" still works.
+- **Release-site names are stripped only with a lowercase domain ending** (`SITE_PREFIX` / `SITE_SUFFIX`),
+  so dotted titles like "The.Office.US" and "The.Fault.in.Our.Stars" survive.
+- **`normalizeForCompare` keeps every script** (it strips only Latin accents); stripping all non-ASCII
+  made Hindi and Japanese titles empty and unmatchable.
+- **Show names drop season tags** (`SEASON_TAG`: "S01", "S01-S03", "Season 2", "Complete") because show
+  folders are often named "Show.S01.1080p…"; `normalizeForCompare` deletes apostrophes ("Don't" == "Dont").
+  Both were real "needs a match" bugs; keep the `FilenameParserTest` cases passing.
+- **Unchanged UNMATCHED files are re-parsed on every scan** (`LibraryScanner.parsesDifferently`) and go back
+  to PENDING only if the guess changed, so parser fixes reach existing libraries without re-querying TMDB
+  for every unmatched file on every scan. MANUAL and IGNORED files are never re-parsed.
+- **Scans the user starts run as a foreground job** (`SyncWorker.runNow(..., notify = true)`, `dataSync`
+  type, notification channel `library-scan`) so they survive minimizing. Periodic and automatic scans
+  stay plain background work: Android refuses foreground services started from the background.
+  Cancel goes through `SyncWorker.cancel` → `LibraryScanner.cancel()`; it stops at the next checkpoint,
+  and a folder that was cut short is never treated as "files gone" (nothing is deleted).
 - **Database changes need a migration.** Bump the version in `VeltoretDatabase`, add an `AutoMigration` or a
   manual `Migration`, and commit the new schema JSON in `app/schemas`. Never use destructive fallback;
   users would lose their libraries and watch history.

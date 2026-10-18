@@ -55,9 +55,11 @@ class AccountRepository(
         auth.forget(email)
     }
 
-    suspend fun addLibraryFolder(email: String, folderId: String, name: String, type: LibraryType) {
+    /** Returns the new folder's id, or null if it was already in the library. */
+    suspend fun addLibraryFolder(email: String, folderId: String, name: String, type: LibraryType): Long? {
         if (LocalStorage.isLocal(email)) ensureDeviceAccount()
-        accounts.insertFolder(LibraryFolderEntity(accountEmail = email, driveFolderId = folderId, name = name, type = type))
+        return accounts.insertFolder(LibraryFolderEntity(accountEmail = email, driveFolderId = folderId, name = name, type = type))
+            .takeIf { it > 0 }
     }
 
     suspend fun removeLibraryFolder(folder: LibraryFolderEntity) {

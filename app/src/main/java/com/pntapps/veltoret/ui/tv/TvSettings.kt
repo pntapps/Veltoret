@@ -65,10 +65,10 @@ import com.pntapps.veltoret.ui.files.rememberLocalFolderPicker
 import com.pntapps.veltoret.ui.navigation.Navigator
 import com.pntapps.veltoret.ui.navigation.UnmatchedRoute
 import com.pntapps.veltoret.ui.settings.LANGUAGES
+import com.pntapps.veltoret.ui.settings.ScanText
 import com.pntapps.veltoret.ui.settings.SettingsViewModel
 import com.pntapps.veltoret.ui.settings.languageLabel
 import com.pntapps.veltoret.ui.theme.VColors
-import com.pntapps.veltoret.ui.util.Format
 import com.pntapps.veltoret.ui.util.appViewModel
 import com.pntapps.veltoret.ui.util.container
 import kotlinx.coroutines.launch
@@ -95,6 +95,7 @@ fun TvSettingsScreen(navigator: Navigator) {
     val folders by vm.folders.collectAsStateWithLifecycle()
     val scan by vm.scan.collectAsStateWithLifecycle()
     val unmatched by vm.unmatched.collectAsStateWithLifecycle()
+    val folderCounts by vm.folderCounts.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var dialog by remember { mutableStateOf<SettingsDialog?>(null) }
     val first = remember { FocusRequester() }
@@ -144,7 +145,7 @@ fun TvSettingsScreen(navigator: Navigator) {
             items(own, key = { "folder-${it.id}" }) { f ->
                 TvListItem(
                     title = f.name,
-                    subtitle = "Library folder",
+                    subtitle = ScanText.folder(f, folderCounts[f.id] ?: 0, scan),
                     leading = if (f.type == LibraryType.MOVIES) Icons.Rounded.Movie else Icons.Rounded.LiveTv,
                     trailing = if (f.type == LibraryType.MOVIES) "Movies" else "TV Shows",
                     onClick = { dialog = SettingsDialog.FolderActions(f) },
@@ -182,16 +183,22 @@ fun TvSettingsScreen(navigator: Navigator) {
 
         item { Section("Library") }
         item {
-            TvListItem(
-                title = "Scan library now",
-                subtitle = when {
-                    scan.running -> "${scan.phase}… ${scan.filesFound} files"
-                    scan.error != null -> "Last scan had a problem: ${scan.error}"
-                    else -> "Last scanned ${Format.relative(settings.lastScanAt).lowercase()}"
-                },
-                leading = Icons.Rounded.Sync,
-                onClick = vm::scanNow,
-            )
+            if (scan.running) {
+                TvListItem(
+                    title = ScanText.title(scan) + (scan.progress?.let { " · ${(it * 100).toInt()}%" } ?: ""),
+                    subtitle = "${ScanText.step(scan)} · ${ScanText.counts(scan)}",
+                    leading = Icons.Rounded.Sync,
+                    trailing = "Cancel",
+                    onClick = vm::cancelScan,
+                )
+            } else {
+                TvListItem(
+                    title = "Scan library now",
+                    subtitle = ScanText.idle(scan, settings.lastScanAt),
+                    leading = Icons.Rounded.Sync,
+                    onClick = vm::scanNow,
+                )
+            }
         }
         if (unmatched > 0) {
             item {
@@ -267,7 +274,10 @@ fun TvSettingsScreen(navigator: Navigator) {
         is SettingsDialog.FolderActions -> TvActionsDialog(
             title = d.folder.name,
             onDismiss = { dialog = null },
-            actions = listOf(TvAction("Remove from library", Icons.Rounded.Delete, detail = "The folder itself isn't deleted") { vm.removeFolder(d.folder) }),
+            actions = listOf(
+                TvAction("Scan this folder", Icons.Rounded.Sync, detail = "Looks for new, renamed and removed videos") { vm.scanFolder(d.folder) },
+                TvAction("Remove from library", Icons.Rounded.Delete, detail = "The folder itself isn't deleted") { vm.removeFolder(d.folder) },
+            ),
         )
         is SettingsDialog.Pick -> TvFolderPicker(
             email = d.email,

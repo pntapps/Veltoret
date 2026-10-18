@@ -54,6 +54,9 @@
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|uiMode|density"
             tools:ignore="DiscouragedApi,LockedOrientationActivity" />
 
+        <receiver
+            android:name=".data.library.CancelScanReceiver"
+            android:exported="false" />
         <service
             android:name="androidx.work.impl.foreground.SystemForegroundService"
             android:foregroundServiceType="dataSync"

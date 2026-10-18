@@ -22,16 +22,17 @@ class TmdbRepository(private val api: TmdbApi, private val catalog: CatalogDao) 
     }
 
     /** Finds the best movie match, retrying without the year when the year-filtered search is empty. */
-    suspend fun findMovie(title: String, year: Int?): TmdbMovieSummary? {
+    /** [exactOnly]: accept only an exact title match (for fallback names guessed by trimming a file name). */
+    suspend fun findMovie(title: String, year: Int?, exactOnly: Boolean = false): TmdbMovieSummary? {
         val withYear = if (year != null) searchMovies(title, year) else emptyList()
         val results = withYear.ifEmpty { searchMovies(title) }
-        return pickBest(results, title, year, { it.title }, { it.originalTitle }, { it.releaseDate }, { it.voteCount })
+        return pickBest(results, title, year, exactOnly, { it.title }, { it.originalTitle }, { it.releaseDate }, { it.voteCount })
     }
 
-    suspend fun findShow(title: String, year: Int?): TmdbTvSummary? {
+    suspend fun findShow(title: String, year: Int?, exactOnly: Boolean = false): TmdbTvSummary? {
         val withYear = if (year != null) searchShows(title, year) else emptyList()
         val results = withYear.ifEmpty { searchShows(title) }
-        return pickBest(results, title, year, { it.name }, { it.originalName }, { it.firstAirDate }, { it.voteCount })
+        return pickBest(results, title, year, exactOnly, { it.name }, { it.originalName }, { it.firstAirDate }, { it.voteCount })
     }
 
     suspend fun ensureMovie(id: Int, maxAgeMs: Long = 30L * DAY) {
@@ -155,6 +156,7 @@ class TmdbRepository(private val api: TmdbApi, private val catalog: CatalogDao) 
         results: List<T>,
         wantTitle: String,
         wantYear: Int?,
+        exactOnly: Boolean,
         title: (T) -> String,
         originalTitle: (T) -> String?,
         date: (T) -> String?,
@@ -175,6 +177,8 @@ class TmdbRepository(private val api: TmdbApi, private val catalog: CatalogDao) 
                     (minOf(n.length, want.length).toDouble() / maxOf(n.length, want.length) >= 0.6 || yearDiff == 0)
             }
             if (!exact && !partial) return@mapNotNull null
+            // Fallback names (see FilenameParser.TitleCandidate) need the exact title and, when known, a close year.
+            if (exactOnly && (!exact || (yearDiff != null && yearDiff > 1))) return@mapNotNull null
             var score = if (exact) 3.0 else 1.0
             score -= index * 0.15
             score += when (yearDiff) {

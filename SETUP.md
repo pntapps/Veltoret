@@ -396,6 +396,7 @@ progress and settings.
 | **"Google Drive refused the stream (403)"** while playing | Drive's download limit for that file was reached | Wait a while and try again. |
 | **"Can't use this folder"** in the device folder picker | Android doesn't let apps take the whole of internal storage or the Download folder itself | Pick a folder inside it, e.g. `Download/Movies`. |
 | Device videos disappeared | The SD card or USB drive was removed | Reconnect it and tap **Scan library now**. |
+| A device folder says **"Veltoret lost access to this folder"** | Android withdrew the folder permission (e.g. after reinstalling the app) | Remove the folder in **Settings** and add it again. |
 | Sign-in doesn't open on the emulator | Emulator image has no Google Play | Use an emulator image marked **Google Play**, or a real device. |
 
 ---

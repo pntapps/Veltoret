@@ -29,7 +29,11 @@ import androidx.compose.material.icons.rounded.PersonAdd
 import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -66,6 +70,7 @@ import com.pntapps.veltoret.BuildConfig
 import com.pntapps.veltoret.data.db.AccountEntity
 import com.pntapps.veltoret.data.db.LibraryFolderEntity
 import com.pntapps.veltoret.data.db.LibraryType
+import com.pntapps.veltoret.data.library.ScanState
 import com.pntapps.veltoret.data.library.SyncWorker
 import com.pntapps.veltoret.data.settings.AppSettings
 import com.pntapps.veltoret.ui.accounts.rememberAccountConnector
@@ -82,13 +87,13 @@ import com.pntapps.veltoret.ui.files.AccountAvatar
 import com.pntapps.veltoret.ui.files.LibraryTypeDialog
 import com.pntapps.veltoret.ui.files.accountSubtitle
 import com.pntapps.veltoret.ui.files.rememberLocalFolderPicker
+import com.pntapps.veltoret.ui.files.rememberNotificationPermission
 import com.pntapps.veltoret.ui.files.DriveFolderPicker
 import com.pntapps.veltoret.ui.files.PickerAction
 import com.pntapps.veltoret.ui.navigation.Navigator
 import com.pntapps.veltoret.ui.navigation.ArchivesRoute
 import com.pntapps.veltoret.ui.navigation.UnmatchedRoute
 import com.pntapps.veltoret.ui.theme.VColors
-import com.pntapps.veltoret.ui.util.Format
 import com.pntapps.veltoret.ui.util.LocalWidthClass
 import com.pntapps.veltoret.ui.util.WidthClass
 import com.pntapps.veltoret.ui.util.appViewModel
@@ -113,16 +118,24 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     val scan = container.scanner.state
     val unmatched = container.libraryRepository.unmatched().map { it.size }.stateIn(viewModelScope, SharingStarted.Eagerly, 0)
     val archives = container.libraryRepository.archives().map { it.size }.stateIn(viewModelScope, SharingStarted.Eagerly, 0)
+    val folderCounts = container.libraryRepository.folderCounts().stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
     val messages = MutableSharedFlow<String>(extraBufferCapacity = 4)
 
     private val s get() = container.settings
 
-    fun scanNow() = SyncWorker.runNow(container.appContext)
+    fun scanNow() = SyncWorker.runNow(container.appContext, notify = true)
+
+    fun scanFolder(folder: LibraryFolderEntity) {
+        SyncWorker.runNow(container.appContext, setOf(folder.id), notify = true)
+        messages.tryEmit("Scanning \"${folder.name}\"")
+    }
+
+    fun cancelScan() = SyncWorker.cancel(container.appContext)
 
     fun addFolder(email: String, id: String, name: String, type: LibraryType) = viewModelScope.launch {
-        container.accountRepository.addLibraryFolder(email, id, name, type)
+        val folderId = container.accountRepository.addLibraryFolder(email, id, name, type)
         SyncWorker.schedulePeriodic(container.appContext)
-        scanNow()
+        SyncWorker.runNow(container.appContext, folderId?.let { setOf(it) }, notify = true)
         messages.tryEmit("Added \"$name\" — scanning now")
     }
 
@@ -172,6 +185,8 @@ fun SettingsScreen(navigator: Navigator) {
     val scan by vm.scan.collectAsStateWithLifecycle()
     val unmatched by vm.unmatched.collectAsStateWithLifecycle()
     val archives by vm.archives.collectAsStateWithLifecycle()
+    val folderCounts by vm.folderCounts.collectAsStateWithLifecycle()
+    val askNotifications = rememberNotificationPermission()
     val snackbar = remember { SnackbarHostState() }
     var pickerFor by remember { mutableStateOf<String?>(null) }
     var confirmRemove by remember { mutableStateOf<AccountEntity?>(null) }
@@ -194,6 +209,9 @@ fun SettingsScreen(navigator: Navigator) {
                     AccountPanel(
                         account = account,
                         folders = folders.filter { it.accountEmail == account.email },
+                        folderCounts = folderCounts,
+                        scan = scan,
+                        onScanFolder = { askNotifications(); vm.scanFolder(it) },
                         onAddFolder = { if (LocalStorage.isLocal(account.email)) pickDeviceFolder() else pickerFor = account.email },
                         onRemoveFolder = vm::removeFolder,
                         onRemoveAccount = { confirmRemove = account },
@@ -229,16 +247,16 @@ fun SettingsScreen(navigator: Navigator) {
             item { GroupTitle("Library") }
             item {
                 Group {
-                    SettingRow(
-                        "Scan library now",
-                        when {
-                            scan.running -> "${scan.phase}… ${scan.filesFound} files"
-                            scan.error != null -> "Last scan had a problem: ${scan.error}"
-                            else -> "Last scanned ${Format.relative(settings.lastScanAt).lowercase()}"
-                        },
-                        icon = Icons.Rounded.Sync,
-                        onClick = vm::scanNow,
-                    )
+                    if (scan.running) {
+                        ScanProgress(scan, onCancel = vm::cancelScan)
+                    } else {
+                        SettingRow(
+                            "Scan library now",
+                            ScanText.idle(scan, settings.lastScanAt),
+                            icon = Icons.Rounded.Sync,
+                            onClick = { askNotifications(); vm.scanNow() },
+                        )
+                    }
                     if (unmatched > 0) {
                         Divider()
                         SettingRow("Unmatched files", "$unmatched file${if (unmatched == 1) "" else "s"} need identifying", onClick = { navigator.navigate(UnmatchedRoute) })
@@ -372,6 +390,9 @@ fun SettingsScreen(navigator: Navigator) {
 private fun AccountPanel(
     account: AccountEntity,
     folders: List<LibraryFolderEntity>,
+    folderCounts: Map<Long, Int>,
+    scan: ScanState,
+    onScanFolder: (LibraryFolderEntity) -> Unit,
     onAddFolder: () -> Unit,
     onRemoveFolder: (LibraryFolderEntity) -> Unit,
     onRemoveAccount: () -> Unit,
@@ -403,8 +424,31 @@ private fun AccountPanel(
                         null, tint = VColors.Amber, modifier = Modifier.size(18.dp),
                     )
                     Spacer(Modifier.width(10.dp))
-                    Text(folder.name, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Column(Modifier.weight(1f)) {
+                        Text(folder.name, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            ScanText.folder(folder, folderCounts[folder.id] ?: 0, scan),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (folder.id in scan.folderErrors) VColors.Danger else VColors.TextFaint,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    Spacer(Modifier.width(8.dp))
                     Pill(if (folder.type == LibraryType.MOVIES) "Movies" else "TV")
+                    if (scan.running && scan.currentFolderId == folder.id) {
+                        Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(Modifier.size(18.dp), color = VColors.Amber, strokeWidth = 2.dp)
+                        }
+                    } else {
+                        IconButton(onClick = { onScanFolder(folder) }, enabled = !scan.waiting(folder.id)) {
+                            Icon(
+                                Icons.Rounded.Sync, "Scan this folder",
+                                tint = if (scan.waiting(folder.id)) VColors.TextFaint else VColors.TextMuted,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+                    }
                     IconButton(onClick = { onRemoveFolder(folder) }) {
                         Icon(Icons.Rounded.Close, "Remove folder", tint = VColors.TextMuted, modifier = Modifier.size(18.dp))
                     }
@@ -413,6 +457,56 @@ private fun AccountPanel(
             Spacer(Modifier.height(8.dp))
             VButton("Add library folder", onAddFolder, icon = Icons.Rounded.CreateNewFolder, style = ButtonStyle.Ghost, modifier = Modifier.fillMaxWidth())
         }
+    }
+}
+
+/** The running scan: what it's doing, a progress bar, live counts and Cancel. */
+@Composable
+private fun ScanProgress(scan: ScanState, onCancel: () -> Unit) {
+    val target = scan.progress
+    val animated by animateFloatAsState(target ?: 0f, tween(400), label = "scan-progress")
+    Column(Modifier.padding(16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            CircularProgressIndicator(Modifier.size(20.dp), color = VColors.Amber, strokeWidth = 2.dp)
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(ScanText.title(scan), style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(ScanText.step(scan), style = MaterialTheme.typography.bodySmall, color = VColors.TextMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            TextButton(onClick = onCancel) { Text("Cancel", color = VColors.Amber) }
+        }
+        Spacer(Modifier.height(12.dp))
+        if (target != null) {
+            LinearProgressIndicator(
+                progress = { animated },
+                modifier = Modifier.fillMaxWidth(),
+                color = VColors.Amber,
+                trackColor = VColors.Outline,
+                drawStopIndicator = {},
+            )
+        } else {
+            LinearProgressIndicator(Modifier.fillMaxWidth(), color = VColors.Amber, trackColor = VColors.Outline)
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(ScanText.counts(scan), style = MaterialTheme.typography.bodySmall, color = VColors.TextMuted, modifier = Modifier.weight(1f))
+            if (target != null) Text("${(target * 100).toInt()}%", style = MaterialTheme.typography.labelMedium, color = VColors.TextMuted)
+        }
+        if (scan.currentPath.isNotEmpty() && scan.toMatch == 0) {
+            Text(
+                scan.currentPath,
+                style = MaterialTheme.typography.bodySmall,
+                color = VColors.TextFaint,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Text(
+            "Keeps going if you leave the app.",
+            style = MaterialTheme.typography.bodySmall,
+            color = VColors.TextFaint,
+            modifier = Modifier.padding(top = 6.dp),
+        )
     }
 }
 

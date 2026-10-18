@@ -111,7 +111,7 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
     ) { snap, counts, folders, scan -> build(snap, counts.first, folders, scan).copy(archiveCount = counts.second) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 
-    fun scanNow() = SyncWorker.runNow(container.appContext)
+    fun scanNow() = SyncWorker.runNow(container.appContext, notify = true)
 
     suspend fun playTarget(isShow: Boolean, id: Int): String? =
         if (isShow) container.playback.showPlayTarget(id)?.file?.driveId else container.playback.movieFile(id)?.driveId

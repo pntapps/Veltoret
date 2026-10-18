@@ -91,6 +91,48 @@ class FilenameParserTest {
         assertNull(ep("Behind the scenes.mkv"))
     }
 
+    @Test fun seasonTagInShowFolderIsDropped() {
+        val e = ep("Below.S01E03.480p.x264.mkv", "Below.S01.480p.x264.English.Hindi.MSubs.ReleaseSite.at", "480p x264")!!
+        assertEquals("Below", e.showTitle)
+        assertEquals(1, e.season)
+        assertEquals(3, e.episode)
+        assertEquals("Overcompensating", ep("E05.mkv", "Overcompensating.S01.1080p.x264.Hindi.English.Msubs.ReleaseSite.at")!!.showTitle)
+    }
+
+    @Test fun seasonFromShowFolderTag() {
+        val e = ep("Episode 4.mkv", "Show Name S02 720p")!!
+        assertEquals("Show Name", e.showTitle)
+        assertEquals(2, e.season)
+    }
+
+    @Test fun seasonRangesAndCompleteInShowFolder() {
+        assertEquals("The Wire", ep("The.Wire.S03E01.mkv", "The Wire S01-S05 Complete 1080p")!!.showTitle)
+        assertEquals("Dark", ep("Dark.S01E01.mkv", "Dark Season 1-3 (2017)")!!.showTitle)
+        assertEquals("Fargo", ep("Fargo.S02E01.mkv", "Fargo Complete Series")!!.showTitle)
+    }
+
+    @Test fun seasonTagInFileNameOnly() {
+        assertEquals("Below", ep("Below.S01.E02.480p.mkv")!!.showTitle)
+    }
+
+    @Test fun languagesAreNotPartOfTitle() {
+        assertEquals("Some Movie", movie("Some.Movie.Hindi.English.Esubs.mkv").title)
+        val m = movie("R.L.Stines.Pumpkinhead.2025.1080p.Web-Dl.Hindi.English.Esubs.ReleaseSite.at.mkv")
+        assertEquals("R L Stines Pumpkinhead", m.title)
+        assertEquals(2025, m.year)
+    }
+
+    @Test fun apostrophesIgnoredWhenComparing() {
+        assertEquals(
+            FilenameParser.normalizeForCompare("Good Luck, Have Fun, Don't Die"),
+            FilenameParser.normalizeForCompare("Good Luck Have Fun Dont Die"),
+        )
+        assertEquals(
+            FilenameParser.normalizeForCompare("R.L. Stine\u2019s Pumpkinhead"),
+            FilenameParser.normalizeForCompare("R L Stines Pumpkinhead"),
+        )
+    }
+
     @Test fun qualityTags() {
         val tags = FilenameParser.qualityTags("Movie.2160p.UHD.BluRay.HEVC.TrueHD.Atmos.7.1.mkv", 0)
         assertEquals(listOf("4K", "HEVC", "Atmos", "7.1"), tags)

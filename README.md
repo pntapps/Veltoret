@@ -13,7 +13,10 @@ them with a full-featured player.
 
 - **Automatic library**: point it at Movies and TV Shows folders. Release-style names
   (`The.Matrix.1999.1080p.mkv`, `Show S02E05.mkv`, `[Group] Show - 05.mkv`) are parsed and matched
-  on TMDB. Anything it can't identify goes to **Fix match**.
+  on TMDB. The parser understands scene, P2P and anime naming, release-site names, audio-language
+  tags, daily shows (`Show.2024.03.15`), season folders in several languages, category and quality
+  folders, and titles in any script. When the first guess doesn't match, it tries the file's own
+  title and trimmed variants before giving up. Anything it can't identify goes to **Fix match**.
 - **Home**: featured titles, Continue Watching, Next Up, Recently Added, Highly Rated and genre rows.
 - **Movies & TV Shows**: poster grids with watched / in-progress / 4K filters, genres and sorting.
 - **Detail pages**: overview, cast, quality badges (4K, HDR, HEVC, Atmos…), versions across
@@ -45,6 +48,10 @@ them with a full-featured player.
   back into Drive with one tap. The archive streams through the phone (nothing is stored on it),
   resumes after interruptions, and the new folder is added to the library automatically.
 - **Multiple Google accounts**, merged into one library.
+- **Library scans you can follow**: scan everything or a single folder from Settings, with live progress
+  (current folder, videos found, new files, TMDB matching), a progress bar and Cancel. Scans keep running
+  when the app is minimized, with progress in a notification. Each folder shows its video count, when it
+  was last scanned, and why it couldn't be read if something went wrong.
 - **Android TV / Google TV**: the same APK installs on TVs and switches to a remote-first interface:
   a navigation rail, a Home header that follows focus, poster rows that keep focus in a fixed spot,
   side panels for choices, and a player built for the D-pad (OK pauses, ← → seek with acceleration,

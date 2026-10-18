@@ -41,6 +41,9 @@ interface AccountDao {
     suspend fun deleteFoldersForAccount(email: String)
 }
 
+/** Videos found in one library folder (Settings shows it next to the folder). */
+data class FolderVideoCount(val folderId: Long, val videos: Int)
+
 @Dao
 interface MediaFileDao {
     @Query("SELECT * FROM media_files WHERE libraryFolderId = :folderId")
@@ -54,6 +57,9 @@ interface MediaFileDao {
 
     @Query("SELECT * FROM media_files WHERE matchState = 'PENDING'")
     suspend fun pending(): List<MediaFileEntity>
+
+    @Query("SELECT libraryFolderId AS folderId, COUNT(*) AS videos FROM media_files GROUP BY libraryFolderId")
+    fun observeFolderCounts(): Flow<List<FolderVideoCount>>
 
     @Query("SELECT * FROM media_files WHERE matchState = 'UNMATCHED' ORDER BY name")
     fun observeUnmatched(): Flow<List<MediaFileEntity>>

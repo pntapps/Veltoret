@@ -17,6 +17,7 @@ import com.pntapps.veltoret.data.storage.LocalStorage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 
 class LibraryRepository(
     private val catalog: CatalogDao,
@@ -39,6 +40,7 @@ class LibraryRepository(
     fun showFiles(showId: Int): Flow<List<MediaFileEntity>> = files.observeForShow(showId)
     fun credits(type: String, id: Int): Flow<List<CreditEntity>> = catalog.observeCredits(type, id)
     fun unmatched(): Flow<List<MediaFileEntity>> = files.observeUnmatched()
+    fun folderCounts(): Flow<Map<Long, Int>> = files.observeFolderCounts().map { list -> list.associate { it.folderId to it.videos } }
     fun ignored(): Flow<List<MediaFileEntity>> = files.observeIgnored()
     fun episodeFiles(): Flow<List<MediaFileEntity>> = combine(files.observeEpisodeFiles(), connectivity.online) { list, online ->
         if (online) list else list.filter { LocalStorage.isLocal(it.accountEmail) }

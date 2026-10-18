@@ -226,7 +226,8 @@ class FilesViewModel(private val container: AppContainer) : ViewModel() {
     fun move(ids: Collection<String>, target: Crumb) = mutate("Moved to ${target.name}") { email ->
         val parentsById = _state.value.items.associate { it.id to it.parents.firstOrNull() }
         ids.forEach { storage.move(email, it, parentsById[it] ?: _state.value.current.id, target.id) }
-        if (storage.isLocal(email)) container.scanner.onFilesRemoved(ids.toList())
+        // Device and network-share ids change when files move: forget the old ones (the rescan adds them back).
+        if (storage.isLocal(email) || storage.isSmb(email)) container.scanner.onFilesRemoved(ids.toList())
         clearSelection()
         SyncWorker.runNow(container.appContext)
     }
@@ -237,7 +238,7 @@ class FilesViewModel(private val container: AppContainer) : ViewModel() {
 
     private fun removedMessage(count: Int): String {
         val what = if (count == 1) "1 item" else "$count items"
-        return if (storage.isLocal(_state.value.account)) "Deleted $what" else if (count == 1) "Moved to trash" else "$what moved to trash"
+        return if (storage.isLocal(_state.value.account) || storage.isSmb(_state.value.account)) "Deleted $what" else if (count == 1) "Moved to trash" else "$what moved to trash"
     }
 
     /** Switches the Files tab to "This device", creating it if this is the first local folder. */

@@ -42,7 +42,7 @@ export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"
 ```
 
 - **Unit tests** (`app/src/test`): `FilenameParserTest`, `FilenameParserCorpusTest` (one line per naming
-  style; add a line for every name that parses wrong), `PlayTargetsTest`, `DriveStreamingUploadTest`. Run
+  style; add a line for every name that parses wrong), `PlayTargetsTest`, `DriveStreamingUploadTest`, `RelatedTitlesTest`, `SmbPathTest`, `SmbDiscoveryTest`. Run
   them after any change to parsing, play targets or uploads, and add cases for new behavior.
 - **Device tests** (`app/src/androidTest`): **do not run `connectedAndroidTest`**. It uninstalls the app
   afterwards, which wipes the tester's library, accounts and folder permissions, and it runs on every
@@ -71,7 +71,8 @@ app/src/main/java/com/pntapps/veltoret/
 │   ├── auth/            Google sign-in via Play services AuthorizationClient; token cache
 │   ├── db/              Room: Entities, Daos, VeltoretDatabase (schemas exported to app/schemas)
 │   ├── drive/           Drive REST (Retrofit), DriveRepository, UploadWorker, ExtractWorker (ZIPs)
-│   ├── storage/         LocalStorage (SAF device folders) + Storage (one facade for Drive and device)
+│   ├── storage/         LocalStorage (SAF device folders) + Storage (one facade for Drive, device and SMB)
+│   ├── smb/             Network shares: SmbStorage (smbj), SmbServerStore (encrypted passwords), SmbPath, SmbDiscovery
 │   ├── library/         FilenameParser, LibraryScanner, repositories, PlayTargets, SyncWorker (+ scan notification)
 │   ├── tmdb/            TMDB API, models, matching (TmdbRepository.pickBest) and caching
 │   ├── settings/        DataStore preferences
@@ -84,10 +85,12 @@ app/src/main/java/androidx/media3/extractor/mkv/VeltoretMatroskaExtractor.java  
 Key ideas:
 
 - **Accounts.** A Google account is identified by its email. Device files use the pseudo-account
-  `"device"` (`LocalStorage.ACCOUNT`, shown as "This device"). Several accounts merge into one library.
-- **File ids.** Drive file id for Drive; the SAF **document URI string** for device files. Code that must
-  work for both goes through `Storage` (`list`, `search`, `rename`, `remove`, `move`, `createFolder`, `read`).
-  Check `Storage.isLocal(account)` instead of assuming Drive.
+  `"device"` (`LocalStorage.ACCOUNT`, shown as "This device"); a network share server is `"smb://host"`
+  (`SmbPath.isSmb`). Several accounts merge into one library.
+- **File ids.** Drive file id for Drive; the SAF **document URI string** for device files;
+  `smb://host/share/path` for network shares (the player plays that URI through `SmbDataSource`).
+  Code that must work for every source goes through `Storage` (`list`, `search`, `rename`, `remove`,
+  `move`, `createFolder`, `read`). Check `Storage.isLocal` / `isSmb` instead of assuming Drive.
 - **Library pipeline.** `SyncWorker` → `LibraryScanner` walks the library folders (`storage.list`), parses
   names with `FilenameParser`, stores `MediaFileEntity` rows, then matches pending files on TMDB.
   `MatchState`: `PENDING`, `MATCHED`, `UNMATCHED`, `MANUAL` (Fix match; never overwritten by a rescan),
@@ -107,8 +110,9 @@ Each rule below exists because breaking it caused a real bug.
   For device files every read is a FUSE system call; without the buffer, opening a 2–3 GB movie took
   20–30 seconds on a Samsung tablet. With it, about 1–2 seconds.
 - **`VeltoretMatroskaExtractor`** is a modified copy of Media3 1.9.4's `MatroskaExtractor`, registered
-  through `VeltoretExtractorsFactory`. It (a) seeks to a Tracks element stored after the first Cluster
-  (files that otherwise play with no tracks) and (b) ignores SeekHead entries past the end of the file
+  through `VeltoretExtractorsFactory`. It (a) seeks to Info and Tracks elements stored after the first
+  Cluster (files that otherwise play with no tracks, or fail with "Can't scale timecode prior to
+  timecodeScale being set" because the Cues were read before a late Info) and (b) ignores SeekHead entries past the end of the file
   (incomplete downloads crashed with "position out of range"). Changes are marked `// Veltoret`. Keep
   the Apache license header and its modification note. When upgrading Media3, re-copy the upstream file
   and re-apply the marked changes.
@@ -117,6 +121,9 @@ Each rule below exists because breaking it caused a real bug.
   decoding; video uses MediaCodec, with a software-decoder fallback. Don't claim otherwise in UI or docs.
 - **Subtitles "Off" means off.** Track selection ignores the file's DEFAULT flag when subtitles are off
   (`setIgnoredTextSelectionFlags`) but still shows forced subtitles.
+- **The play/pause button follows `playWhenReady`, not `isPlaying`**, and spins while the player is
+  buffering (`PlayerScreen`; the TV player uses the same rule). `isPlaying` is false while a video loads,
+  which showed ▶ on a video that was about to start. The slow-loading hint is `PlayerLoading.kt`.
 - **Per-video track memory** (`PlayerPrefs` / `TrackMemory`, keyed by file id) restores the chosen audio and
   subtitle tracks; the per-show language is the fallback. Keep both working when you touch track selection.
 - **Track labels** go through `MediaFormats.cleanLabel` / `trackTitles`. Release-site names
@@ -152,9 +159,33 @@ Each rule below exists because breaking it caused a real bug.
   stay plain background work: Android refuses foreground services started from the background.
   Cancel goes through `SyncWorker.cancel` → `LibraryScanner.cancel()`; it stops at the next checkpoint,
   and a folder that was cut short is never treated as "files gone" (nothing is deleted).
+- **"More like this" shows only library titles** (`LibraryRepository.relatedMovies` / `relatedShows` over
+  `movies()` / `shows()`, so offline it lists device copies only). TMDB's ids are stored per title in
+  `recommendations` (kept for titles not owned yet), refreshed monthly by full scans and on opening a page;
+  `catalog.prune()` removes rows for titles that left the library. Same type only: movies → movies, shows → shows.
 - **Database changes need a migration.** Bump the version in `VeltoretDatabase`, add an `AutoMigration` or a
   manual `Migration`, and commit the new schema JSON in `app/schemas`. Never use destructive fallback;
   users would lose their libraries and watch history.
+
+**Network shares (SMB)**
+- **No socket read timeout in `SmbStorage`'s `SmbConfig`** (`withSoTimeout`). The player stops reading for a
+  minute or more once its buffer is full; a read timeout on that idle connection killed smbj's packet
+  reader while `isConnected` stayed true, so playback took 30–60 s to start and seeks hung. Request timeouts
+  (`withTimeout`) are fine. Failed player reads mark the host `broken` so the retry reconnects.
+- **SMB ids contain the host** (`smb://host/share/…`) because `media_files.driveId` is a primary key across
+  all sources. Renaming or moving changes the id (like device files): forget the old ids and rescan.
+- **Deleting on a share is permanent** (no trash); Files and TV Files must say so, as for device files.
+  ZIP extraction and uploads are Drive-only: never offer them for `smb://` sources.
+- **Release builds shrink with R8** (`optimization { enable = true }`). smbj, mbassador and dcerpc need the
+  rules in `app/src/main/keepRules/rules.keep`; run `./gradlew :app:assembleRelease` after adding or
+  upgrading any library, since R8 errors only show up there.
+- **Passwords** live only in `SmbServerStore` (prefs file `smb_servers`, AES-GCM with an Android Keystore
+  key) and are excluded from backups in `backup_rules.xml` / `data_extraction_rules.xml`.
+- **Android 17 needs `ACCESS_LOCAL_NETWORK`** (Nearby devices) for any LAN traffic, including connecting.
+  Ask through `rememberLocalNetworkAccess` before scanning for or connecting to servers.
+- SMB titles are "needs the network" like Drive (`canPlayNow`); away from home they fail with a clear message.
+- Adding servers is phone/tablet only for now (`AddServerDialog` in Settings). TV Settings has no
+  add-server screen yet, so don't advertise network shares on TV until it does.
 
 **Offline mode**
 - `Connectivity` (in `data/net`) exposes `online`. Offline, `LibraryRepository.movies()` / `shows()` /
@@ -208,8 +239,17 @@ Each rule below exists because breaking it caused a real bug.
   covers it.
 - ZIP extraction streams download → unzip → upload with no temp files and supports Keep / Trash /
   Delete for the archive afterwards. Don't buffer whole archives in memory or on disk.
+- **Extraction needs free Drive space ≈ the ZIP's size** (the ZIP is removed only at the end; trashed files
+  still count). `ExtractDialog` checks `DriveRepository.freeBytes` and won't start when it can't fit (unless an
+  earlier attempt's folder exists). A full Drive is `DriveStorageFullException` (403 `storageQuotaExceeded`):
+  `ExtractWorker` fails at once instead of retrying, since each retry downloads the whole ZIP again.
 
 **UI and design**
+- **Smooth scrolling: never read an animation value during composition in list items.** Read it inside
+  `graphicsLayer { }` / draw blocks (`rememberPulse` returns a `State`; `pressScale` reads in the layer),
+  otherwise every loading poster recomposes every frame. `entrance` plays once (saved state) because lazy
+  lists replayed it each time a row scrolled back into view. Judge smoothness on a **release** build:
+  debug Compose is several times slower (Home on a Samsung tablet: ~10% janky frames in debug, ~2% in release).
 - Dark, cinematic design with **no gradients anywhere**: flat surfaces, hairline outlines, amber accent.
   Use the `VColors` tokens and shared components (`Components.kt`, `Motion.kt`).
 - **Use `MaterialTheme.colorScheme.background` for page backgrounds, never `VColors.Background`.**

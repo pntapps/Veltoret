@@ -71,7 +71,9 @@ import com.pntapps.veltoret.ui.components.VButton
 import com.pntapps.veltoret.ui.components.VIconButton
 import com.pntapps.veltoret.ui.components.VImage
 import com.pntapps.veltoret.ui.components.VProgress
+import com.pntapps.veltoret.ui.home.PosterItem
 import com.pntapps.veltoret.ui.navigation.FixMatchRoute
+import com.pntapps.veltoret.ui.navigation.ShowRoute
 import com.pntapps.veltoret.ui.navigation.Navigator
 import com.pntapps.veltoret.ui.theme.VColors
 import com.pntapps.veltoret.ui.util.Format
@@ -83,6 +85,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -112,6 +115,8 @@ data class ShowDetailState(
     val target: EpisodeTarget? = null,
     val cast: List<CreditEntity> = emptyList(),
     val allFileIds: List<String> = emptyList(),
+    /** "More like this": TMDB's recommendations that are in the library. */
+    val related: List<PosterItem> = emptyList(),
 )
 
 class ShowDetailViewModel(private val container: AppContainer, private val id: Int) : ViewModel() {
@@ -122,9 +127,19 @@ class ShowDetailViewModel(private val container: AppContainer, private val id: I
         library.show(id), library.seasons(id), library.episodes(id), library.showFiles(id), container.watchRepository.observeForShow(id),
     ) { show, seasons, episodes, files, states -> Base(show, seasons, episodes, files, states) }
 
+    private val related = library.relatedShows(id).map { rows ->
+        rows.map { row ->
+            PosterItem(
+                id = row.show.tmdbId, isShow = true, title = row.show.name,
+                subtitle = "${row.availableEpisodes} episode${if (row.availableEpisodes == 1) "" else "s"}",
+                posterUrl = TmdbImages.poster(row.show.posterPath),
+            )
+        }
+    }
+
     val state: StateFlow<ShowDetailState> = combine(
-        base, library.credits("tv", id), selected, container.connectivity.online,
-    ) { b, cast, sel, online ->
+        base, library.credits("tv", id), selected, container.connectivity.online, related,
+    ) { b, cast, sel, online, related ->
         val statesByKey = b.states.associateBy { it.key }
         val filesByEpisode = b.files.filter { it.season != null && it.episode != null }
             .groupBy { it.season!! to it.episode!! }
@@ -164,8 +179,15 @@ class ShowDetailViewModel(private val container: AppContainer, private val id: I
                 needsInternet = file != null && !canPlayNow(file.accountEmail, online),
             )
         }
-        ShowDetailState(false, b.show, seasons, current, episodes, target, cast, b.files.map { it.driveId })
+        ShowDetailState(false, b.show, seasons, current, episodes, target, cast, b.files.map { it.driveId }, related)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ShowDetailState())
+
+    init {
+        // Shows matched before "More like this" existed (or a month ago) get their list now rather than at the next scan.
+        if (container.connectivity.isOnline) viewModelScope.launch {
+            runCatching { container.tmdbRepository.ensureRecommendations("tv", id) }
+        }
+    }
 
     fun selectSeason(season: Int) { selected.value = season }
 
@@ -308,6 +330,7 @@ fun ShowDetailScreen(id: Int, navigator: Navigator) {
         }
 
         item("cast") { CastRow(state.cast) }
+        item("related") { RelatedRow(state.related) { navigator.navigate(ShowRoute(it.id)) } }
     }
 }
 

@@ -1,0 +1,913 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 3,
+    "identityHash": "85f5bde86aac1359923c64378c1a34cc",
+    "entities": [
+      {
+        "tableName": "accounts",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`email` TEXT NOT NULL, `displayName` TEXT NOT NULL, `photoUrl` TEXT, `addedAt` INTEGER NOT NULL, PRIMARY KEY(`email`))",
+        "fields": [
+          {
+            "fieldPath": "email",
+            "columnName": "email",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "displayName",
+            "columnName": "displayName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "photoUrl",
+            "columnName": "photoUrl",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "addedAt",
+            "columnName": "addedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "email"
+          ]
+        }
+      },
+      {
+        "tableName": "library_folders",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `accountEmail` TEXT NOT NULL, `driveFolderId` TEXT NOT NULL, `name` TEXT NOT NULL, `type` TEXT NOT NULL, `lastScannedAt` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accountEmail",
+            "columnName": "accountEmail",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "driveFolderId",
+            "columnName": "driveFolderId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastScannedAt",
+            "columnName": "lastScannedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_library_folders_accountEmail_driveFolderId_type",
+            "unique": true,
+            "columnNames": [
+              "accountEmail",
+              "driveFolderId",
+              "type"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_library_folders_accountEmail_driveFolderId_type` ON `${TABLE_NAME}` (`accountEmail`, `driveFolderId`, `type`)"
+          }
+        ]
+      },
+      {
+        "tableName": "media_files",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`driveId` TEXT NOT NULL, `accountEmail` TEXT NOT NULL, `libraryFolderId` INTEGER NOT NULL, `name` TEXT NOT NULL, `parentId` TEXT NOT NULL, `relativePath` TEXT NOT NULL, `sizeBytes` INTEGER NOT NULL, `modifiedTime` TEXT, `mimeType` TEXT NOT NULL, `durationMs` INTEGER NOT NULL, `width` INTEGER NOT NULL, `height` INTEGER NOT NULL, `kind` TEXT NOT NULL, `parsedTitle` TEXT NOT NULL, `parsedYear` INTEGER, `season` INTEGER, `episode` INTEGER, `episodeEnd` INTEGER, `movieId` INTEGER, `showId` INTEGER, `matchState` TEXT NOT NULL, `addedAt` INTEGER NOT NULL, PRIMARY KEY(`driveId`))",
+        "fields": [
+          {
+            "fieldPath": "driveId",
+            "columnName": "driveId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accountEmail",
+            "columnName": "accountEmail",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "libraryFolderId",
+            "columnName": "libraryFolderId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "parentId",
+            "columnName": "parentId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "relativePath",
+            "columnName": "relativePath",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sizeBytes",
+            "columnName": "sizeBytes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "modifiedTime",
+            "columnName": "modifiedTime",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "mimeType",
+            "columnName": "mimeType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "durationMs",
+            "columnName": "durationMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "width",
+            "columnName": "width",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "height",
+            "columnName": "height",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "parsedTitle",
+            "columnName": "parsedTitle",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "parsedYear",
+            "columnName": "parsedYear",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "season",
+            "columnName": "season",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "episode",
+            "columnName": "episode",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "episodeEnd",
+            "columnName": "episodeEnd",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "movieId",
+            "columnName": "movieId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "showId",
+            "columnName": "showId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "matchState",
+            "columnName": "matchState",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "addedAt",
+            "columnName": "addedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "driveId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_media_files_movieId",
+            "unique": false,
+            "columnNames": [
+              "movieId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_media_files_movieId` ON `${TABLE_NAME}` (`movieId`)"
+          },
+          {
+            "name": "index_media_files_showId",
+            "unique": false,
+            "columnNames": [
+              "showId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_media_files_showId` ON `${TABLE_NAME}` (`showId`)"
+          },
+          {
+            "name": "index_media_files_libraryFolderId",
+            "unique": false,
+            "columnNames": [
+              "libraryFolderId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_media_files_libraryFolderId` ON `${TABLE_NAME}` (`libraryFolderId`)"
+          },
+          {
+            "name": "index_media_files_matchState",
+            "unique": false,
+            "columnNames": [
+              "matchState"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_media_files_matchState` ON `${TABLE_NAME}` (`matchState`)"
+          }
+        ]
+      },
+      {
+        "tableName": "subtitle_files",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`driveId` TEXT NOT NULL, `accountEmail` TEXT NOT NULL, `libraryFolderId` INTEGER NOT NULL, `parentId` TEXT NOT NULL, `name` TEXT NOT NULL, PRIMARY KEY(`driveId`))",
+        "fields": [
+          {
+            "fieldPath": "driveId",
+            "columnName": "driveId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accountEmail",
+            "columnName": "accountEmail",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "libraryFolderId",
+            "columnName": "libraryFolderId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "parentId",
+            "columnName": "parentId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "driveId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_subtitle_files_parentId",
+            "unique": false,
+            "columnNames": [
+              "parentId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_subtitle_files_parentId` ON `${TABLE_NAME}` (`parentId`)"
+          }
+        ]
+      },
+      {
+        "tableName": "movies",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`tmdbId` INTEGER NOT NULL, `title` TEXT NOT NULL, `originalTitle` TEXT, `overview` TEXT NOT NULL, `tagline` TEXT, `releaseDate` TEXT, `year` INTEGER, `runtimeMin` INTEGER, `rating` REAL NOT NULL, `certification` TEXT, `posterPath` TEXT, `backdropPath` TEXT, `genres` TEXT NOT NULL, `collectionId` INTEGER, `collectionName` TEXT, `director` TEXT, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`tmdbId`))",
+        "fields": [
+          {
+            "fieldPath": "tmdbId",
+            "columnName": "tmdbId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "originalTitle",
+            "columnName": "originalTitle",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "overview",
+            "columnName": "overview",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tagline",
+            "columnName": "tagline",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "releaseDate",
+            "columnName": "releaseDate",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "year",
+            "columnName": "year",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "runtimeMin",
+            "columnName": "runtimeMin",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "rating",
+            "columnName": "rating",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "certification",
+            "columnName": "certification",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "posterPath",
+            "columnName": "posterPath",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "backdropPath",
+            "columnName": "backdropPath",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "genres",
+            "columnName": "genres",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "collectionId",
+            "columnName": "collectionId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "collectionName",
+            "columnName": "collectionName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "director",
+            "columnName": "director",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "tmdbId"
+          ]
+        }
+      },
+      {
+        "tableName": "shows",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`tmdbId` INTEGER NOT NULL, `name` TEXT NOT NULL, `overview` TEXT NOT NULL, `tagline` TEXT, `firstAirDate` TEXT, `year` INTEGER, `lastAirDate` TEXT, `status` TEXT, `rating` REAL NOT NULL, `certification` TEXT, `posterPath` TEXT, `backdropPath` TEXT, `genres` TEXT NOT NULL, `network` TEXT, `seasonCount` INTEGER NOT NULL, `episodeCount` INTEGER NOT NULL, `episodeRuntimeMin` INTEGER, `creator` TEXT, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`tmdbId`))",
+        "fields": [
+          {
+            "fieldPath": "tmdbId",
+            "columnName": "tmdbId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "overview",
+            "columnName": "overview",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tagline",
+            "columnName": "tagline",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "firstAirDate",
+            "columnName": "firstAirDate",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "year",
+            "columnName": "year",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "lastAirDate",
+            "columnName": "lastAirDate",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "rating",
+            "columnName": "rating",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "certification",
+            "columnName": "certification",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "posterPath",
+            "columnName": "posterPath",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "backdropPath",
+            "columnName": "backdropPath",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "genres",
+            "columnName": "genres",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "network",
+            "columnName": "network",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "seasonCount",
+            "columnName": "seasonCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "episodeCount",
+            "columnName": "episodeCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "episodeRuntimeMin",
+            "columnName": "episodeRuntimeMin",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "creator",
+            "columnName": "creator",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "tmdbId"
+          ]
+        }
+      },
+      {
+        "tableName": "seasons",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`showId` INTEGER NOT NULL, `seasonNumber` INTEGER NOT NULL, `name` TEXT NOT NULL, `overview` TEXT NOT NULL, `posterPath` TEXT, `episodeCount` INTEGER NOT NULL, `airDate` TEXT, `fetchedAt` INTEGER NOT NULL, PRIMARY KEY(`showId`, `seasonNumber`))",
+        "fields": [
+          {
+            "fieldPath": "showId",
+            "columnName": "showId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "seasonNumber",
+            "columnName": "seasonNumber",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "overview",
+            "columnName": "overview",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "posterPath",
+            "columnName": "posterPath",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "episodeCount",
+            "columnName": "episodeCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "airDate",
+            "columnName": "airDate",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "fetchedAt",
+            "columnName": "fetchedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "showId",
+            "seasonNumber"
+          ]
+        }
+      },
+      {
+        "tableName": "episodes",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`showId` INTEGER NOT NULL, `seasonNumber` INTEGER NOT NULL, `episodeNumber` INTEGER NOT NULL, `name` TEXT NOT NULL, `overview` TEXT NOT NULL, `stillPath` TEXT, `airDate` TEXT, `runtimeMin` INTEGER, `rating` REAL NOT NULL, PRIMARY KEY(`showId`, `seasonNumber`, `episodeNumber`))",
+        "fields": [
+          {
+            "fieldPath": "showId",
+            "columnName": "showId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "seasonNumber",
+            "columnName": "seasonNumber",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "episodeNumber",
+            "columnName": "episodeNumber",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "overview",
+            "columnName": "overview",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stillPath",
+            "columnName": "stillPath",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "airDate",
+            "columnName": "airDate",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "runtimeMin",
+            "columnName": "runtimeMin",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "rating",
+            "columnName": "rating",
+            "affinity": "REAL",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "showId",
+            "seasonNumber",
+            "episodeNumber"
+          ]
+        }
+      },
+      {
+        "tableName": "credits",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`mediaType` TEXT NOT NULL, `mediaId` INTEGER NOT NULL, `personId` INTEGER NOT NULL, `name` TEXT NOT NULL, `character` TEXT, `profilePath` TEXT, `ord` INTEGER NOT NULL, PRIMARY KEY(`mediaType`, `mediaId`, `personId`))",
+        "fields": [
+          {
+            "fieldPath": "mediaType",
+            "columnName": "mediaType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaId",
+            "columnName": "mediaId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "personId",
+            "columnName": "personId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "character",
+            "columnName": "character",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "profilePath",
+            "columnName": "profilePath",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "ord",
+            "columnName": "ord",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "mediaType",
+            "mediaId",
+            "personId"
+          ]
+        }
+      },
+      {
+        "tableName": "watch_state",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`key` TEXT NOT NULL, `positionMs` INTEGER NOT NULL, `durationMs` INTEGER NOT NULL, `watched` INTEGER NOT NULL, `lastWatchedAt` INTEGER NOT NULL, `lastFileId` TEXT, `movieId` INTEGER, `showId` INTEGER, `season` INTEGER, `episode` INTEGER, PRIMARY KEY(`key`))",
+        "fields": [
+          {
+            "fieldPath": "key",
+            "columnName": "key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "positionMs",
+            "columnName": "positionMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "durationMs",
+            "columnName": "durationMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "watched",
+            "columnName": "watched",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastWatchedAt",
+            "columnName": "lastWatchedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastFileId",
+            "columnName": "lastFileId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "movieId",
+            "columnName": "movieId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "showId",
+            "columnName": "showId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "season",
+            "columnName": "season",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "episode",
+            "columnName": "episode",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "key"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_watch_state_showId",
+            "unique": false,
+            "columnNames": [
+              "showId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_watch_state_showId` ON `${TABLE_NAME}` (`showId`)"
+          }
+        ]
+      },
+      {
+        "tableName": "archive_files",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`driveId` TEXT NOT NULL, `accountEmail` TEXT NOT NULL, `libraryFolderId` INTEGER NOT NULL, `parentId` TEXT NOT NULL, `name` TEXT NOT NULL, `sizeBytes` INTEGER NOT NULL, `relativePath` TEXT NOT NULL, PRIMARY KEY(`driveId`))",
+        "fields": [
+          {
+            "fieldPath": "driveId",
+            "columnName": "driveId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accountEmail",
+            "columnName": "accountEmail",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "libraryFolderId",
+            "columnName": "libraryFolderId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "parentId",
+            "columnName": "parentId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sizeBytes",
+            "columnName": "sizeBytes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "relativePath",
+            "columnName": "relativePath",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "driveId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_archive_files_libraryFolderId",
+            "unique": false,
+            "columnNames": [
+              "libraryFolderId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_archive_files_libraryFolderId` ON `${TABLE_NAME}` (`libraryFolderId`)"
+          }
+        ]
+      },
+      {
+        "tableName": "recommendations",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`mediaType` TEXT NOT NULL, `mediaId` INTEGER NOT NULL, `recommendedIds` TEXT NOT NULL, `fetchedAt` INTEGER NOT NULL, PRIMARY KEY(`mediaType`, `mediaId`))",
+        "fields": [
+          {
+            "fieldPath": "mediaType",
+            "columnName": "mediaType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaId",
+            "columnName": "mediaId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recommendedIds",
+            "columnName": "recommendedIds",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fetchedAt",
+            "columnName": "fetchedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "mediaType",
+            "mediaId"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '85f5bde86aac1359923c64378c1a34cc')"
+    ]
+  }
+}

@@ -44,6 +44,8 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.pntapps.veltoret.ui.util.container
+import androidx.compose.ui.platform.LocalContext
 import com.pntapps.veltoret.data.db.CreditEntity
 import com.pntapps.veltoret.data.db.MediaFileEntity
 import com.pntapps.veltoret.data.library.FilenameParser
@@ -55,6 +57,8 @@ import com.pntapps.veltoret.ui.components.PosterShape
 import com.pntapps.veltoret.ui.components.SectionHeader
 import com.pntapps.veltoret.ui.components.VIconButton
 import com.pntapps.veltoret.ui.components.VImage
+import com.pntapps.veltoret.ui.home.PosterItem
+import com.pntapps.veltoret.ui.home.PosterRow
 import com.pntapps.veltoret.ui.theme.VColors
 import com.pntapps.veltoret.ui.util.Format
 import com.pntapps.veltoret.ui.util.LocalWidthClass
@@ -267,6 +271,7 @@ fun FileRow(file: MediaFileEntity, onClick: () -> Unit) {
                 Spacer(Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     val onDevice = com.pntapps.veltoret.data.storage.LocalStorage.isLocal(file.accountEmail)
+                    val onServer = com.pntapps.veltoret.data.smb.SmbPath.isSmb(file.accountEmail)
                     Icon(
                         if (onDevice) Icons.Rounded.PhoneAndroid else Icons.Rounded.CloudQueue, null,
                         tint = if (onDevice) VColors.AmberSoft else VColors.TextFaint, modifier = Modifier.size(13.dp),
@@ -275,6 +280,8 @@ fun FileRow(file: MediaFileEntity, onClick: () -> Unit) {
                     Text(
                         when {
                             onDevice -> "On this device"
+                            onServer && !playable -> "Network server · needs Wi-Fi"
+                            onServer -> "Network server · ${LocalContext.current.container.storage.rootName(file.accountEmail)}"
                             !playable -> "Google Drive · needs internet"
                             else -> file.accountEmail
                         },
@@ -286,4 +293,16 @@ fun FileRow(file: MediaFileEntity, onClick: () -> Unit) {
             }
         }
     }
+}
+
+/** "More like this": recommended titles from the library, sized like the Home rows. Hidden when empty. */
+@Composable
+fun RelatedRow(items: List<PosterItem>, onOpen: (PosterItem) -> Unit) {
+    if (items.isEmpty()) return
+    val posterWidth = when (LocalWidthClass.current) {
+        WidthClass.Compact -> 124.dp
+        WidthClass.Medium -> 150.dp
+        WidthClass.Expanded -> 164.dp
+    }
+    Box(Modifier.padding(top = 4.dp)) { PosterRow("More like this", items, posterWidth, onOpen) }
 }

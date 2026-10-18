@@ -98,6 +98,8 @@ data class PlayerUi(
     /** Short one-off notice for the HUD ("Switched to software decoding"). */
     val notice: String? = null,
     val boost: Float = 0f,
+    /** Shown when loading is slow ("Loading from MyNAS…"); null for files on this device. */
+    val loadingFrom: String? = null,
 )
 
 enum class ResizeMode(val label: String) { Fit("Fit"), Fill("Fill"), Stretch("Stretch") }
@@ -206,7 +208,9 @@ class PlayerViewModel(private val container: AppContainer, args: PlayerArgs) : V
             // "Software decoding" = try Android's built-in software decoders before the hardware ones.
             .apply { if (preferSoftware) setMediaCodecSelector(softwareFirst) }
         val http = OkHttpDataSource.Factory(container.mediaHttp).setUserAgent("Veltoret")
-        val upstream = ResolvingDataSource.Factory(http, DriveMedia.Resolver(container.auth))
+        val drive = ResolvingDataSource.Factory(http, DriveMedia.Resolver(container.auth))
+        // Network share files ("smb://…") are read with smbj; everything else that isn't on the device is Drive.
+        val upstream = SchemeRoutingDataSource.Factory(SmbDataSource.Factory(container.smbStorage), drive)
         val dataSource = DefaultDataSource.Factory(context, upstream)
             .apply { if (com.pntapps.veltoret.BuildConfig.DEBUG) setTransferListener(DebugTransferLog) }
         // Note: never enable "constant bitrate seeking always" — Drive URLs carry no file extension, and
@@ -360,6 +364,11 @@ class PlayerViewModel(private val container: AppContainer, args: PlayerArgs) : V
                 subtitleOffsetMs = restore?.subtitleOffsetMs ?: 0,
                 autoPlayCancelled = false,
                 introSkipped = false,
+                loadingFrom = when {
+                    container.storage.isLocal(account) -> null
+                    container.storage.isSmb(account) -> container.storage.rootName(account)
+                    else -> "Google Drive"
+                },
             )
         }
 
@@ -378,8 +387,8 @@ class PlayerViewModel(private val container: AppContainer, args: PlayerArgs) : V
     }
 
     private fun buildItem(): MediaItem = MediaItem.Builder()
-        // Device files play straight from storage; Drive files stream through DriveMedia.
-        .setUri(if (container.storage.isLocal(email)) Uri.parse(fileId) else DriveMedia.uri(fileId, email!!))
+        // Device files play straight from storage, network share files by their smb:// id; Drive files stream through DriveMedia.
+        .setUri(if (container.storage.isLocal(email) || container.storage.isSmb(email)) Uri.parse(fileId) else DriveMedia.uri(fileId, email!!))
         .setMediaId(fileId)
         .setMediaMetadata(MediaMetadata.Builder().setTitle(_ui.value.title).setSubtitle(_ui.value.subtitle).build())
         .build()
@@ -730,6 +739,7 @@ class PlayerViewModel(private val container: AppContainer, args: PlayerArgs) : V
         val account = email ?: return emptyList()
         val parent: String = file?.parentId
             ?: (if (container.storage.isLocal(account)) null
+            else if (container.storage.isSmb(account)) com.pntapps.veltoret.data.smb.SmbPath.parse(fileId).parent?.id
             else runCatching { container.driveRepository.get(account, fileId).parents.firstOrNull() }.getOrNull())
             ?: return emptyList()
         return container.storage.list(account, parent).filter { FilenameParser.isSubtitle(it.name) }
@@ -783,9 +793,17 @@ class PlayerViewModel(private val container: AppContainer, args: PlayerArgs) : V
         var cause: Throwable? = error
         while (cause != null) {
             if (cause is AuthRequiredException) return "Your Google account needs to be reconnected in Settings."
+            if (cause is com.pntapps.veltoret.data.smb.SmbException) return cause.message ?: "Couldn't read this file from the server."
             cause = cause.cause
         }
         val message = error.cause?.message.orEmpty()
+        if (container.storage.isSmb(email) && !container.connectivity.isOnline) {
+            return "You're offline. This video is on a network server, so this device needs to be on the same network."
+        }
+        // IO problems (codes 2xxx) with a network share; decoder and format errors fall through to the usual messages.
+        if (container.storage.isSmb(email) && error.errorCode in 2000..2999) {
+            return "Couldn't read this video from the network server. Check that it's on and that you're on the same Wi-Fi."
+        }
         if (!container.storage.isLocal(email) && !container.connectivity.isOnline) {
             return "You're offline. This video is on Google Drive, so it needs an internet connection. " +
                 "Videos on this device still play."

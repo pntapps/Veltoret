@@ -4,7 +4,30 @@ Notable changes to Veltoret. Newest first. Detailed history is in the git log.
 
 ## Unreleased
 
+### Changed
+- **Smoother scrolling** on Home and in the Movies and TV Shows grids: loading posters no longer redraw
+  the whole card on every frame, and rows don't replay their entrance animation when scrolled back into view.
+- **Clearer loading in the player**: while a video starts or buffers, the play/pause button turns
+  into a spinner (it no longer shows ▶ for a video that's about to play), and after a few seconds a
+  line says where it's loading from ("Loading from Google Drive…", then "Slow connection, still loading…").
+  The TV player shows the same hint.
+
+### Fixed
+- **ZIP extraction checks Google Drive's free space first.** The ZIP stays in Drive until the end, so
+  extracting needs about the ZIP's size free on top of it; the dialog now shows what's needed and what's
+  free, and won't start an extraction that can't fit. If Drive fills up part-way, it stops at once with a
+  clear message (instead of retrying and downloading the ZIP again), and extracting again continues where
+  it stopped. The trash option now says that trashed files keep using space until Drive's trash is emptied.
+- MKV files that store their basic information block at the end of the file (some re-encodes)
+  failed with "Can't scale timecode prior to timecodeScale being set"; they now play and seek.
+
 ### Added
+- **Network shares (SMB)**: add a router's USB drive, a NAS or a shared folder on a PC as a source.
+  Servers on your Wi-Fi are found automatically (or type the address), passwords are stored
+  encrypted, and Movies and TV Shows folders scan, play (with instant seeking) and appear in Files
+  like any other source.
+- **More like this** on movie and show pages (phone, tablet and TV): TMDB's recommendations that are in
+  your library, with watch progress. Hidden when none of them are in the library.
 - **Scan a single folder** from Settings, and see each folder's video count, last scan time and any error.
 - **Scan progress**: the current step and folder, videos found, new files, TMDB matching, a progress bar
   and a Cancel button. Scans you start keep running when the app is minimized, with a progress

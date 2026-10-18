@@ -2,6 +2,7 @@ package com.pntapps.veltoret
 
 import com.pntapps.veltoret.data.drive.DriveApi
 import com.pntapps.veltoret.data.drive.DriveRepository
+import com.pntapps.veltoret.data.drive.DriveStorageFullException
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import okhttp3.Interceptor
@@ -13,6 +14,7 @@ import okhttp3.ResponseBody.Companion.toResponseBody
 import okio.Buffer
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Test
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
@@ -36,6 +38,8 @@ class DriveStreamingUploadTest {
         val ranges = mutableListOf<String>()
         val received = ByteArrayOutputStream()
         var uploads = 0
+        /** Answer chunks with this status and body instead (a full account, a permission problem…). */
+        var refuse: Pair<Int, String>? = null
 
         override fun intercept(chain: Interceptor.Chain): Response {
             val request = chain.request()
@@ -46,6 +50,7 @@ class DriveStreamingUploadTest {
                 .build()
 
             if (request.method == "POST") return respond(200, location = "https://upload.example/session")
+            refuse?.let { (code, body) -> return respond(code, body) }
             val range = request.header("Content-Range")!!
             ranges += range
             val buffer = Buffer().also { request.body!!.writeTo(it) }
@@ -123,5 +128,24 @@ class DriveStreamingUploadTest {
 
     private class KeepOpen(input: InputStream) : FilterInputStream(input) {
         override fun close() = Unit
+    }
+
+    @Test
+    fun fullDriveIsReportedAsSuch() {
+        val fake = FakeDrive().apply {
+            refuse = 403 to """{"error":{"code":403,"errors":[{"domain":"usageLimits","reason":"storageQuotaExceeded"}]}}"""
+        }
+        assertThrows(DriveStorageFullException::class.java) {
+            runBlocking { repository(fake).upload("a@b.c", "p", "v.mkv", "video/x-matroska", 10, { ByteArrayInputStream(ByteArray(10)) }) { _, _ -> } }
+        }
+    }
+
+    @Test
+    fun otherRefusalsStayOrdinaryErrors() {
+        val fake = FakeDrive().apply { refuse = 403 to """{"error":{"errors":[{"reason":"insufficientFilePermissions"}]}}""" }
+        val e = assertThrows(java.io.IOException::class.java) {
+            runBlocking { repository(fake).upload("a@b.c", "p", "v.mkv", "video/x-matroska", 10, { ByteArrayInputStream(ByteArray(10)) }) { _, _ -> } }
+        }
+        assertEquals(false, e is DriveStorageFullException)
     }
 }

@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Modified by the Veltoret contributors: a copy of Media3's MatroskaExtractor (1.9.4) that reads a
- * Tracks element stored after the first Cluster and ignores SeekHead entries past the end of the
- * file. Changes are marked with "Veltoret" comments.
+ * Modified by the Veltoret contributors: a copy of Media3's MatroskaExtractor (1.9.4) that reads
+ * Info and Tracks elements stored after the first Cluster and ignores SeekHead entries past the end
+ * of the file. Changes are marked with "Veltoret" comments.
  */
 package androidx.media3.extractor.mkv;
 
@@ -88,10 +88,11 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.RequiresNonNull;
 
 /**
- * Veltoret: a copy of Media3 1.9.4's MatroskaExtractor with one change — when the Tracks element is
- * not before the first Cluster (some muxers write it at the end of the file and point to it from
- * the SeekHead), the extractor seeks to it, parses it, and returns, exactly like it already does for
- * Cues. Upstream stops with no tracks for such files. Changes are marked "Veltoret:".
+ * Veltoret: a copy of Media3 1.9.4's MatroskaExtractor. When the Info or Tracks element is not
+ * before the first Cluster (some muxers write them at the end of the file and point to them from
+ * the SeekHead), the extractor seeks to them, parses them, and returns, exactly like it already does
+ * for Cues. Upstream stops with no tracks, or fails with "Can't scale timecode prior to
+ * timecodeScale being set" when it reads the Cues before a late Info. Changes are marked "Veltoret:".
  *
  * <p>Extracts data from the Matroska and WebM container formats.
  */
@@ -497,6 +498,11 @@ public class VeltoretMatroskaExtractor implements Extractor {
   private boolean seekForTracks;
   private boolean tracksParsed;
   private long seekPositionAfterTracks = C.INDEX_UNSET;
+  // Veltoret: Info (timecode scale, duration) located after the first Cluster (found via the SeekHead).
+  private long infoContentPosition = C.INDEX_UNSET;
+  private boolean seekForInfo;
+  private boolean infoParsed;
+  private long seekPositionAfterInfo = C.INDEX_UNSET;
   private long clusterTimecodeUs = C.TIME_UNSET;
 
   // Reading state.
@@ -643,6 +649,9 @@ public class VeltoretMatroskaExtractor implements Extractor {
     boolean continueReading = true;
     while (continueReading && !haveOutputSample) {
       continueReading = reader.read(input);
+      if (continueReading && maybeSeekForInfo(seekPosition, input.getPosition())) { // Veltoret
+        return Extractor.RESULT_SEEK;
+      }
       if (continueReading && maybeSeekForTracks(seekPosition, input.getPosition())) {
         return Extractor.RESULT_SEEK;
       }
@@ -826,6 +835,12 @@ public class VeltoretMatroskaExtractor implements Extractor {
         }
         break;
       case ID_CLUSTER:
+        // Veltoret: no Info yet (so no timecode scale) but the SeekHead knows where it is — read it
+        // first; maybeSeekForInfo then carries on with late Tracks and the Cues.
+        if (!infoParsed && infoContentPosition != C.INDEX_UNSET) {
+          seekForInfo = true;
+          break;
+        }
         // Veltoret: no Tracks yet but the SeekHead knows where they are — go and read them first.
         if (!tracksParsed && tracks.size() == 0 && tracksContentPosition != C.INDEX_UNSET) {
           seekForTracks = true;
@@ -880,6 +895,7 @@ public class VeltoretMatroskaExtractor implements Extractor {
           // timecodeScale was omitted. Use the default value.
           timecodeScale = 1000000;
         }
+        infoParsed = true; // Veltoret
         if (durationTimecode != C.TIME_UNSET) {
           durationUs = scaleTimecodeToUs(durationTimecode);
         }
@@ -901,6 +917,9 @@ public class VeltoretMatroskaExtractor implements Extractor {
         // Veltoret
         if (seekEntryId == ID_TRACKS) {
           tracksContentPosition = seekEntryPosition;
+        }
+        if (seekEntryId == ID_SEGMENT_INFO) {
+          infoContentPosition = seekEntryPosition;
         }
         break;
       case ID_CUES:
@@ -2107,6 +2126,40 @@ public class VeltoretMatroskaExtractor implements Extractor {
    * @param currentPosition Current position of the input.
    * @return Whether the seek position was updated.
    */
+  /**
+   * Veltoret: jumps to an Info element stored after the first Cluster, then continues with what the
+   * Cluster start would have done: late Tracks, else the Cues (if known), else back to the Cluster.
+   */
+  private boolean maybeSeekForInfo(PositionHolder seekPosition, long currentPosition) {
+    if (seekForInfo) {
+      seekForInfo = false;
+      seekPositionAfterInfo = currentPosition;
+      seekPosition.position = infoContentPosition;
+      return true;
+    }
+    if (infoParsed && seekPositionAfterInfo != C.INDEX_UNSET) {
+      long resume = seekPositionAfterInfo;
+      seekPositionAfterInfo = C.INDEX_UNSET;
+      if (!tracksParsed && tracks.size() == 0 && tracksContentPosition != C.INDEX_UNSET) {
+        // maybeSeekForTracks takes it from here (and goes on to the Cues).
+        seekPositionAfterTracks = resume;
+        seekPosition.position = tracksContentPosition;
+      } else if (!sentSeekMap && seekForCuesEnabled && cuesContentPosition != C.INDEX_UNSET) {
+        // Build the seek map next; maybeSeekForCues returns to the Cluster afterwards.
+        seekPositionAfterBuildingCues = resume;
+        seekPosition.position = cuesContentPosition;
+      } else {
+        if (!sentSeekMap) {
+          checkNotNull(extractorOutput).seekMap(new SeekMap.Unseekable(durationUs));
+          sentSeekMap = true;
+        }
+        seekPosition.position = resume;
+      }
+      return true;
+    }
+    return false;
+  }
+
   /**
    * Veltoret: jumps to a Tracks element stored after the first Cluster, then continues with the
    * Cues (if known) or straight back to the Cluster.

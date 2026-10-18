@@ -8,6 +8,7 @@ data class TmdbPage<T>(
     val page: Int = 1,
     val results: List<T> = emptyList(),
     @SerialName("total_results") val totalResults: Int = 0,
+    @SerialName("total_pages") val totalPages: Int = 1,
 )
 
 @Serializable

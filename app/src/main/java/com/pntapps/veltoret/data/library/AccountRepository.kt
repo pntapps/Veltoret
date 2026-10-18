@@ -8,6 +8,10 @@ import com.pntapps.veltoret.data.db.LibraryFolderEntity
 import com.pntapps.veltoret.data.db.LibraryType
 import com.pntapps.veltoret.data.db.MediaFileDao
 import com.pntapps.veltoret.data.drive.DriveRepository
+import com.pntapps.veltoret.data.smb.SmbPath
+import com.pntapps.veltoret.data.smb.SmbServer
+import com.pntapps.veltoret.data.smb.SmbServerStore
+import com.pntapps.veltoret.data.smb.SmbStorage
 import com.pntapps.veltoret.data.storage.LocalStorage
 import kotlinx.coroutines.flow.Flow
 
@@ -18,6 +22,8 @@ class AccountRepository(
     private val drive: DriveRepository,
     private val local: LocalStorage,
     private val auth: GoogleAuthManager,
+    private val smbServers: SmbServerStore,
+    private val smb: SmbStorage,
 ) {
     fun observeAccounts(): Flow<List<AccountEntity>> = accounts.observeAccounts()
     fun observeFolders(): Flow<List<LibraryFolderEntity>> = accounts.observeFolders()
@@ -44,6 +50,18 @@ class AccountRepository(
         }
     }
 
+    /** A network server becomes a source like a Google account; its id is "smb://host". */
+    suspend fun addServerAccount(server: SmbServer) {
+        val existing = accounts.accounts().firstOrNull { it.email == server.account }
+        accounts.upsert(AccountEntity(server.account, server.name, null, existing?.addedAt ?: System.currentTimeMillis()))
+    }
+
+    /** Servers saved before they became sources (or whose account row is missing) get one. */
+    suspend fun ensureServerAccounts() {
+        val known = accounts.accounts().map { it.email }.toSet()
+        smbServers.servers.value.filter { it.account !in known }.forEach { addServerAccount(it) }
+    }
+
     suspend fun removeAccount(email: String) {
         if (LocalStorage.isLocal(email)) accounts.folders().filter { it.accountEmail == email }.forEach { local.release(it.driveFolderId) }
         accounts.deleteFoldersForAccount(email)
@@ -52,7 +70,12 @@ class AccountRepository(
         files.deleteArchivesForAccount(email)
         accounts.delete(email)
         catalog.prune()
-        auth.forget(email)
+        if (SmbPath.isSmb(email)) {
+            smb.disconnect(email)
+            smbServers.remove(email)
+        } else {
+            auth.forget(email)
+        }
     }
 
     /** Returns the new folder's id, or null if it was already in the library. */

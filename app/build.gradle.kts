@@ -120,6 +120,11 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.play.services.auth)
+    implementation(libs.smbj)
+    implementation(libs.smb.dcerpc) {
+        // Keep Media3's Android flavor of Guava instead of the server (-jre) one dcerpc asks for.
+        exclude(group = "com.google.guava", module = "guava")
+    }
 
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))

@@ -35,6 +35,8 @@ import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import com.pntapps.veltoret.ui.util.container
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -111,11 +113,28 @@ fun rememberNotificationPermission(): () -> Unit {
 fun ExtractDialog(
     name: String,
     sizeBytes: Long,
+    account: String,
+    parentId: String?,
     onDismiss: () -> Unit,
     onConfirm: (wifiOnly: Boolean, after: ZipAfterExtract) -> Unit,
 ) {
     var wifiOnly by remember { mutableStateOf(true) }
     var after by remember { mutableStateOf(ZipAfterExtract.Keep) }
+    // The ZIP stays in Drive until the end, so the extracted files (videos barely compress: about the ZIP's
+    // size) need that much free space on top of it.
+    val drive = LocalContext.current.container.driveRepository
+    var checked by remember { mutableStateOf(false) }
+    var free by remember { mutableStateOf<Long?>(null) }
+    var resuming by remember { mutableStateOf(false) }
+    LaunchedEffect(account, parentId) {
+        free = runCatching { drive.freeBytes(account) }.getOrNull()
+        // An earlier, interrupted extraction left a folder: files already there are skipped, so it needs less.
+        resuming = parentId != null && runCatching {
+            drive.listChildren(account, parentId).any { it.isFolder && it.name == FilenameParser.baseName(name) }
+        }.getOrDefault(false)
+        checked = true
+    }
+    val tooBig = free?.let { it < sizeBytes } == true && !resuming
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = VColors.SurfaceHigh,
@@ -134,11 +153,32 @@ fun ExtractDialog(
                     style = MaterialTheme.typography.bodySmall,
                     color = VColors.TextMuted,
                 )
+                when {
+                    !checked -> Text(
+                        "Checking free space in Google Drive…",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = VColors.TextMuted,
+                    )
+                    free != null -> Text(
+                        "Needs about ${Format.bytes(sizeBytes)} of free space in Google Drive. You have ${Format.bytes(free!!)} free." +
+                            when {
+                                tooBig -> " Free up space first (Gmail and Google Photos share it), or the extraction would stop part-way."
+                                resuming && free!! < sizeBytes -> " Files from an earlier attempt are already there and are skipped, so it may fit."
+                                else -> ""
+                            },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (tooBig) VColors.Danger else VColors.TextMuted,
+                    )
+                }
                 CheckRow("Only on Wi-Fi", wifiOnly) { wifiOnly = it }
                 Text("When it's done", style = MaterialTheme.typography.labelLarge, color = VColors.Amber)
                 Column {
                     ChoiceRow("Keep the ZIP", null, after == ZipAfterExtract.Keep) { after = ZipAfterExtract.Keep }
-                    ChoiceRow("Move the ZIP to trash", "Recoverable from Drive for 30 days", after == ZipAfterExtract.Trash) {
+                    ChoiceRow(
+                        "Move the ZIP to trash",
+                        "Recoverable for 30 days. It keeps using space until Drive's trash is emptied.",
+                        after == ZipAfterExtract.Trash,
+                    ) {
                         after = ZipAfterExtract.Trash
                     }
                     ChoiceRow("Delete the ZIP permanently", "Frees the space now. This can't be undone.", after == ZipAfterExtract.Delete) {
@@ -146,15 +186,18 @@ fun ExtractDialog(
                     }
                 }
                 Text(
-                    "The ZIP is only removed after every file inside it has been extracted successfully.",
+                    "The ZIP is only removed after every file inside it has been extracted successfully, so it can't make room during extraction.",
                     style = MaterialTheme.typography.bodySmall,
                     color = VColors.TextFaint,
                 )
             }
         },
         confirmButton = {
-            TextButton({ onConfirm(wifiOnly, after) }) {
-                Text(if (after == ZipAfterExtract.Delete) "Extract & delete ZIP" else "Extract", color = VColors.Amber)
+            TextButton({ onConfirm(wifiOnly, after) }, enabled = checked && !tooBig) {
+                Text(
+                    if (after == ZipAfterExtract.Delete) "Extract & delete ZIP" else "Extract",
+                    color = if (checked && !tooBig) VColors.Amber else VColors.TextFaint,
+                )
             }
         },
         dismissButton = { TextButton(onDismiss) { Text("Cancel", color = VColors.Text) } },

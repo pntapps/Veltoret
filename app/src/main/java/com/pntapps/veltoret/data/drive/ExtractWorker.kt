@@ -52,11 +52,11 @@ class ExtractWorker(context: Context, params: WorkerParameters) : CoroutineWorke
             ?: ZipAfterExtract.Keep
 
         report(zipName, 0f, "Preparing…", 0)
+        var extracted = 0
+        var alreadyThere = 0
         return try {
             val folders = FolderCache(email)
             val root = folders.child(parentId, FilenameParser.baseName(zipName))
-            var extracted = 0
-            var alreadyThere = 0
 
             drive.download(email, zipId) { raw, length ->
                 val counter = CountingInputStream(raw)
@@ -122,6 +122,17 @@ class ExtractWorker(context: Context, params: WorkerParameters) : CoroutineWorke
             )
         } catch (e: CancellationException) {
             throw e
+        } catch (e: DriveStorageFullException) {
+            // Retrying can't help until space is freed, and every retry would download the ZIP again.
+            val done = extracted + alreadyThere
+            Result.failure(
+                workDataOf(
+                    KEY_NAME to zipName,
+                    KEY_ERROR to "Google Drive is full" +
+                        (if (done > 0) " after ${if (done == 1) "1 file" else "$done files"}" else "") +
+                        ". Free up space (and empty Drive's trash), then extract again: it continues where it stopped.",
+                )
+            )
         } catch (e: ZipException) {
             Result.failure(workDataOf(KEY_NAME to zipName, KEY_ERROR to describeZipError(e)))
         } catch (e: IOException) {

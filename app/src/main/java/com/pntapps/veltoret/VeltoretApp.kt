@@ -24,6 +24,7 @@ class VeltoretApp : Application(), SingletonImageLoader.Factory {
         super.onCreate()
         container = AppContainer(this)
         container.appScope.launch {
+            container.accountRepository.ensureServerAccounts()
             if (container.settings.settings.first().onboardingComplete) {
                 SyncWorker.schedulePeriodic(this@VeltoretApp)
             }

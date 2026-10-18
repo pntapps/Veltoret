@@ -115,6 +115,8 @@ fun ArchivesScreen(navigator: Navigator) {
         ExtractDialog(
             name = archive.name,
             sizeBytes = archive.sizeBytes,
+            account = archive.accountEmail,
+            parentId = archive.parentId,
             onDismiss = { confirm = null },
             onConfirm = { wifi, after ->
                 askNotifications()

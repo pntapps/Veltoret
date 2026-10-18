@@ -78,14 +78,18 @@ fun VImage(
 ) {
     var loading by remember(url) { mutableStateOf(url != null) }
     Box(modifier, contentAlignment = Alignment.Center) {
-        // Placeholder breathes gently while the artwork loads.
-        val pulse = if (loading) rememberPulse(0.55f, 1f) else 1f
-        Box(
-            Modifier
-                .matchParentSize()
-                .graphicsLayer { alpha = pulse }
-                .background(VColors.SurfaceHigh)
-        )
+        // Placeholder breathes gently while the artwork loads (read in the layer: no recomposition per frame).
+        if (loading) {
+            val pulse = rememberPulse(0.55f, 1f)
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .graphicsLayer { alpha = pulse.value }
+                    .background(VColors.SurfaceHigh)
+            )
+        } else {
+            Box(Modifier.matchParentSize().background(VColors.SurfaceHigh))
+        }
         if (url == null && fallbackText != null) {
             Text(
                 fallbackText,

@@ -6,9 +6,13 @@ import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
 import java.io.InputStream
+
+/** The Google account's storage (shared by Drive, Gmail and Photos) is full. */
+class DriveStorageFullException : IOException("Google Drive is full")
 
 class DriveRepository(
     private val api: DriveApi,
@@ -34,6 +38,14 @@ class DriveRepository(
     suspend fun get(email: String, id: String): DriveFile = api.get(DriveAccount(email), id)
 
     suspend fun about(email: String): DriveAbout = api.about(DriveAccount(email))
+
+    /** Free space in the account's storage (shared with Gmail and Photos), or null when unlimited or unknown. */
+    suspend fun freeBytes(email: String): Long? {
+        val quota = about(email).storageQuota ?: return null
+        val limit = quota.limit?.toLongOrNull() ?: return null
+        val usage = quota.usage?.toLongOrNull() ?: return null
+        return (limit - usage).coerceAtLeast(0)
+    }
 
     suspend fun rename(email: String, id: String, newName: String): DriveFile =
         api.update(DriveAccount(email), id, DriveFileUpdate(name = newName))
@@ -83,7 +95,7 @@ class DriveRepository(
             .post(metadata.toRequestBody("application/json; charset=UTF-8".toMediaType()))
             .build()
         val session = http.newCall(init).execute().use { response ->
-            if (!response.isSuccessful) throw IOException("Upload could not start (HTTP ${response.code})")
+            if (!response.isSuccessful) throw uploadError(response, "Upload could not start")
             response.header("Location") ?: throw IOException("Drive did not return an upload session")
         }
 
@@ -118,13 +130,20 @@ class DriveRepository(
                             onProgress(offset + count, size)
                             return@withContext json.decodeFromString(DriveFile.serializer(), response.body.string())
                         }
-                        else -> throw IOException("Upload failed (HTTP ${response.code})")
+                        else -> throw uploadError(response, "Upload failed")
                     }
                 }
             }
             @Suppress("UNREACHABLE_CODE")
             error("unreachable")
         }
+    }
+
+    /** Drive answers 403 "storageQuotaExceeded" when the account is full; anything else stays a plain IOException. */
+    private fun uploadError(response: Response, what: String): IOException {
+        val body = runCatching { response.body.string() }.getOrDefault("")
+        return if (response.code == 403 && "storageQuotaExceeded" in body) DriveStorageFullException()
+        else IOException("$what (HTTP ${response.code})")
     }
 
     /**

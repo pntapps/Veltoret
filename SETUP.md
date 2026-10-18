@@ -250,6 +250,27 @@ never contain a key.
 Veltoret scans your folders, matches every title, and fills your library with posters. 🍿
 
 <details>
+<summary><b>🖧 Movies on a router, NAS or PC (network share)</b></summary>
+
+If your videos are on a USB drive plugged into your router, on a NAS, or in a shared folder on a
+Windows PC, Veltoret can read them over Wi-Fi (Windows file sharing, also called SMB or Samba).
+
+1. Open **Settings → Add network server**. Veltoret searches your Wi-Fi for a few seconds and lists
+   the servers it finds (for example your router's share).
+2. Tap your server, or type its address the way Windows shows it, e.g. `\\192.168.0.10\Movies`.
+   Pasting the full path to your movies folder works too.
+3. Enter the username and password the server uses (the same ones Windows asks for), or choose
+   **Guest** if it has none, then tap **Connect**.
+4. Pick the folder with your movies or shows and tap **Movies** or **TV Shows**.
+
+The server shows up in **Settings** like your other sources, where you can add more folders.
+Network shares only work while this device is on the same network as the server. Deleting a file
+from a network share in **Files** is permanent (there's no trash). On Android 17 and later,
+Veltoret asks for the **Nearby devices** permission the first time, to reach your home network.
+
+</details>
+
+<details>
 <summary><b>📁 How to organise your Drive for the best results</b></summary>
 
 Veltoret understands messy file names, but this layout matches almost perfectly every time:
@@ -397,6 +418,10 @@ progress and settings.
 | **"Can't use this folder"** in the device folder picker | Android doesn't let apps take the whole of internal storage or the Download folder itself | Pick a folder inside it, e.g. `Download/Movies`. |
 | Device videos disappeared | The SD card or USB drive was removed | Reconnect it and tap **Scan library now**. |
 | A device folder says **"Veltoret lost access to this folder"** | Android withdrew the folder permission (e.g. after reinstalling the app) | Remove the folder in **Settings** and add it again. |
+| **"Google Drive is full"** while extracting a ZIP, or the Extract button is greyed out | Extracting needs free space about the size of the ZIP, because the ZIP stays until the end | Free up space (Gmail and Google Photos share it) and empty Drive's trash, then extract again; it continues where it stopped. |
+| **"Couldn't reach the server"** for a network share | The server is off, asleep, or this device is on another network (or mobile data) | Turn the server on and join the same Wi-Fi. |
+| **"Wrong username or password"** when adding a network server | The share needs its own login | Use the username and password set on the router, NAS or PC for file sharing. |
+| A server isn't listed in **Add network server** | It doesn't announce itself or isn't on this Wi-Fi | Type its address instead, e.g. `\\192.168.0.10`; your router's admin page lists devices and their addresses. |
 | Sign-in doesn't open on the emulator | Emulator image has no Google Play | Use an emulator image marked **Google Play**, or a real device. |
 
 ---

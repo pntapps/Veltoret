@@ -25,8 +25,13 @@ coroutines = "1.11.0"
 playServicesAuth = "22.0.0"
 splashscreen = "1.2.0"
 checkerQual = "4.3.1"
+# SMB (network shares): smbj for SMB2/3 file access, dcerpc to list a server's shares.
+smbj = "0.15.0"
+dcerpc = "0.12.13"
 
 [libraries]
+smbj = { group = "com.hierynomus", name = "smbj", version.ref = "smbj" }
+smb-dcerpc = { group = "com.rapid7.client", name = "dcerpc", version.ref = "dcerpc" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "splashscreen" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }

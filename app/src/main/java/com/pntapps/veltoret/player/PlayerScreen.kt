@@ -106,6 +106,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -183,6 +185,8 @@ fun PlayerScreen(
     val scope = rememberCoroutineScope()
 
     var isPlaying by remember { mutableStateOf(false) }
+    // "Will play when it can": true while a video loads, so the button never shows ▶ for a video that's starting.
+    var playWhenReady by remember { mutableStateOf(true) }
     var playbackState by remember { mutableIntStateOf(Player.STATE_IDLE) }
     var tracks by remember { mutableStateOf(Tracks.EMPTY) }
     var playerCues by remember { mutableStateOf(CueGroup.EMPTY_TIME_ZERO) }
@@ -206,11 +210,13 @@ fun PlayerScreen(
 
     DisposableEffect(player) {
         isPlaying = player.isPlaying
+        playWhenReady = player.playWhenReady
         playbackState = player.playbackState
         tracks = player.currentTracks
         speed = player.playbackParameters.speed
         val listener = object : Player.Listener {
             override fun onIsPlayingChanged(playing: Boolean) { isPlaying = playing }
+            override fun onPlayWhenReadyChanged(ready: Boolean, reason: Int) { playWhenReady = ready }
             override fun onPlaybackStateChanged(state: Int) { playbackState = state }
             override fun onTracksChanged(t: Tracks) { tracks = t }
             override fun onCues(cueGroup: CueGroup) { playerCues = cueGroup }
@@ -228,6 +234,9 @@ fun PlayerScreen(
             delay(100)
         }
     }
+
+    val loading = playbackState == Player.STATE_BUFFERING && ui.error == null
+    val loadingStage = rememberLoadingStage(loading && playWhenReady)
 
     // Auto-hide controls while playing.
     LaunchedEffect(controlsVisible, isPlaying, interaction, sheet, scrubbing) {
@@ -434,7 +443,9 @@ fun PlayerScreen(
         // ---- Feedback overlays ---------------------------------------------------------------------
         seekFeedback?.let { SeekRipple(it) }
 
-        if (playbackState == Player.STATE_BUFFERING && ui.error == null) {
+        // With the controls showing, the play/pause button itself spins while loading; otherwise a spinner
+        // stands in its place. Either way a hint appears below once loading takes a while.
+        if (loading && !(controlsVisible && !locked)) {
             CircularProgressIndicator(
                 color = VColors.Amber,
                 strokeWidth = 3.dp,
@@ -443,6 +454,7 @@ fun PlayerScreen(
                     .size(52.dp),
             )
         }
+        LoadingHint(loadingStage, ui.loadingFrom, Modifier.align(Alignment.Center).padding(top = 150.dp))
 
         AnimatedVisibility(holdingFast, Modifier.align(Alignment.TopCenter), enter = fadeIn() + scaleIn(), exit = fadeOut() + scaleOut()) {
             HudPill(Hud(Icons.Rounded.FastForward, "2× speed"), Modifier.padding(top = 32.dp))
@@ -513,21 +525,32 @@ fun PlayerScreen(
                             .background(VColors.Amber)
                             .clickable {
                                 if (player.playbackState == Player.STATE_ENDED) player.seekTo(0)
-                                if (player.isPlaying) player.pause() else player.play()
+                                // While loading this pauses too (the video won't start when it's ready).
+                                if (player.playWhenReady) player.pause() else player.play()
                                 interaction++
                             },
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(
-                            when {
-                                playbackState == Player.STATE_ENDED -> Icons.Rounded.Replay
-                                isPlaying -> Icons.Rounded.Pause
-                                else -> Icons.Rounded.PlayArrow
-                            },
-                            if (isPlaying) "Pause" else "Play",
-                            tint = VColors.OnAmber,
-                            modifier = Modifier.size(40.dp),
-                        )
+                        if (loading) {
+                            CircularProgressIndicator(
+                                color = VColors.OnAmber,
+                                strokeWidth = 3.dp,
+                                modifier = Modifier
+                                    .size(if (narrow) 30.dp else 34.dp)
+                                    .semantics { contentDescription = if (playWhenReady) "Loading, tap to pause" else "Loading" },
+                            )
+                        } else {
+                            Icon(
+                                when {
+                                    playbackState == Player.STATE_ENDED -> Icons.Rounded.Replay
+                                    playWhenReady -> Icons.Rounded.Pause
+                                    else -> Icons.Rounded.PlayArrow
+                                },
+                                if (playWhenReady) "Pause" else "Play",
+                                tint = VColors.OnAmber,
+                                modifier = Modifier.size(40.dp),
+                            )
+                        }
                     }
                     ChromeButton(Icons.Rounded.Forward10, "Forward ${seekStep}s", size = if (narrow) 50.dp else 58.dp) {
                         viewModel.seekBy(seekStep * 1000L); interaction++

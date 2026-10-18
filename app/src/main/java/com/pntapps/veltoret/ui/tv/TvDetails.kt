@@ -31,6 +31,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,6 +59,9 @@ import com.pntapps.veltoret.ui.components.VImage
 import com.pntapps.veltoret.ui.details.EpisodeUi
 import com.pntapps.veltoret.ui.details.MovieDetailViewModel
 import com.pntapps.veltoret.ui.details.ShowDetailViewModel
+import com.pntapps.veltoret.ui.home.PosterItem
+import com.pntapps.veltoret.ui.navigation.MovieRoute
+import com.pntapps.veltoret.ui.navigation.ShowRoute
 import com.pntapps.veltoret.ui.navigation.Navigator
 import com.pntapps.veltoret.ui.theme.VColors
 import com.pntapps.veltoret.ui.util.Format
@@ -143,6 +147,36 @@ private fun CastRow(cast: List<CreditEntity>) {
     }
 }
 
+/** "More like this": recommended titles from the library. Opening one remembers it so Back refocuses it. */
+@Composable
+private fun RelatedRow(items: List<PosterItem>, requesterFor: (Int) -> FocusRequester, onOpen: (PosterItem) -> Unit) {
+    if (items.isEmpty()) return
+    Column(Modifier.padding(top = 18.dp)) {
+        TvRowTitle("More like this")
+        PivotScrolling {
+            LazyRow(contentPadding = TvRowPadding, horizontalArrangement = TvRowArrangement) {
+                items(items, key = { it.id }) { item ->
+                    TvPosterCard(
+                        title = item.title,
+                        subtitle = item.subtitle,
+                        imageUrl = item.posterUrl,
+                        progress = item.progress,
+                        watched = item.watched,
+                        width = 116.dp,
+                        focusRequester = requesterFor(item.id),
+                        onClick = { onOpen(item) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Focuses the related title that was opened (coming back from its page), else [primary]. */
+private suspend fun focusOnArrival(lastOpened: Int?, requesterFor: (Int) -> FocusRequester, primary: FocusRequester) {
+    if (lastOpened == null || !requesterFor(lastOpened).tryFocusSoon()) primary.focusSoon()
+}
+
 // ---------------------------------------------------------------------------------------------
 // Movie
 // ---------------------------------------------------------------------------------------------
@@ -155,6 +189,9 @@ fun TvMovieDetailScreen(id: Int, navigator: Navigator) {
     val online = rememberOnline()
     val primary = remember { FocusRequester() }
     var versions by remember { mutableStateOf(false) }
+    var lastOpened by rememberSaveable { mutableStateOf<Int?>(null) }
+    val relatedRequesters = remember { mutableMapOf<Int, FocusRequester>() }
+    val requesterFor = { key: Int -> relatedRequesters.getOrPut(key) { FocusRequester() } }
 
     val movie = state.movie
     if (state.loading || movie == null) {
@@ -164,7 +201,7 @@ fun TvMovieDetailScreen(id: Int, navigator: Navigator) {
     val best = state.files.firstOrNull { canPlayNow(it.accountEmail, online) }
     val watch = state.watch
     val inProgress = watch != null && !watch.watched && watch.positionMs > 30_000
-    LaunchedEffect(Unit) { primary.focusSoon() }
+    LaunchedEffect(Unit) { focusOnArrival(lastOpened, requesterFor, primary) }
 
     // The action buttons sit just under the header, so the title never scrolls away while they're focused.
     Box(Modifier.fillMaxSize()) {
@@ -207,6 +244,12 @@ fun TvMovieDetailScreen(id: Int, navigator: Navigator) {
             }
         }
         item("cast") { CastRow(state.cast) }
+        item("related") {
+            RelatedRow(state.related, requesterFor) {
+                lastOpened = it.id
+                navigator.navigate(MovieRoute(it.id))
+            }
+        }
     } }
     }
 
@@ -248,6 +291,9 @@ fun TvShowDetailScreen(id: Int, navigator: Navigator) {
     val context = LocalContext.current
     val primary = remember { FocusRequester() }
     var actionsFor by remember { mutableStateOf<EpisodeUi?>(null) }
+    var lastOpened by rememberSaveable { mutableStateOf<Int?>(null) }
+    val relatedRequesters = remember { mutableMapOf<Int, FocusRequester>() }
+    val requesterFor = { key: Int -> relatedRequesters.getOrPut(key) { FocusRequester() } }
 
     val show = state.show
     if (state.loading || show == null) {
@@ -255,7 +301,7 @@ fun TvShowDetailScreen(id: Int, navigator: Navigator) {
         return
     }
     val target = state.target
-    LaunchedEffect(Unit) { primary.focusSoon() }
+    LaunchedEffect(Unit) { focusOnArrival(lastOpened, requesterFor, primary) }
     val seasonWatched = state.episodes.filter { it.file != null }.let { eps -> eps.isNotEmpty() && eps.all { it.watched } }
 
     // The action buttons sit just under the header, so the title never scrolls away while they're focused.
@@ -347,6 +393,12 @@ fun TvShowDetailScreen(id: Int, navigator: Navigator) {
             }
         }
         item("cast") { CastRow(state.cast) }
+        item("related") {
+            RelatedRow(state.related, requesterFor) {
+                lastOpened = it.id
+                navigator.navigate(ShowRoute(it.id))
+            }
+        }
     } }
     }
 

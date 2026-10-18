@@ -112,6 +112,7 @@ import com.pntapps.veltoret.ui.files.Avatar
 import com.pntapps.veltoret.ui.files.DriveFolderPicker
 import com.pntapps.veltoret.data.drive.DriveFile
 import com.pntapps.veltoret.data.storage.LocalStorage
+import com.pntapps.veltoret.data.smb.SmbPath
 import com.pntapps.veltoret.ui.files.AccountAvatar
 import com.pntapps.veltoret.ui.files.LibraryTypeDialog
 import com.pntapps.veltoret.ui.files.accountSubtitle
@@ -441,7 +442,7 @@ private fun ColumnScope.AccountsStep(vm: OnboardingViewModel, onNext: () -> Unit
                 }
             }
         }
-        val hasGoogle = accounts.any { !LocalStorage.isLocal(it.email) }
+        val hasGoogle = accounts.any { !LocalStorage.isLocal(it.email) && !SmbPath.isSmb(it.email) }
         VButton(
             if (hasGoogle) "Add another Google account" else "Connect Google account",
             { error = null; connector.connect() },
@@ -588,7 +589,7 @@ private fun ColumnScope.FoldersStep(vm: OnboardingViewModel, onNext: () -> Unit)
         accounts.forEach { acc ->
             if (accounts.size > 1) {
                 Text(
-                    if (LocalStorage.isLocal(acc.email)) acc.displayName else acc.email,
+                    if (LocalStorage.isLocal(acc.email) || SmbPath.isSmb(acc.email)) acc.displayName else acc.email,
                     style = MaterialTheme.typography.labelLarge, color = VColors.TextMuted, modifier = Modifier.padding(bottom = 8.dp),
                 )
             }

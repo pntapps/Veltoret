@@ -37,6 +37,12 @@ interface TmdbApi {
         @Query("append_to_response") append: String = "credits,content_ratings",
     ): TmdbTvDetail
 
+    @GET("movie/{id}/recommendations")
+    suspend fun movieRecommendations(@Path("id") id: Int, @Query("page") page: Int = 1): TmdbPage<TmdbMovieSummary>
+
+    @GET("tv/{id}/recommendations")
+    suspend fun tvRecommendations(@Path("id") id: Int, @Query("page") page: Int = 1): TmdbPage<TmdbTvSummary>
+
     @GET("tv/{id}/season/{season}")
     suspend fun season(@Path("id") id: Int, @Path("season") season: Int): TmdbSeasonDetail
 

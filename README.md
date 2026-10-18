@@ -20,7 +20,8 @@ them with a full-featured player.
 - **Home**: featured titles, Continue Watching, Next Up, Recently Added, Highly Rated and genre rows.
 - **Movies & TV Shows**: poster grids with watched / in-progress / 4K filters, genres and sorting.
 - **Detail pages**: overview, cast, quality badges (4K, HDR, HEVC, Atmos…), versions across
-  accounts, season tabs, and per-episode watched tracking.
+  accounts, season tabs, per-episode watched tracking, and **More like this**: TMDB's
+  recommendations that are already in your library.
 - **Player** (Media3):
   - MKV, MP4, WebM, AVI, TS and more, including MKVs that store their track list at the end of the
     file (a patched Media3 MKV extractor; plain Media3 plays these silently).
@@ -39,14 +40,19 @@ them with a full-featured player.
   system folder picker (no broad storage permission). They join the same library, play instantly
   and work offline. When a title exists both on the device and in Drive, the device copy is played.
   Google is optional: the app works with device folders alone.
+- **Network shares (SMB)**: folders shared by a router with a USB drive, a NAS or a Windows PC.
+  **Settings → Add network server** finds servers on your Wi-Fi by itself (or takes a typed or pasted
+  address like `\\192.168.0.10\Movies`), signs in with a username and password or as a guest, and
+  adds Movies and TV Shows folders like any other source. Videos stream straight from the server with
+  instant seeking; passwords are stored encrypted on the device. Works on the same network only.
 - **Offline mode**: with no internet the library shows what's stored on this device, with posters,
   details and watch progress (artwork is cached after each scan). Drive-only titles step aside until
   you're back online, then the library catches up by itself.
-- **Files**: a full file manager for Drive and the device: browse, play, rename, move, delete or
+- **Files**: a full file manager for Drive, the device and network shares: browse, play, rename, move, delete or
   trash, new folder, multi-select, search, plus background uploads and "Shared with me" for Drive.
   It lists only what Veltoret can use: folders, videos, subtitles and ZIPs (folders and videos on TV).
 - **ZIP extraction**: season packs uploaded as `.zip` are found during scans and can be unpacked
-  back into Drive with one tap. The archive streams through the phone (nothing is stored on it),
+  back into Drive with one tap, after checking there's room for it in Drive. The archive streams through the phone (nothing is stored on it),
   resumes after interruptions, and the new folder is added to the library automatically.
 - **Multiple Google accounts**, merged into one library.
 - **Library scans you can follow**: scan everything or a single folder from Settings, with live progress
@@ -120,6 +126,8 @@ Third-party code:
   `MatroskaExtractor`; its header describes the changes.
 - [Jellyfin media3-ffmpeg-decoder](https://github.com/jellyfin/jellyfin-androidx-media), GPL-3.0,
   which bundles [FFmpeg](https://ffmpeg.org/).
+- [smbj](https://github.com/hierynomus/smbj), Apache License 2.0, for network shares, and
+  Rapid7's [dcerpc](https://github.com/rapid7/smbj-rpc), BSD 3-Clause, to list a server's shared folders.
 - Fonts: [Fraunces](https://github.com/undercasetype/Fraunces) and [Inter](https://rsms.me/inter/),
   SIL Open Font License 1.1 (see [third_party/fonts/OFL.txt](third_party/fonts/OFL.txt)).
 

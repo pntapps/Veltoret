@@ -54,6 +54,7 @@ import com.pntapps.veltoret.data.demo.DemoLibrary
 import com.pntapps.veltoret.data.drive.DriveFile
 import com.pntapps.veltoret.data.library.FilenameParser
 import com.pntapps.veltoret.data.storage.LocalStorage
+import com.pntapps.veltoret.data.smb.SmbPath
 import com.pntapps.veltoret.data.storage.MediaLibrary
 import com.pntapps.veltoret.player.playFile
 import com.pntapps.veltoret.ui.components.VImage
@@ -90,6 +91,9 @@ fun TvFilesScreen(navigator: Navigator) {
     val context = LocalContext.current
     val online = rememberOnline()
     val local = LocalStorage.isLocal(state.account)
+    val smb = SmbPath.isSmb(state.account)
+    // Device and network-share deletes are permanent; only Drive has a trash.
+    val permanent = local || smb
     var action by remember { mutableStateOf<FileAction?>(null) }
     // The TV shows folders and videos only: nothing else can be opened with the remote.
     val items = state.items.filter { it.isFolder || isVideo(it) }
@@ -133,7 +137,7 @@ fun TvFilesScreen(navigator: Navigator) {
         LazyRow(contentPadding = PaddingValues(horizontal = TvDimens.Edge, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             items(accounts, key = { it.email }) { acc ->
                 TvChip(
-                    if (LocalStorage.isLocal(acc.email)) "This TV" else acc.email,
+                    if (LocalStorage.isLocal(acc.email)) "This TV" else if (SmbPath.isSmb(acc.email)) acc.displayName else acc.email,
                     acc.email == state.account,
                     { vm.selectAccount(acc.email) },
                     focusRequester = if (acc.email == state.account) firstChip else null,
@@ -149,7 +153,11 @@ fun TvFilesScreen(navigator: Navigator) {
             modifier = Modifier.padding(start = TvDimens.Edge + 6.dp, top = 12.dp, bottom = 8.dp),
         )
         when {
-            !local && !online -> TvMessage(Icons.Rounded.CloudOff, "You're offline", "Google Drive needs an internet connection. Videos on this TV still work.")
+            !local && !online -> TvMessage(
+                Icons.Rounded.CloudOff, "You're offline",
+                if (smb) "Network servers need the TV to be on their network. Videos on this TV still work."
+                else "Google Drive needs an internet connection. Videos on this TV still work.",
+            )
             state.loading -> Text("Loading…", style = MaterialTheme.typography.bodyLarge, color = VColors.TextMuted, modifier = Modifier.padding(start = TvDimens.Edge + 6.dp))
             state.error != null -> Text(state.error!!, style = MaterialTheme.typography.bodyLarge, color = VColors.Danger, modifier = Modifier.padding(start = TvDimens.Edge + 6.dp))
             items.isEmpty() -> Text(
@@ -213,7 +221,14 @@ fun TvFilesScreen(navigator: Navigator) {
                     }
                     if (!readOnly && f.capabilities?.canRename != false) add(TvAction("Rename", Icons.Rounded.DriveFileRenameOutline) { action = FileAction.Rename(f) })
                     if (!readOnly && f.capabilities?.canTrash != false) add(
-                        TvAction(if (local) "Delete" else "Move to trash", Icons.Rounded.Delete, detail = if (local) "Deleted permanently from this device" else "Restorable from Drive for 30 days") {
+                        TvAction(
+                            if (permanent) "Delete" else "Move to trash", Icons.Rounded.Delete,
+                            detail = when {
+                                local -> "Deleted permanently from this device"
+                                smb -> "Deleted permanently from the server"
+                                else -> "Restorable from Drive for 30 days"
+                            },
+                        ) {
                             action = FileAction.Delete(f)
                         }
                     )
@@ -225,10 +240,13 @@ fun TvFilesScreen(navigator: Navigator) {
             onDismiss = { action = null }, onConfirm = { vm.rename(a.file, it) },
         )
         is FileAction.Delete -> TvConfirmDialog(
-            title = if (local) "Delete permanently?" else "Move to trash?",
-            message = if (local) "\"${a.file.name}\" will be deleted from this device. This can't be undone."
-            else "\"${a.file.name}\" will be moved to Google Drive's trash.",
-            confirm = if (local) "Delete" else "Move to trash",
+            title = if (permanent) "Delete permanently?" else "Move to trash?",
+            message = when {
+                local -> "\"${a.file.name}\" will be deleted from this device. This can't be undone."
+                smb -> "\"${a.file.name}\" will be deleted from the server. Network shares have no trash, so this can't be undone."
+                else -> "\"${a.file.name}\" will be moved to Google Drive's trash."
+            },
+            confirm = if (permanent) "Delete" else "Move to trash",
             onConfirm = { vm.trash(listOf(a.file.id)) },
             onDismiss = { action = null },
         )

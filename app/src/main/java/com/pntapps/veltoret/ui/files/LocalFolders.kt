@@ -26,7 +26,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.pntapps.veltoret.data.db.AccountEntity
 import com.pntapps.veltoret.data.db.LibraryType
+import com.pntapps.veltoret.data.smb.SmbPath
 import com.pntapps.veltoret.data.storage.LocalStorage
+import androidx.compose.material.icons.rounded.Dns
 import com.pntapps.veltoret.ui.components.ButtonStyle
 import com.pntapps.veltoret.ui.components.VButton
 import com.pntapps.veltoret.ui.theme.VColors
@@ -70,7 +72,7 @@ fun LibraryTypeDialog(
 /** Account avatar: an initial for Google accounts, a phone for "This device". */
 @Composable
 fun AccountAvatar(account: AccountEntity, size: Dp = 32.dp) {
-    if (LocalStorage.isLocal(account.email)) {
+    if (LocalStorage.isLocal(account.email) || SmbPath.isSmb(account.email)) {
         Box(
             Modifier
                 .size(size)
@@ -78,7 +80,10 @@ fun AccountAvatar(account: AccountEntity, size: Dp = 32.dp) {
                 .background(VColors.AmberDim),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Rounded.PhoneAndroid, null, tint = VColors.AmberSoft, modifier = Modifier.size(size * 0.55f))
+            Icon(
+                if (SmbPath.isSmb(account.email)) Icons.Rounded.Dns else Icons.Rounded.PhoneAndroid,
+                null, tint = VColors.AmberSoft, modifier = Modifier.size(size * 0.55f),
+            )
         }
     } else {
         Avatar(account.displayName, size)
@@ -86,5 +91,8 @@ fun AccountAvatar(account: AccountEntity, size: Dp = 32.dp) {
 }
 
 /** Second line under an account's name. */
-fun accountSubtitle(account: AccountEntity): String =
-    if (LocalStorage.isLocal(account.email)) "Phone storage, SD card and USB" else account.email
+fun accountSubtitle(account: AccountEntity): String = when {
+    LocalStorage.isLocal(account.email) -> "Phone storage, SD card and USB"
+    SmbPath.isSmb(account.email) -> "Network server · ${SmbPath.parse(account.email).host}"
+    else -> account.email
+}

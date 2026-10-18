@@ -113,6 +113,8 @@ fun TvPlayerScreen(viewModel: PlayerViewModel, onExit: () -> Unit) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
 
     var isPlaying by remember { mutableStateOf(false) }
+    // "Will play when it can": true while a video loads, so the button never shows ▶ for a video that's starting.
+    var playWhenReady by remember { mutableStateOf(true) }
     var playbackState by remember { mutableIntStateOf(Player.STATE_IDLE) }
     var tracks by remember { mutableStateOf(Tracks.EMPTY) }
     var cues by remember { mutableStateOf(CueGroup.EMPTY_TIME_ZERO) }
@@ -136,11 +138,13 @@ fun TvPlayerScreen(viewModel: PlayerViewModel, onExit: () -> Unit) {
 
     DisposableEffect(player) {
         isPlaying = player.isPlaying
+        playWhenReady = player.playWhenReady
         playbackState = player.playbackState
         tracks = player.currentTracks
         speed = player.playbackParameters.speed
         val listener = object : Player.Listener {
             override fun onIsPlayingChanged(playing: Boolean) { isPlaying = playing }
+            override fun onPlayWhenReadyChanged(ready: Boolean, reason: Int) { playWhenReady = ready }
             override fun onPlaybackStateChanged(state: Int) { playbackState = state }
             override fun onTracksChanged(t: Tracks) { tracks = t }
             override fun onCues(cueGroup: CueGroup) { cues = cueGroup }
@@ -188,7 +192,8 @@ fun TvPlayerScreen(viewModel: PlayerViewModel, onExit: () -> Unit) {
 
     fun show() { controls = true; interaction++ }
     fun togglePlay() {
-        if (player.isPlaying) { player.pause(); show() } else player.play()
+        // While loading this pauses too (the video won't start when it's ready).
+        if (player.playWhenReady) { player.pause(); show() } else player.play()
         interaction++
     }
     fun seek(forward: Boolean, repeat: Int) {
@@ -252,9 +257,11 @@ fun TvPlayerScreen(viewModel: PlayerViewModel, onExit: () -> Unit) {
         })
         SubtitleLayer(viewModel, ui, clock, cues, inPip = false, raised = controls)
 
-        if (playbackState == Player.STATE_BUFFERING && ui.error == null) {
+        val loading = playbackState == Player.STATE_BUFFERING && ui.error == null
+        if (loading) {
             CircularProgressIndicator(Modifier.align(Alignment.Center).size(56.dp), color = VColors.Amber, strokeWidth = 4.dp)
         }
+        LoadingHint(rememberLoadingStage(loading && playWhenReady), ui.loadingFrom, Modifier.align(Alignment.Center).padding(top = 130.dp))
 
         // Seek hint while the controls are hidden.
         AnimatedVisibility(hint != null && !controls, enter = fadeIn(tween(120)), exit = fadeOut(tween(300)), modifier = Modifier.align(Alignment.BottomCenter)) {
@@ -313,7 +320,7 @@ fun TvPlayerScreen(viewModel: PlayerViewModel, onExit: () -> Unit) {
             Box(Modifier.fillMaxSize()) { Controls(
                 ui = ui,
                 clock = clock,
-                isPlaying = isPlaying,
+                isPlaying = playWhenReady,
                 speed = speed,
                 playButton = playButton,
                 onInteract = { interaction++ },

@@ -59,6 +59,8 @@ import com.pntapps.veltoret.data.db.LibraryFolderEntity
 import com.pntapps.veltoret.data.db.LibraryType
 import com.pntapps.veltoret.data.drive.DriveFile
 import com.pntapps.veltoret.data.storage.LocalStorage
+import androidx.compose.material.icons.rounded.Dns
+import com.pntapps.veltoret.data.smb.SmbPath
 import com.pntapps.veltoret.ui.accounts.rememberAccountConnector
 import com.pntapps.veltoret.ui.files.Crumb
 import com.pntapps.veltoret.ui.files.rememberLocalFolderPicker
@@ -139,8 +141,12 @@ fun TvSettingsScreen(navigator: Navigator) {
             item("acc-${acc.email}") {
                 TvListItem(
                     title = acc.displayName,
-                    subtitle = if (local) "Videos on this TV and USB drives" else acc.email,
-                    leading = if (local) Icons.Rounded.Tv else Icons.Rounded.Person,
+                    subtitle = when {
+                        local -> "Videos on this TV and USB drives"
+                        SmbPath.isSmb(acc.email) -> "Network server · ${SmbPath.parse(acc.email).host}"
+                        else -> acc.email
+                    },
+                    leading = if (local) Icons.Rounded.Tv else if (SmbPath.isSmb(acc.email)) Icons.Rounded.Dns else Icons.Rounded.Person,
                     onClick = { dialog = SettingsDialog.AccountActions(acc) },
                     focusRequester = if (i == 0) first else null,
                 )
@@ -257,7 +263,7 @@ fun TvSettingsScreen(navigator: Navigator) {
     when (val d = dialog) {
         is SettingsDialog.AccountActions -> TvActionsDialog(
             title = d.account.displayName,
-            subtitle = if (LocalStorage.isLocal(d.account.email)) null else d.account.email,
+            subtitle = if (LocalStorage.isLocal(d.account.email) || SmbPath.isSmb(d.account.email)) null else d.account.email,
             onDismiss = { dialog = null },
             actions = listOf(
                 TvAction("Add library folder", Icons.Rounded.Add) {
@@ -265,7 +271,11 @@ fun TvSettingsScreen(navigator: Navigator) {
                 },
                 TvAction(
                     "Remove", Icons.Rounded.Delete,
-                    detail = if (LocalStorage.isLocal(d.account.email)) "Nothing is deleted from this TV" else "Nothing is deleted from Google Drive",
+                    detail = when {
+                        LocalStorage.isLocal(d.account.email) -> "Nothing is deleted from this TV"
+                        SmbPath.isSmb(d.account.email) -> "Nothing is deleted from the server"
+                        else -> "Nothing is deleted from Google Drive"
+                    },
                 ) { vm.removeAccount(d.account.email) },
             ),
         )

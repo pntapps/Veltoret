@@ -1,19 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
-   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
+   Backup rules for Android 12 and newer. See https://developer.android.com/about/versions/12/backup-restore#xml-changes
 -->
 <data-extraction-rules>
+    <!-- Network server passwords are encrypted with a Keystore key that isn't backed up or transferred;
+         a copy couldn't be decrypted, so it's left out (SmbServerStore.PREFS). -->
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <exclude domain="sharedpref" path="smb_servers.xml"/>
     </cloud-backup>
-    <!--
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <exclude domain="sharedpref" path="smb_servers.xml"/>
     </device-transfer>
-    -->
 </data-extraction-rules>

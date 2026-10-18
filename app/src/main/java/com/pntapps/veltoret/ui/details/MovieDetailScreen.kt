@@ -54,7 +54,9 @@ import com.pntapps.veltoret.ui.components.RatingText
 import com.pntapps.veltoret.ui.components.VButton
 import com.pntapps.veltoret.ui.components.VIconButton
 import com.pntapps.veltoret.ui.components.VProgress
+import com.pntapps.veltoret.ui.home.PosterItem
 import com.pntapps.veltoret.ui.navigation.FixMatchRoute
+import com.pntapps.veltoret.ui.navigation.MovieRoute
 import com.pntapps.veltoret.ui.navigation.Navigator
 import com.pntapps.veltoret.ui.theme.VColors
 import com.pntapps.veltoret.ui.util.Format
@@ -74,15 +76,38 @@ data class MovieDetailState(
     val files: List<MediaFileEntity> = emptyList(),
     val cast: List<CreditEntity> = emptyList(),
     val watch: WatchStateEntity? = null,
+    /** "More like this": TMDB's recommendations that are in the library. */
+    val related: List<PosterItem> = emptyList(),
 )
 
 class MovieDetailViewModel(private val container: AppContainer, private val id: Int) : ViewModel() {
     private val library = container.libraryRepository
 
+    private val related = combine(library.relatedMovies(id), container.watchRepository.observeAll()) { rows, states ->
+        val statesByKey = states.associateBy { it.key }
+        rows.map { row ->
+            val st = statesByKey[WatchKeys.movie(row.movie.tmdbId)]
+            PosterItem(
+                id = row.movie.tmdbId, isShow = false, title = row.movie.title,
+                subtitle = listOfNotNull(row.movie.year?.toString(), Format.runtime(row.movie.runtimeMin)).joinToString(" · "),
+                posterUrl = TmdbImages.poster(row.movie.posterPath),
+                progress = st?.takeIf { !it.watched && it.positionMs > 0 }?.progress,
+                watched = st?.watched == true,
+            )
+        }
+    }
+
     val state: StateFlow<MovieDetailState> = combine(
-        library.movie(id), library.movieFiles(id), library.credits("movie", id), container.watchRepository.observe(WatchKeys.movie(id)),
-    ) { movie, files, cast, watch -> MovieDetailState(false, movie, files, cast, watch) }
+        library.movie(id), library.movieFiles(id), library.credits("movie", id), container.watchRepository.observe(WatchKeys.movie(id)), related,
+    ) { movie, files, cast, watch, related -> MovieDetailState(false, movie, files, cast, watch, related) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MovieDetailState())
+
+    init {
+        // Titles matched before "More like this" existed (or a month ago) get their list now rather than at the next scan.
+        if (container.connectivity.isOnline) viewModelScope.launch {
+            runCatching { container.tmdbRepository.ensureRecommendations("movie", id) }
+        }
+    }
 
     fun setWatched(watched: Boolean) {
         viewModelScope.launch { container.watchRepository.setMovieWatched(id, watched) }
@@ -175,6 +200,7 @@ fun MovieDetailScreen(id: Int, navigator: Navigator) {
         item("files") {
             VersionsSection(state.files) { f -> context.playFile(f.driveId, f.accountEmail) }
         }
+        item("related") { RelatedRow(state.related) { navigator.navigate(MovieRoute(it.id)) } }
         item("attribution") {
             Text(
                 "Metadata and artwork from TMDB",

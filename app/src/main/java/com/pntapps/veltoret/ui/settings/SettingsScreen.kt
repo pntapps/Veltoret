@@ -89,6 +89,10 @@ import com.pntapps.veltoret.ui.files.accountSubtitle
 import com.pntapps.veltoret.ui.files.rememberLocalFolderPicker
 import com.pntapps.veltoret.ui.files.rememberNotificationPermission
 import com.pntapps.veltoret.ui.files.DriveFolderPicker
+import com.pntapps.veltoret.ui.files.Crumb
+import com.pntapps.veltoret.data.smb.SmbServer
+import com.pntapps.veltoret.data.smb.SmbPath
+import androidx.compose.material.icons.rounded.Dns
 import com.pntapps.veltoret.ui.files.PickerAction
 import com.pntapps.veltoret.ui.navigation.Navigator
 import com.pntapps.veltoret.ui.navigation.ArchivesRoute
@@ -151,6 +155,10 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
         container.accountRepository.removeLibraryFolder(folder)
     }
 
+    fun addServer(server: SmbServer) = viewModelScope.launch {
+        container.accountRepository.addServerAccount(server)
+    }
+
     fun removeAccount(email: String) = viewModelScope.launch {
         container.accountRepository.removeAccount(email)
     }
@@ -191,6 +199,9 @@ fun SettingsScreen(navigator: Navigator) {
     var pickerFor by remember { mutableStateOf<String?>(null) }
     var confirmRemove by remember { mutableStateOf<AccountEntity?>(null) }
     var deviceFolder by remember { mutableStateOf<DriveFile?>(null) }
+    var addingServer by remember { mutableStateOf(false) }
+    // Where the folder picker opens below the root (a network path the user typed).
+    var pickerStart by remember { mutableStateOf<List<Crumb>>(emptyList()) }
     val scope = rememberCoroutineScope()
     val pickDeviceFolder = rememberLocalFolderPicker { uri -> scope.launch { deviceFolder = vm.adoptDeviceFolder(uri) } }
 
@@ -212,7 +223,10 @@ fun SettingsScreen(navigator: Navigator) {
                         folderCounts = folderCounts,
                         scan = scan,
                         onScanFolder = { askNotifications(); vm.scanFolder(it) },
-                        onAddFolder = { if (LocalStorage.isLocal(account.email)) pickDeviceFolder() else pickerFor = account.email },
+                        onAddFolder = {
+                            if (LocalStorage.isLocal(account.email)) pickDeviceFolder()
+                            else { pickerStart = emptyList(); pickerFor = account.email }
+                        },
                         onRemoveFolder = vm::removeFolder,
                         onRemoveAccount = { confirmRemove = account },
                     )
@@ -225,6 +239,17 @@ fun SettingsScreen(navigator: Navigator) {
                     icon = Icons.Rounded.PersonAdd,
                     style = ButtonStyle.Secondary,
                     loading = connector.busy(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 4.dp),
+                )
+            }
+            item {
+                VButton(
+                    "Add network server",
+                    { addingServer = true },
+                    icon = Icons.Rounded.Dns,
+                    style = ButtonStyle.Secondary,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp, vertical = 4.dp),
@@ -359,6 +384,21 @@ fun SettingsScreen(navigator: Navigator) {
                 PickerAction("TV Shows") { vm.addFolder(email, it.id, it.name, LibraryType.SHOWS); pickerFor = null },
             ),
             onDismiss = { pickerFor = null },
+            startAt = pickerStart,
+        )
+    }
+
+    if (addingServer) {
+        AddServerDialog(
+            onDismiss = { addingServer = false },
+            onAdded = { server, crumbs ->
+                addingServer = false
+                vm.addServer(server)
+                vm.messages.tryEmit("Connected to ${server.name}. Choose a Movies or TV Shows folder.")
+                // Straight on to choosing a library folder, inside the typed path if there was one.
+                pickerStart = crumbs
+                pickerFor = server.account
+            },
         )
     }
 
@@ -373,11 +413,14 @@ fun SettingsScreen(navigator: Navigator) {
         AlertDialog(
             onDismissRequest = { confirmRemove = null },
             containerColor = VColors.SurfaceHigh,
-            title = { Text("Remove ${if (LocalStorage.isLocal(acc.email)) acc.displayName else acc.email}?") },
+            title = { Text("Remove ${if (LocalStorage.isLocal(acc.email) || SmbPath.isSmb(acc.email)) acc.displayName else acc.email}?") },
             text = {
                 Text(
-                    if (LocalStorage.isLocal(acc.email)) "Its folders will be removed from your library. Nothing is deleted from this device."
-                    else "Its folders will be removed from your library. Nothing is deleted from Google Drive."
+                    when {
+                        LocalStorage.isLocal(acc.email) -> "Its folders will be removed from your library. Nothing is deleted from this device."
+                        SmbPath.isSmb(acc.email) -> "Its folders will be removed from your library and Veltoret forgets its password. Nothing is deleted from the server."
+                        else -> "Its folders will be removed from your library. Nothing is deleted from Google Drive."
+                    }
                 )
             },
             confirmButton = { TextButton({ vm.removeAccount(acc.email); confirmRemove = null }) { Text("Remove", color = VColors.Danger) } },

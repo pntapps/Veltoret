@@ -19,11 +19,12 @@ import androidx.room.RoomDatabase
         CreditEntity::class,
         WatchStateEntity::class,
         ArchiveFileEntity::class,
+        RecommendationEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
-    // v2 adds archive_files. Keep every version's schema JSON in app/schemas so upgrades keep user data.
-    autoMigrations = [AutoMigration(from = 1, to = 2)],
+    // v2 adds archive_files, v3 recommendations. Keep every version's schema JSON in app/schemas so upgrades keep user data.
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)],
 )
 abstract class VeltoretDatabase : RoomDatabase() {
     abstract fun accountDao(): AccountDao

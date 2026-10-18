@@ -163,6 +163,20 @@ data class CreditEntity(
 )
 
 /**
+ * TMDB's "recommendations" for a movie or show, in TMDB's order. Only the ones in the library are shown
+ * ("More like this"), so the ids of titles the user doesn't have are kept too, in case they're added later.
+ */
+@Entity(tableName = "recommendations", primaryKeys = ["mediaType", "mediaId"])
+data class RecommendationEntity(
+    /** "movie" or "tv", as in [CreditEntity.mediaType]. */
+    val mediaType: String,
+    val mediaId: Int,
+    /** Comma-separated TMDB ids of the same type, best match first. */
+    val recommendedIds: String,
+    val fetchedAt: Long,
+)
+
+/**
  * Watch progress, keyed by *what* was watched rather than which file, so several versions of the
  * same movie (1080p / 4K, or copies in two accounts) share one progress record.
  * See [com.pntapps.veltoret.data.library.WatchKeys].

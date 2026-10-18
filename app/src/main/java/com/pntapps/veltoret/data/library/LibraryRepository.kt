@@ -39,6 +39,16 @@ class LibraryRepository(
     fun episodes(showId: Int): Flow<List<EpisodeEntity>> = catalog.observeEpisodes(showId)
     fun showFiles(showId: Int): Flow<List<MediaFileEntity>> = files.observeForShow(showId)
     fun credits(type: String, id: Int): Flow<List<CreditEntity>> = catalog.observeCredits(type, id)
+
+    /** TMDB's recommendations for a movie that are in the library (and playable now, via [movies]). */
+    fun relatedMovies(id: Int): Flow<List<MovieRow>> = combine(catalog.observeRecommendations("movie", id), movies()) { rec, rows ->
+        RelatedTitles.inLibrary(RelatedTitles.parseIds(rec?.recommendedIds), rows.associateBy { it.movie.tmdbId }, id)
+    }
+
+    /** TMDB's recommendations for a show that are in the library (and playable now, via [shows]). */
+    fun relatedShows(id: Int): Flow<List<ShowRow>> = combine(catalog.observeRecommendations("tv", id), shows()) { rec, rows ->
+        RelatedTitles.inLibrary(RelatedTitles.parseIds(rec?.recommendedIds), rows.associateBy { it.show.tmdbId }, id)
+    }
     fun unmatched(): Flow<List<MediaFileEntity>> = files.observeUnmatched()
     fun folderCounts(): Flow<Map<Long, Int>> = files.observeFolderCounts().map { list -> list.associate { it.folderId to it.videos } }
     fun ignored(): Flow<List<MediaFileEntity>> = files.observeIgnored()

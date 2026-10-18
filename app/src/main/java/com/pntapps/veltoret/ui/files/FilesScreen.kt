@@ -88,6 +88,7 @@ import androidx.work.WorkInfo
 import com.pntapps.veltoret.data.db.LibraryType
 import com.pntapps.veltoret.data.drive.DriveFile
 import com.pntapps.veltoret.data.library.FilenameParser
+import com.pntapps.veltoret.data.smb.SmbPath
 import com.pntapps.veltoret.data.storage.LocalStorage
 import com.pntapps.veltoret.ui.util.rememberOnline
 import com.pntapps.veltoret.player.playFile
@@ -133,6 +134,11 @@ fun FilesScreen(navigator: Navigator) {
     var addMenu by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val local = LocalStorage.isLocal(state.account)
+    val smb = SmbPath.isSmb(state.account)
+    val drive = !local && !smb
+    // Device and network-share deletes are permanent; only Drive has a trash.
+    val permanent = local || smb
+    val serverName = accounts.firstOrNull { it.email == state.account }?.displayName
     val online = rememberOnline()
     val driveOffline = !local && !online
     val pickDeviceFolder = rememberLocalFolderPicker { uri ->
@@ -182,7 +188,7 @@ fun FilesScreen(navigator: Navigator) {
                     Text("${state.selection.size} selected", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
                     VIconButton(Icons.AutoMirrored.Rounded.DriveFileMove, "Move", { dialog = FileDialog.Move(state.selection) })
                     Spacer(Modifier.width(8.dp))
-                    VIconButton(Icons.Rounded.Delete, if (local) "Delete" else "Move to trash", {
+                    VIconButton(Icons.Rounded.Delete, if (permanent) "Delete" else "Move to trash", {
                         dialog = FileDialog.Trash(state.selection, "${state.selection.size} items")
                     }, tint = VColors.Danger)
                 } else {
@@ -190,7 +196,7 @@ fun FilesScreen(navigator: Navigator) {
                         Text("Files", style = MaterialTheme.typography.headlineLarge)
                         Box {
                             Text(
-                                (if (local) LocalStorage.DISPLAY_NAME else state.account ?: "") + "  ▾",
+                                (if (local) LocalStorage.DISPLAY_NAME else if (smb) serverName ?: "" else state.account ?: "") + "  ▾",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = VColors.TextMuted,
                                 maxLines = 1,
@@ -225,7 +231,7 @@ fun FilesScreen(navigator: Navigator) {
                             }
                         }
                     }
-                    VIconButton(Icons.Rounded.Search, if (local) "Search this folder" else "Search Drive", { vm.setSearch(if (state.searchQuery == null) "" else null) })
+                    VIconButton(Icons.Rounded.Search, if (drive) "Search Drive" else "Search this folder", { vm.setSearch(if (state.searchQuery == null) "" else null) })
                     Spacer(Modifier.width(8.dp))
                     Box {
                         VIconButton(Icons.AutoMirrored.Rounded.Sort, "Sort", { sortMenu = true })
@@ -245,7 +251,7 @@ fun FilesScreen(navigator: Navigator) {
                 VTextField(
                     value = state.searchQuery.orEmpty(),
                     onValueChange = vm::setSearch,
-                    label = if (local) "Search this folder" else "Search this Drive",
+                    label = if (drive) "Search this Drive" else "Search this folder",
                     leadingIcon = Icons.Rounded.Search,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -253,7 +259,7 @@ fun FilesScreen(navigator: Navigator) {
                         .widthIn(max = 720.dp),
                 )
             } else {
-                if (!local && !driveOffline) Row(Modifier.padding(horizontal = gutter()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (drive && !driveOffline) Row(Modifier.padding(horizontal = gutter()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     SelectChip("My Drive", !state.sharedRoot, { vm.setSharedRoot(false) })
                     SelectChip("Shared with me", state.sharedRoot, { vm.setSharedRoot(true) })
                 }
@@ -268,13 +274,18 @@ fun FilesScreen(navigator: Navigator) {
                 when {
                     driveOffline -> EmptyState(
                         Icons.Rounded.CloudOff, "You're offline",
-                        "Google Drive needs an internet connection. Folders on this device still work.",
+                        if (smb) "Network servers need this device to be on their network. Folders on this device still work."
+                        else "Google Drive needs an internet connection. Folders on this device still work.",
                         actionLabel = "Show this device", onAction = vm::useDevice,
                     )
                     state.loading -> LoadingBox()
                     state.error != null -> EmptyState(
                         if (local) Icons.Rounded.FolderOff else Icons.Rounded.CloudOff,
-                        if (local) "Couldn't open this folder" else "Couldn't reach Drive",
+                        when {
+                            local -> "Couldn't open this folder"
+                            smb -> "Couldn't reach ${serverName ?: "the server"}"
+                            else -> "Couldn't reach Drive"
+                        },
                         state.error!!, actionLabel = "Retry", onAction = { vm.load() },
                     )
                     state.items.isEmpty() && local && state.stack.size == 1 -> EmptyState(
@@ -284,7 +295,7 @@ fun FilesScreen(navigator: Navigator) {
                     )
                     state.items.isEmpty() -> EmptyState(
                         Icons.Rounded.FolderOpen, "This folder is empty",
-                        if (local) "Create a folder with the + button." else "Upload files or create a folder with the + button.",
+                        if (drive) "Upload files or create a folder with the + button." else "Create a folder with the + button.",
                     )
                     // One column on phones; several columns of rows on tablets.
                     else -> LazyVerticalGrid(
@@ -298,14 +309,15 @@ fun FilesScreen(navigator: Navigator) {
                                 selected = file.id in state.selection,
                                 selecting = state.selecting,
                                 libraryType = libraryFolders[file.id],
-                                local = local,
-                                movable = !(local && state.stack.size == 1),
+                                local = permanent,
+                                // Device roots are granted folders and a server's root lists its shares: neither can move.
+                                movable = !(permanent && state.stack.size == 1),
                                 onClick = {
                                     when {
                                         state.selecting -> vm.toggleSelection(file.id)
                                         file.isFolder -> vm.open(file)
                                         isVideo(file) -> context.playFile(file.id, state.account, title = file.name)
-                                        FilenameParser.isArchive(file.name) -> dialog = FileDialog.Extract(file)
+                                        FilenameParser.isArchive(file.name) && drive -> dialog = FileDialog.Extract(file)
                                         else -> dialog = FileDialog.Details(file)
                                     }
                                 },
@@ -338,7 +350,7 @@ fun FilesScreen(navigator: Navigator) {
             uploads.take(3).forEach { up ->
                 TransferCard(UploadIcon, up.name, null, up.progress, up.state, Modifier.padding(bottom = 10.dp).width(300.dp))
             }
-            if (!state.selecting && !state.atSharedRoot && !driveOffline) {
+            if (!state.selecting && !state.atSharedRoot && !driveOffline && !(smb && state.stack.size == 1)) {
                 Box {
                     Box(
                         Modifier
@@ -362,7 +374,7 @@ fun FilesScreen(navigator: Navigator) {
                                 onClick = { addMenu = false; dialog = FileDialog.NewFolder },
                             )
                         }
-                        if (!local) DropdownMenuItem(
+                        if (drive) DropdownMenuItem(
                             text = { Text("Upload files") },
                             leadingIcon = { Icon(Icons.Rounded.CloudUpload, null) },
                             onClick = { addMenu = false; picker.launch(arrayOf("*/*")) },
@@ -389,15 +401,18 @@ fun FilesScreen(navigator: Navigator) {
         is FileDialog.Trash -> AlertDialog(
             onDismissRequest = { dialog = null },
             containerColor = VColors.SurfaceHigh,
-            title = { Text(if (local) "Delete permanently?" else "Move to trash?") },
+            title = { Text(if (permanent) "Delete permanently?" else "Move to trash?") },
             text = {
                 Text(
-                    if (local) "\"${d.label}\" will be deleted permanently from this device. This can't be undone."
-                    else "\"${d.label}\" will be moved to Google Drive's trash. You can restore it from Drive for 30 days."
+                    when {
+                        local -> "\"${d.label}\" will be deleted permanently from this device. This can't be undone."
+                        smb -> "\"${d.label}\" will be deleted permanently from ${serverName ?: "the server"}. Network shares have no trash, so this can't be undone."
+                        else -> "\"${d.label}\" will be moved to Google Drive's trash. You can restore it from Drive for 30 days."
+                    }
                 )
             },
             confirmButton = {
-                TextButton({ vm.trash(d.ids); dialog = null }) { Text(if (local) "Delete" else "Move to trash", color = VColors.Danger) }
+                TextButton({ vm.trash(d.ids); dialog = null }) { Text(if (permanent) "Delete" else "Move to trash", color = VColors.Danger) }
             },
             dismissButton = { TextButton({ dialog = null }) { Text("Cancel", color = VColors.Text) } },
         )
@@ -411,6 +426,8 @@ fun FilesScreen(navigator: Navigator) {
         is FileDialog.Extract -> ExtractDialog(
             name = d.file.name,
             sizeBytes = d.file.sizeBytes,
+            account = state.account ?: return,
+            parentId = d.file.parents.firstOrNull() ?: state.current.id,
             onDismiss = { dialog = null },
             onConfirm = { wifi, after ->
                 askNotifications()

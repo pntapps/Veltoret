@@ -236,9 +236,23 @@ interface CatalogDao {
     )
     suspend fun pruneCredits()
 
+    @Query("SELECT * FROM recommendations WHERE mediaType = :type AND mediaId = :id")
+    fun observeRecommendations(type: String, id: Int): Flow<RecommendationEntity?>
+
+    @Query("SELECT fetchedAt FROM recommendations WHERE mediaType = :type AND mediaId = :id")
+    suspend fun recommendationsFetchedAt(type: String, id: Int): Long?
+
+    @Upsert suspend fun upsertRecommendations(recommendations: RecommendationEntity)
+
+    @Query(
+        """DELETE FROM recommendations WHERE (mediaType = 'movie' AND mediaId NOT IN (SELECT tmdbId FROM movies))
+           OR (mediaType = 'tv' AND mediaId NOT IN (SELECT tmdbId FROM shows))"""
+    )
+    suspend fun pruneRecommendations()
+
     @Transaction
     suspend fun prune() {
-        pruneMovies(); pruneShows(); pruneSeasons(); pruneEpisodes(); pruneCredits()
+        pruneMovies(); pruneShows(); pruneSeasons(); pruneEpisodes(); pruneCredits(); pruneRecommendations()
     }
 
     @Query(

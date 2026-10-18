@@ -21,6 +21,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 
@@ -141,7 +142,10 @@ class LibraryScanner(
             if (online) try {
                 matchPending()
                 // Refreshing every show is a whole-library job; a single-folder scan skips it.
-                if (folderIds == null) refreshShows()
+                if (folderIds == null) {
+                    refreshShows()
+                    refreshRecommendations()
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: ScanCancelled) {
@@ -201,7 +205,8 @@ class LibraryScanner(
                     child.isFolder -> queue.add(child.id to path + child.name)
                     FilenameParser.isSubtitle(child.name) ->
                         subtitles += SubtitleFileEntity(child.id, folder.accountEmail, folder.id, folderId, child.name)
-                    FilenameParser.isArchive(child.name) && !storage.isLocal(folder.accountEmail) ->
+                    // ZIP extraction uploads to Drive, so archives are only listed for Drive folders.
+                    FilenameParser.isArchive(child.name) && !storage.isLocal(folder.accountEmail) && !storage.isSmb(folder.accountEmail) ->
                         archives += ArchiveFileEntity(
                             child.id, folder.accountEmail, folder.id, folderId, child.name, child.sizeBytes, path.joinToString("/"),
                         )
@@ -363,6 +368,17 @@ class LibraryScanner(
     private suspend fun refreshShows() {
         files.showSeasons().groupBy { it.showId }.forEach { (showId, seasons) ->
             runCatching { tmdb.ensureShow(showId, seasons.mapTo(HashSet()) { it.season }) }
+                .onFailure { if (it is CancellationException || it is TmdbKeyMissingException) throw it }
+        }
+    }
+
+    /** Fetches "More like this" for titles that have none yet or a month-old list. Detail pages also fetch on open. */
+    private suspend fun refreshRecommendations() {
+        val ids = catalog.observeMovies().first().map { "movie" to it.movie.tmdbId } +
+            catalog.observeShows().first().map { "tv" to it.show.tmdbId }
+        for ((type, id) in ids) {
+            checkCancelled()
+            runCatching { tmdb.ensureRecommendations(type, id) }
                 .onFailure { if (it is CancellationException || it is TmdbKeyMissingException) throw it }
         }
     }

@@ -64,8 +64,9 @@ data class Crumb(val id: String, val name: String)
 class PickerAction(val label: String, val style: ButtonStyle = ButtonStyle.Primary, val onPick: (Crumb) -> Unit)
 
 /**
- * Full-screen Drive folder browser. Used to choose library folders and as the "Move to" target.
- * [disabledIds] are folders that may not be picked or entered (e.g. the items being moved).
+ * Full-screen folder browser for any source (Drive, device, network server). Used to choose library
+ * folders and as the "Move to" target. [disabledIds] are folders that may not be picked or entered
+ * (e.g. the items being moved). [startAt] opens inside a folder, below the root (e.g. a path the user typed).
  */
 @Composable
 fun DriveFolderPicker(
@@ -74,13 +75,15 @@ fun DriveFolderPicker(
     actions: List<PickerAction>,
     onDismiss: () -> Unit,
     disabledIds: Set<String> = emptySet(),
+    startAt: List<Crumb> = emptyList(),
 ) {
     val container = LocalContext.current.container
     val drive = container.driveRepository
     val storage = container.storage
     val local = storage.isLocal(email)
+    val smb = storage.isSmb(email)
     var sharedRoot by remember { mutableStateOf(false) }
-    val stack: SnapshotStateList<Crumb> = remember { listOf(Crumb(storage.rootId(email), storage.rootName(email))).toMutableStateList() }
+    val stack: SnapshotStateList<Crumb> = remember { (listOf(Crumb(storage.rootId(email), storage.rootName(email))) + startAt).toMutableStateList() }
     var folders by remember { mutableStateOf<List<DriveFile>?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     val current = stack.last()
@@ -103,10 +106,10 @@ fun DriveFolderPicker(
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
         ) {
-            ScreenHeader(title, subtitle = if (local) storage.rootName(email) else email) {
+            ScreenHeader(title, subtitle = if (local || smb) storage.rootName(email) else email) {
                 VIconButton(Icons.Rounded.Close, "Close", onDismiss)
             }
-            if (!local) Row(Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (!local && !smb) Row(Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 SelectChip("My Drive", !sharedRoot, {
                     sharedRoot = false
                     stack.clear(); stack.add(Crumb(DriveRepository.ROOT, "My Drive"))
@@ -154,8 +157,8 @@ fun DriveFolderPicker(
                     }
                 }
             }
-            // The device root is only a list of granted folders; nothing can go there.
-            val pickable = !(sharedRoot && stack.size == 1) && !(local && stack.size == 1) && current.id !in disabledIds
+            // The device root is only a list of granted folders, and a server's root a list of its shares; nothing can go there.
+            val pickable = !(sharedRoot && stack.size == 1) && !((local || smb) && stack.size == 1) && current.id !in disabledIds
             Column(
                 Modifier
                     .fillMaxWidth()

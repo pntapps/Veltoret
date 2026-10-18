@@ -59,6 +59,7 @@ import com.pntapps.veltoret.data.db.LibraryType
 import com.pntapps.veltoret.data.demo.DemoLibrary
 import com.pntapps.veltoret.data.drive.DriveFile
 import com.pntapps.veltoret.data.storage.LocalStorage
+import com.pntapps.veltoret.data.smb.SmbPath
 import com.pntapps.veltoret.ui.accounts.rememberAccountConnector
 import com.pntapps.veltoret.ui.components.Wordmark
 import com.pntapps.veltoret.ui.onboarding.OnboardingStep
@@ -209,7 +210,7 @@ private fun SourcesStep(vm: OnboardingViewModel, onNext: () -> Unit) {
     var error by remember { mutableStateOf<String?>(null) }
     val connector = rememberAccountConnector(onConnected = { error = null }, onError = { error = "${it.title}. ${it.message}" })
     val drive = remember { FocusRequester() }
-    val google = accounts.filterNot { LocalStorage.isLocal(it.email) }
+    val google = accounts.filterNot { LocalStorage.isLocal(it.email) || SmbPath.isSmb(it.email) }
     val hasDevice = accounts.any { LocalStorage.isLocal(it.email) }
     val device = rememberTvDeviceSource(onReady = {}, onPicked = {}, onDenied = { error = "Allow access to videos to use this TV's storage and USB drives." })
     LaunchedEffect(Unit) { drive.focusSoon() }
@@ -261,7 +262,7 @@ private fun FoldersStep(vm: OnboardingViewModel, onNext: () -> Unit) {
                 items(folders.filter { it.accountEmail == acc.email }, key = { "f${it.id}" }) { f ->
                     TvListItem(
                         f.name, { vm.removeFolder(f) },
-                        subtitle = "${if (local) "This TV" else acc.email} · OK to remove",
+                        subtitle = "${if (local) "This TV" else if (SmbPath.isSmb(acc.email)) acc.displayName else acc.email} · OK to remove",
                         leading = if (f.type == LibraryType.MOVIES) Icons.Rounded.Movie else Icons.Rounded.LiveTv,
                         trailing = if (f.type == LibraryType.MOVIES) "Movies" else "TV",
                     )

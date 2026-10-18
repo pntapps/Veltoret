@@ -4,6 +4,7 @@ import com.pntapps.veltoret.data.db.CatalogDao
 import com.pntapps.veltoret.data.db.CreditEntity
 import com.pntapps.veltoret.data.db.EpisodeEntity
 import com.pntapps.veltoret.data.db.MovieEntity
+import com.pntapps.veltoret.data.db.RecommendationEntity
 import com.pntapps.veltoret.data.db.SeasonEntity
 import com.pntapps.veltoret.data.db.ShowEntity
 import com.pntapps.veltoret.data.library.FilenameParser
@@ -148,6 +149,25 @@ class TmdbRepository(private val api: TmdbApi, private val catalog: CatalogDao) 
         }
     }
 
+    /**
+     * Stores TMDB's recommendations for a movie ([type] "movie") or show ("tv"). Fetches the first
+     * [RECOMMENDATION_PAGES] pages (20 titles each) so a personal library has a fair chance of owning some.
+     */
+    suspend fun ensureRecommendations(type: String, id: Int, maxAgeMs: Long = 30L * DAY) {
+        val fetchedAt = catalog.recommendationsFetchedAt(type, id)
+        if (fetchedAt != null && System.currentTimeMillis() - fetchedAt < maxAgeMs) return
+        val ids = mutableListOf<Int>()
+        for (page in 1..RECOMMENDATION_PAGES) {
+            val (results, pages) = if (type == "movie") api.movieRecommendations(id, page).let { p -> p.results.map { it.id } to p.totalPages }
+            else api.tvRecommendations(id, page).let { p -> p.results.map { it.id } to p.totalPages }
+            ids += results
+            if (page >= pages) break
+        }
+        catalog.upsertRecommendations(
+            RecommendationEntity(type, id, ids.distinct().filter { it != id }.joinToString(","), System.currentTimeMillis())
+        )
+    }
+
     private fun List<TmdbCast>.toCredits(type: String, id: Int) = take(30).distinctBy { it.id }.map {
         CreditEntity(type, id, it.id, it.name, it.character, it.profilePath, it.order)
     }
@@ -197,6 +217,7 @@ class TmdbRepository(private val api: TmdbApi, private val catalog: CatalogDao) 
 
     companion object {
         private const val DAY = 24L * 60 * 60 * 1000
+        private const val RECOMMENDATION_PAGES = 2
         fun yearOf(date: String?): Int? = date?.take(4)?.toIntOrNull()
     }
 }

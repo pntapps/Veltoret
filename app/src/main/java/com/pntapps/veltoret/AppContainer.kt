@@ -86,13 +86,17 @@ class AppContainer(context: Context) {
 
     val driveRepository = DriveRepository(driveApi, driveHttp, json)
     val localStorage = com.pntapps.veltoret.data.storage.LocalStorage(appContext)
-    val storage = com.pntapps.veltoret.data.storage.Storage(driveRepository, localStorage)
+    val smbServers = com.pntapps.veltoret.data.smb.SmbServerStore(appContext, json)
+    val smbStorage = com.pntapps.veltoret.data.smb.SmbStorage(smbServers)
+    val smbDiscovery = com.pntapps.veltoret.data.smb.SmbDiscovery(appContext)
+    val storage = com.pntapps.veltoret.data.storage.Storage(driveRepository, localStorage, smbStorage, smbServers)
     val tmdbRepository = TmdbRepository(tmdbApi, database.catalogDao())
     val watchRepository = WatchRepository(database.watchDao())
     val connectivity = com.pntapps.veltoret.data.net.Connectivity(appContext)
     val libraryRepository = LibraryRepository(database.catalogDao(), database.mediaFileDao(), connectivity)
     val accountRepository = AccountRepository(
         database.accountDao(), database.mediaFileDao(), database.catalogDao(), driveRepository, localStorage, auth,
+        smbServers, smbStorage,
     )
     val playback = com.pntapps.veltoret.data.library.PlaybackResolver(database.mediaFileDao(), database.watchDao(), connectivity)
     val scanner = LibraryScanner(

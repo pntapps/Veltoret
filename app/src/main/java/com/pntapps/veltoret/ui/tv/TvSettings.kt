@@ -183,22 +183,16 @@ fun TvSettingsScreen(navigator: Navigator) {
 
         item { Section("Library") }
         item {
-            if (scan.running) {
-                TvListItem(
-                    title = ScanText.title(scan) + (scan.progress?.let { " · ${(it * 100).toInt()}%" } ?: ""),
-                    subtitle = "${ScanText.step(scan)} · ${ScanText.counts(scan)}",
-                    leading = Icons.Rounded.Sync,
-                    trailing = "Cancel",
-                    onClick = vm::cancelScan,
-                )
-            } else {
-                TvListItem(
-                    title = "Scan library now",
-                    subtitle = ScanText.idle(scan, settings.lastScanAt),
-                    leading = Icons.Rounded.Sync,
-                    onClick = vm::scanNow,
-                )
-            }
+            // One item for both states: swapping composables would drop the focus to the rail mid-scan.
+            TvListItem(
+                title = if (scan.running) ScanText.title(scan) + (scan.progress?.let { " · ${(it * 100).toInt()}%" } ?: "")
+                else "Scan library now",
+                subtitle = if (scan.running) "${ScanText.step(scan)} · ${ScanText.counts(scan)}"
+                else ScanText.idle(scan, settings.lastScanAt),
+                leading = Icons.Rounded.Sync,
+                trailing = if (scan.running) "Cancel" else null,
+                onClick = { if (scan.running) vm.cancelScan() else vm.scanNow() },
+            )
         }
         if (unmatched > 0) {
             item {

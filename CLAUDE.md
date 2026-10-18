@@ -176,6 +176,8 @@ Each rule below exists because breaking it caused a real bug.
   `requestFocus()` in the first frame can be dropped, leaving the remote with nothing focused).
 - Rows/grids use `PivotScrolling` so focus stays at a fixed spot. Text fields need `tvTextFieldExit()`,
   otherwise ↑/↓ are trapped inside the field.
+- A focused item that changes with state (e.g. the Settings scan row while scanning) must stay one
+  composable with changing text/actions; swapping it for another composable drops focus to the rail.
 - Back order: content → rail → Home → exit. The rail's `focusProperties` keep ↑/↓ inside it.
 - TVs have no real folder picker (`MediaLibrary.folderPickerAvailable` is false; only a stub answers).
   "Videos on this TV" asks for `READ_MEDIA_VIDEO` and browses MediaStore by path (`ms:` folder ids,

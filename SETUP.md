@@ -255,7 +255,7 @@ Veltoret scans your folders, matches every title, and fills your library with po
 If your videos are on a USB drive plugged into your router, on a NAS, or in a shared folder on a
 Windows PC, Veltoret can read them over Wi-Fi (Windows file sharing, also called SMB or Samba).
 
-1. Open **Settings → Add network server**. Veltoret searches your Wi-Fi for a few seconds and lists
+1. Open **Settings → Add network server** (or tap **Add network server** during first-run setup). Veltoret searches your Wi-Fi for a few seconds and lists
    the servers it finds (for example your router's share).
 2. Tap your server, or type its address the way Windows shows it, e.g. `\\192.168.0.10\Movies`.
    Pasting the full path to your movies folder works too.
@@ -265,7 +265,14 @@ Windows PC, Veltoret can read them over Wi-Fi (Windows file sharing, also called
 
 The server shows up in **Settings** like your other sources, where you can add more folders.
 On **Android TV** it's the same: **Settings → Add network server** (or **Network server** during first-run
-setup); pick the server with the remote and type the username and password with the TV keyboard.
+setup); pick the server with the remote and type the username and password with the TV keyboard,
+or choose **Use your phone** to skip typing:
+- **Any phone:** scan the QR code with the phone's camera and fill in the page that opens.
+- **Veltoret on your phone or tablet:** in its Settings, open the network server, tap **Send to TV**,
+  pick the TV and enter the 6-digit code it shows. The server and password are sent encrypted.
+
+The phone must be on the same Wi-Fi as the TV. The QR page sends the password over your home
+network without encryption, once; **Send to TV** encrypts it.
 Network shares only work while this device is on the same network as the server. Deleting a file
 from a network share in **Files** is permanent (there's no trash). On Android 17 and later,
 Veltoret asks for the **Nearby devices** permission the first time, to reach your home network.

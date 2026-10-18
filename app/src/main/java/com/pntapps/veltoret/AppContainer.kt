@@ -89,6 +89,8 @@ class AppContainer(context: Context) {
     val smbServers = com.pntapps.veltoret.data.smb.SmbServerStore(appContext, json)
     val smbStorage = com.pntapps.veltoret.data.smb.SmbStorage(smbServers)
     val smbDiscovery = com.pntapps.veltoret.data.smb.SmbDiscovery(appContext)
+    /** "Send to TV": hands a saved network server to a TV showing "Use your phone". */
+    val sendToTv by lazy { com.pntapps.veltoret.data.pairing.SendToTv(appContext, json) }
     val storage = com.pntapps.veltoret.data.storage.Storage(driveRepository, localStorage, smbStorage, smbServers)
     val tmdbRepository = TmdbRepository(tmdbApi, database.catalogDao())
     val watchRepository = WatchRepository(database.watchDao())

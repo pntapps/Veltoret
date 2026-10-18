@@ -27,6 +27,13 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.pntapps.veltoret.ui.util.container
+import com.pntapps.veltoret.data.pairing.PhoneSubmission
+import com.pntapps.veltoret.data.pairing.PhoneSetupServer
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -67,11 +74,13 @@ fun TvAddServerScreen(onDismiss: () -> Unit, onAdded: (SmbServer, List<Crumb>) -
     var password by remember { mutableStateOf("") }
     val withNetworkAccess = rememberLocalNetworkAccess { vm.showError(it) }
     fun connect() = withNetworkAccess { vm.connect(address, guest, username, password) }
+    var usePhone by remember { mutableStateOf(false) }
 
     val scanButton = remember { FocusRequester() }
     val firstServer = remember { FocusRequester() }
     val usernameField = remember { FocusRequester() }
     val connectButton = remember { FocusRequester() }
+    val phoneButton = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
         vm.reset()
@@ -103,13 +112,25 @@ fun TvAddServerScreen(onDismiss: () -> Unit, onAdded: (SmbServer, List<Crumb>) -
                 .padding(horizontal = TvDimens.Edge + 16.dp, vertical = TvDimens.Top + 8.dp)
         ) {
             Column(Modifier.fillMaxSize()) {
-                Text("Add network server", style = MaterialTheme.typography.headlineMedium, color = VColors.Text)
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    "Shared folders on a router with a USB drive, a NAS or a computer on this network.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = VColors.TextMuted,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Add network server", style = MaterialTheme.typography.headlineMedium, color = VColors.Text)
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            "Shared folders on a router with a USB drive, a NAS or a computer on this network.",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = VColors.TextMuted,
+                        )
+                    }
+                    // Typing a password with the remote is slow: a phone can fill this in (QR code or Send to TV).
+                    // At the top so it's always on screen; the form below doesn't scroll on a 1080p TV.
+                    TvButton(
+                        "Use your phone",
+                        { withNetworkAccess { usePhone = true } },
+                        icon = Icons.Rounded.PhoneAndroid,
+                        focusRequester = phoneButton,
+                    )
+                }
                 Spacer(Modifier.height(24.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(48.dp)) {
                     // Left: servers found on the network.
@@ -125,6 +146,8 @@ fun TvAddServerScreen(onDismiss: () -> Unit, onAdded: (SmbServer, List<Crumb>) -
                             icon = Icons.Rounded.Refresh,
                             enabled = !state.scanning,
                             focusRequester = scanButton,
+                            // ↑ goes to "Use your phone" rather than into the address field (which opens the keyboard).
+                            modifier = Modifier.focusProperties { up = phoneButton },
                         )
                         Spacer(Modifier.height(12.dp))
                         if (state.found.isEmpty() && !state.scanning) {
@@ -202,9 +225,153 @@ fun TvAddServerScreen(onDismiss: () -> Unit, onAdded: (SmbServer, List<Crumb>) -
         }
     }
 
+    if (usePhone) {
+        TvPhoneSetupPanel(
+            found = { vm.state.value.found },
+            busy = state.busy,
+            error = state.error,
+            onSubmit = { sent ->
+                address = sent.address
+                guest = sent.guest
+                username = sent.username
+                password = sent.password
+                vm.attempt(sent.address, sent.guest, sent.username, sent.password, sent.name)
+            },
+            onDismiss = { usePhone = false },
+        )
+    }
+
     // Picking a server moves on to signing in (or straight to Connect for guest access).
     LaunchedEffect(state.picked) {
         if (state.picked == null) return@LaunchedEffect
         (if (guest) connectButton else usernameField).focusSoon()
+    }
+}
+
+/**
+ * "Use your phone": a QR code that opens a form in any phone's browser (option one), and a 6-digit code for
+ * "Send to TV" in Veltoret on a phone or tablet (option two). Both come in through [PhoneSetupServer],
+ * which runs only while this panel is open. What a phone sends fills in the screen behind and connects.
+ */
+@Composable
+private fun TvPhoneSetupPanel(
+    found: () -> List<com.pntapps.veltoret.data.smb.FoundServer>,
+    busy: Boolean,
+    error: String?,
+    onSubmit: suspend (PhoneSubmission) -> String?,
+    onDismiss: () -> Unit,
+) {
+    val context = LocalContext.current
+    val container = context.container
+    val latestSubmit by rememberUpdatedState(onSubmit)
+    val server = remember {
+        PhoneSetupServer(context.applicationContext, container.json, found) { latestSubmit(it) }
+    }
+    DisposableEffect(server) {
+        runCatching { server.start() }
+        onDispose { server.stop() }
+    }
+    val url by server.url.collectAsStateWithLifecycle()
+    val code by server.code.collectAsStateWithLifecycle()
+    val close = remember { FocusRequester() }
+    LaunchedEffect(Unit) { close.focusSoon() }
+    ReturnFocusWhenClosed()
+
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+        BackHandler(onBack = onDismiss)
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(VColors.Background)
+                .padding(horizontal = TvDimens.Edge + 16.dp, vertical = TvDimens.Top + 8.dp)
+        ) {
+            Column(Modifier.fillMaxSize()) {
+                // Close and the status sit at the top: everything has to fit a 1080p screen without scrolling.
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Use your phone", style = MaterialTheme.typography.headlineMedium, color = VColors.Text)
+                        Spacer(Modifier.height(6.dp))
+                        when {
+                            busy -> Text("Connecting with the details from your phone…", style = MaterialTheme.typography.bodyLarge, color = VColors.AmberSoft)
+                            error != null -> Text(error, style = MaterialTheme.typography.bodyLarge, color = VColors.Danger)
+                            else -> Text(
+                                "Waiting for your phone. It needs to be on the same Wi-Fi as this TV.",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = VColors.TextMuted,
+                            )
+                        }
+                    }
+                    TvButton("Close", onDismiss, focusRequester = close)
+                }
+                Spacer(Modifier.height(28.dp))
+                if (url == null) {
+                    Text(
+                        "This TV isn't on Wi-Fi or Ethernet, so a phone can't reach it.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = VColors.Danger,
+                    )
+                } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(64.dp)) {
+                        Column(Modifier.width(420.dp)) {
+                            Text("Any phone", style = MaterialTheme.typography.titleLarge, color = VColors.Amber)
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                "Scan with the phone's camera, then fill in the server on the page that opens.",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = VColors.Text,
+                            )
+                            Spacer(Modifier.height(18.dp))
+                            QrCode(url!!, Modifier.size(220.dp))
+                            Spacer(Modifier.height(12.dp))
+                            Text(url!!, style = MaterialTheme.typography.bodyMedium, color = VColors.TextMuted)
+                        }
+                        Column(Modifier.width(420.dp)) {
+                            Text("Veltoret on your phone or tablet", style = MaterialTheme.typography.titleLarge, color = VColors.Amber)
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                "Open Settings, choose your network server, tap Send to TV, pick this TV and enter:",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = VColors.Text,
+                            )
+                            Spacer(Modifier.height(18.dp))
+                            Text(
+                                code.chunked(3).joinToString(" "),
+                                style = MaterialTheme.typography.displayMedium,
+                                color = VColors.Text,
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                "Sent encrypted. The code changes after a wrong try.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = VColors.TextMuted,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** A QR code drawn as flat squares (dark on white, so phone cameras read it reliably). */
+@Composable
+private fun QrCode(text: String, modifier: Modifier = Modifier) {
+    val matrix = remember(text) {
+        com.google.zxing.qrcode.QRCodeWriter().encode(
+            text, com.google.zxing.BarcodeFormat.QR_CODE, 0, 0,
+            mapOf(com.google.zxing.EncodeHintType.MARGIN to 2),
+        )
+    }
+    androidx.compose.foundation.Canvas(modifier.background(androidx.compose.ui.graphics.Color.White)) {
+        val cell = size.minDimension / matrix.width
+        for (y in 0 until matrix.height) for (x in 0 until matrix.width) {
+            if (matrix.get(x, y)) {
+                drawRect(
+                    androidx.compose.ui.graphics.Color.Black,
+                    topLeft = androidx.compose.ui.geometry.Offset(x * cell, y * cell),
+                    size = androidx.compose.ui.geometry.Size(cell + 0.5f, cell + 0.5f),
+                )
+            }
+        }
     }
 }

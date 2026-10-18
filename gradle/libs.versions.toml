@@ -28,10 +28,13 @@ checkerQual = "4.3.1"
 # SMB (network shares): smbj for SMB2/3 file access, dcerpc to list a server's shares.
 smbj = "0.15.0"
 dcerpc = "0.12.13"
+# QR codes for "Use your phone" on TV (encoding only).
+zxing = "3.5.4"
 
 [libraries]
 smbj = { group = "com.hierynomus", name = "smbj", version.ref = "smbj" }
 smb-dcerpc = { group = "com.rapid7.client", name = "dcerpc", version.ref = "dcerpc" }
+zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "splashscreen" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }

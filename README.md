@@ -45,7 +45,9 @@ them with a full-featured player.
   address like `\\192.168.0.10\Movies`), signs in with a username and password or as a guest, and
   adds Movies and TV Shows folders like any other source. Videos stream straight from the server with
   instant seeking; passwords are stored encrypted on the device. Works on the same network only,
-  on phones, tablets and Android TV (Settings or first-run setup).
+  on phones, tablets and Android TV, from Settings or first-run setup. On TV, **Use your phone** skips
+  typing with the remote: scan a QR code with any phone and fill in a page, or send a saved server
+  from Veltoret on your phone or tablet with a 6-digit code (encrypted).
 - **Offline mode**: with no internet the library shows what's stored on this device, with posters,
   details and watch progress (artwork is cached after each scan). Drive-only titles step aside until
   you're back online, then the library catches up by itself.
@@ -129,6 +131,7 @@ Third-party code:
   which bundles [FFmpeg](https://ffmpeg.org/).
 - [smbj](https://github.com/hierynomus/smbj), Apache License 2.0, for network shares, and
   Rapid7's [dcerpc](https://github.com/rapid7/smbj-rpc), BSD 3-Clause, to list a server's shared folders.
+- [ZXing](https://github.com/zxing/zxing), Apache License 2.0, to draw QR codes on TV.
 - Fonts: [Fraunces](https://github.com/undercasetype/Fraunces) and [Inter](https://rsms.me/inter/),
   SIL Open Font License 1.1 (see [third_party/fonts/OFL.txt](third_party/fonts/OFL.txt)).
 

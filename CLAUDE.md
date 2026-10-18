@@ -42,7 +42,8 @@ export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"
 ```
 
 - **Unit tests** (`app/src/test`): `FilenameParserTest`, `FilenameParserCorpusTest` (one line per naming
-  style; add a line for every name that parses wrong), `PlayTargetsTest`, `DriveStreamingUploadTest`, `RelatedTitlesTest`, `SmbPathTest`, `SmbDiscoveryTest`. Run
+  style; add a line for every name that parses wrong), `PlayTargetsTest`, `DriveStreamingUploadTest`, `RelatedTitlesTest`, `SmbPathTest`, `SmbDiscoveryTest`,
+  `PairingCryptoTest`. Run
   them after any change to parsing, play targets or uploads, and add cases for new behavior.
 - **Device tests** (`app/src/androidTest`): **do not run `connectedAndroidTest`**. It uninstalls the app
   afterwards, which wipes the tester's library, accounts and folder permissions, and it runs on every
@@ -73,6 +74,7 @@ app/src/main/java/com/pntapps/veltoret/
 │   ├── drive/           Drive REST (Retrofit), DriveRepository, UploadWorker, ExtractWorker (ZIPs)
 │   ├── storage/         LocalStorage (SAF device folders) + Storage (one facade for Drive, device and SMB)
 │   ├── smb/             Network shares: SmbStorage (smbj), SmbServerStore (encrypted passwords), SmbPath, SmbDiscovery
+│   ├── pairing/         "Use your phone" on TV: PhoneSetupServer (QR page + Send to TV), SendToTv, PairingCrypto
 │   ├── library/         FilenameParser, LibraryScanner, repositories, PlayTargets, SyncWorker (+ scan notification)
 │   ├── tmdb/            TMDB API, models, matching (TmdbRepository.pickBest) and caching
 │   ├── settings/        DataStore preferences
@@ -185,9 +187,23 @@ Each rule below exists because breaking it caused a real bug.
   Ask through `rememberLocalNetworkAccess` before scanning for or connecting to servers.
 - SMB titles are "needs the network" like Drive (`canPlayNow`); away from home they fail with a clear message.
 - Adding a server: `AddServerViewModel` (shared) behind `AddServerDialog` (phone/tablet Settings) and
-  `TvAddServerScreen` (TV Settings and onboarding). Keep the logic in the view model. On TV the Connect
+  `TvAddServerScreen` (TV Settings and onboarding); phone/tablet onboarding also uses `AddServerDialog`. Keep the logic in the view model. On TV the Connect
   button stays enabled while connecting (a disabled button drops the remote's focus) and ↓ from the
   Username/Guest chips goes to the next field or Connect, not the nearest button.
+- **"Use your phone" (`data/pairing`)**: `PhoneSetupServer` is a tiny HTTP server that runs **only while
+  the TV panel is open** (started/stopped by `TvPhoneSetupPanel`), accepts only home-network addresses,
+  and serves the QR page at `/s/<random token>` (plain HTTP: browsers can't encrypt to a TV, so docs must
+  say the password crosses the Wi-Fi unencrypted once) and `/pair` for **Send to TV** (`SendToTv` on the
+  phone): fresh P-256 ECDH per attempt, the 6-digit code stretched with PBKDF2 into the AES-GCM key, and a
+  **new code after every wrong try**. Both paths call `AddServerViewModel.attempt`, which returns the
+  message the phone shows. Never log or persist what a phone sends.
+- **`SendToTv` talks HTTP over a plain `Socket`, not OkHttp.** Android blocks cleartext `http://` in
+  OkHttp/HttpURLConnection (no network security config allows it), which made every send fail with
+  "Couldn't reach the TV" while the browser QR page worked. Discovery checks each found TV with `GET /pair`
+  and keeps one entry per host: a reopened panel re-registers and stale announcements ("Mi Box (2)")
+  linger on the network.
+- **TV full-screen panels must fit 1080p without scrolling**; put Close/status and key buttons at the top
+  (the add-server form and "Use your phone" panel both ran off the bottom before).
 - `TvFolderPicker` won't pick a server's top level (its list of shares), like the "This TV" root.
 
 **Offline mode**

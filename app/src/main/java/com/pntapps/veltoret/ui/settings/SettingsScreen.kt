@@ -46,6 +46,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.material.icons.rounded.PhoneAndroid
@@ -195,6 +196,7 @@ fun SettingsScreen(navigator: Navigator) {
     var confirmRemove by remember { mutableStateOf<AccountEntity?>(null) }
     var deviceFolder by remember { mutableStateOf<DriveFile?>(null) }
     var addingServer by remember { mutableStateOf(false) }
+    var sendToTv by remember { mutableStateOf<String?>(null) }
     // Where the folder picker opens below the root (a network path the user typed).
     var pickerStart by remember { mutableStateOf<List<Crumb>>(emptyList()) }
     val scope = rememberCoroutineScope()
@@ -224,6 +226,8 @@ fun SettingsScreen(navigator: Navigator) {
                         },
                         onRemoveFolder = vm::removeFolder,
                         onRemoveAccount = { confirmRemove = account },
+                        // Network servers can be handed to a TV so nobody types the password with a remote.
+                        onSendToTv = if (SmbPath.isSmb(account.email)) ({ sendToTv = account.email }) else null,
                     )
                 }
             }
@@ -383,6 +387,8 @@ fun SettingsScreen(navigator: Navigator) {
         )
     }
 
+    sendToTv?.let { account -> SendToTvDialog(account, onDismiss = { sendToTv = null }) }
+
     if (addingServer) {
         AddServerDialog(
             onDismiss = { addingServer = false },
@@ -433,6 +439,7 @@ private fun AccountPanel(
     onAddFolder: () -> Unit,
     onRemoveFolder: (LibraryFolderEntity) -> Unit,
     onRemoveAccount: () -> Unit,
+    onSendToTv: (() -> Unit)? = null,
 ) {
     Panel(Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) {
         Column {
@@ -493,6 +500,10 @@ private fun AccountPanel(
             }
             Spacer(Modifier.height(8.dp))
             VButton("Add library folder", onAddFolder, icon = Icons.Rounded.CreateNewFolder, style = ButtonStyle.Ghost, modifier = Modifier.fillMaxWidth())
+            if (onSendToTv != null) {
+                Spacer(Modifier.height(8.dp))
+                VButton("Send to TV", onSendToTv, icon = Icons.Rounded.Tv, style = ButtonStyle.Ghost, modifier = Modifier.fillMaxWidth())
+            }
         }
     }
 }

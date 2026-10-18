@@ -71,65 +71,74 @@ class AddServerViewModel(private val container: AppContainer) : ViewModel() {
 
     fun connect(address: String, guest: Boolean, username: String, password: String) {
         if (_state.value.busy) return
+        viewModelScope.launch { attempt(address, guest, username, password) }
+    }
+
+    /**
+     * Signs in and, on success, saves the server and sets [AddServerState.added]. Returns null on success
+     * or the sentence shown on screen, so a phone that sent the details ("Use your phone") can show it too.
+     * [name] is the server's name when the phone already knows it.
+     */
+    suspend fun attempt(address: String, guest: Boolean, username: String, password: String, name: String? = null): String? {
         val path = SmbPath.fromUserInput(address)
         if (path == null) {
-            showError("Enter the server's address, like 192.168.0.10 or \\\\192.168.0.10\\Movies")
-            return
+            return fail("Enter the server's address, like 192.168.0.10 or \\\\192.168.0.10\\Movies")
         }
         if (!guest && username.isBlank()) {
-            showError("Enter the username, or choose Guest if the server has no password")
-            return
+            return fail("Enter the username, or choose Guest if the server has no password")
         }
         // "WORKGROUP\user" signs in to a Windows domain or workgroup.
         val (domain, user) = username.trim().let { if ('\\' in it) it.substringBefore('\\') to it.substringAfter('\\') else "" to it }
-        val pickedName = _state.value.picked?.takeIf { it.address.equals(path.host, ignoreCase = true) }?.name
-        var server = SmbServer(host = path.host, username = if (guest) "" else user, domain = if (guest) "" else domain, name = pickedName ?: path.host)
+        val knownName = name ?: _state.value.picked?.takeIf { it.address.equals(path.host, ignoreCase = true) }?.name
+        var server = SmbServer(host = path.host, username = if (guest) "" else user, domain = if (guest) "" else domain, name = knownName ?: path.host)
         val secret = if (guest) "" else password
         _state.update { it.copy(busy = true, error = null) }
-        viewModelScope.launch {
-            try {
-                val shares = container.smbStorage.test(server, secret)
-                // Match the typed share to the server's spelling ("movies" → "Movies").
-                val share = path.share?.let { typed ->
-                    shares.firstOrNull { it.equals(typed, ignoreCase = true) }
-                        ?: throw SmbException(
-                            "There's no shared folder called \"$typed\" on ${server.host}." +
-                                if (shares.isEmpty()) "" else " It shares: ${shares.joinToString(", ")}"
-                        )
-                }
-                // A typed address gets the server's own name ("MYNAS") instead of its number, like a found one.
-                if (pickedName == null && path.host.all { it.isDigit() || it == '.' }) {
-                    container.smbDiscovery.nameOf(path.host)?.let { server = server.copy(name = it) }
-                }
-                container.smbStorage.disconnect(server.account)
-                container.smbServers.save(server, secret)
-                container.accountRepository.addServerAccount(server)
-                var crumbPath = SmbPath(server.host, null, emptyList())
-                val crumbs = buildList {
-                    if (share != null) {
-                        crumbPath = crumbPath.child(share)
-                        add(Crumb(crumbPath.id, share))
-                        path.segments.forEach { segment ->
-                            crumbPath = crumbPath.child(segment)
-                            add(Crumb(crumbPath.id, segment))
-                        }
+        return try {
+            val shares = container.smbStorage.test(server, secret)
+            // Match the typed share to the server's spelling ("movies" → "Movies").
+            val share = path.share?.let { typed ->
+                shares.firstOrNull { it.equals(typed, ignoreCase = true) }
+                    ?: throw SmbException(
+                        "There's no shared folder called \"$typed\" on ${server.host}." +
+                            if (shares.isEmpty()) "" else " It shares: ${shares.joinToString(", ")}"
+                    )
+            }
+            // A typed address gets the server's own name ("MYNAS") instead of its number, like a found one.
+            if (knownName == null && path.host.all { it.isDigit() || it == '.' }) {
+                container.smbDiscovery.nameOf(path.host)?.let { server = server.copy(name = it) }
+            }
+            container.smbStorage.disconnect(server.account)
+            container.smbServers.save(server, secret)
+            container.accountRepository.addServerAccount(server)
+            var crumbPath = SmbPath(server.host, null, emptyList())
+            val crumbs = buildList {
+                if (share != null) {
+                    crumbPath = crumbPath.child(share)
+                    add(Crumb(crumbPath.id, share))
+                    path.segments.forEach { segment ->
+                        crumbPath = crumbPath.child(segment)
+                        add(Crumb(crumbPath.id, segment))
                     }
                 }
-                _state.update { it.copy(busy = false, added = server to crumbs) }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                val message = (e as? SmbException)?.message ?: SmbStorage.describe(e)
-                _state.update {
-                    it.copy(
-                        busy = false,
-                        // Servers refuse guests as a wrong login, or (Windows, whose Guest account is off) a disabled account.
-                        error = if (guest && (message == SmbStorage.WRONG_LOGIN || message == SmbStorage.ACCOUNT_DISABLED))
-                            "This server doesn't allow guests. Sign in with its username and password."
-                        else message,
-                    )
-                }
             }
+            _state.update { it.copy(busy = false, added = server to crumbs) }
+            null
+        } catch (e: CancellationException) {
+            _state.update { it.copy(busy = false) }
+            throw e
+        } catch (e: Exception) {
+            val message = (e as? SmbException)?.message ?: SmbStorage.describe(e)
+            // Servers refuse guests as a wrong login, or (Windows, whose Guest account is off) a disabled account.
+            fail(
+                if (guest && (message == SmbStorage.WRONG_LOGIN || message == SmbStorage.ACCOUNT_DISABLED))
+                    "This server doesn't allow guests. Sign in with its username and password."
+                else message
+            )
         }
+    }
+
+    private fun fail(message: String): String {
+        _state.update { it.copy(busy = false, error = message) }
+        return message
     }
 }

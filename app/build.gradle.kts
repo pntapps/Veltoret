@@ -120,6 +120,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.play.services.auth)
+    implementation(libs.zxing.core)
     implementation(libs.smbj)
     implementation(libs.smb.dcerpc) {
         // Keep Media3's Android flavor of Guava instead of the server (-jre) one dcerpc asks for.

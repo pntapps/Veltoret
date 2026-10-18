@@ -22,6 +22,11 @@ Notable changes to Veltoret. Newest first. Detailed history is in the git log.
   failed with "Can't scale timecode prior to timecodeScale being set"; they now play and seek.
 
 ### Added
+- **Use your phone (TV)**: instead of typing a server's password with the remote, scan a QR code with
+  any phone and fill in a page, or send a saved server from Veltoret on a phone or tablet with the
+  6-digit code the TV shows (encrypted).
+- **Network server in first-run setup on phones and tablets**: "Add network server" sits next to
+  Google and device folders, and the server's folders are chosen in the next step.
 - **Network shares on Android TV**: add a server from TV Settings or first-run setup, with the same
   automatic search; pick it with the remote, sign in, then choose Movies and TV Shows folders.
 - **Network shares (SMB)**: add a router's USB drive, a NAS or a shared folder on a PC as a source.

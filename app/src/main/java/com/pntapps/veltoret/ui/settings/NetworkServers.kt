@@ -39,6 +39,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import kotlinx.coroutines.launch
+import com.pntapps.veltoret.ui.util.container
+import com.pntapps.veltoret.data.pairing.SetupReply
+import com.pntapps.veltoret.data.pairing.PhoneSubmission
+import com.pntapps.veltoret.data.pairing.FoundTv
+import androidx.compose.material.icons.rounded.Tv
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
@@ -174,6 +182,146 @@ fun AddServerDialog(onDismiss: () -> Unit, onAdded: (SmbServer, List<Crumb>) -> 
                     loading = busy,
                     enabled = !busy,
                 )
+                Spacer(Modifier.height(24.dp))
+            }
+        }
+    }
+}
+
+/**
+ * "Send to TV": hands this saved server, password included, to a TV showing "Use your phone", so nobody has
+ * to type it with a remote. Finds the TVs on the network; the 6-digit code shown on the TV protects it.
+ */
+@Composable
+fun SendToTvDialog(account: String, onDismiss: () -> Unit) {
+    val container = LocalContext.current.container
+    val scope = rememberCoroutineScope()
+    val server = remember(account) { container.smbServers.server(account) }
+    var tvs by remember { mutableStateOf<List<FoundTv>>(emptyList()) }
+    var chosen by remember { mutableStateOf<FoundTv?>(null) }
+    var code by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    var result by remember { mutableStateOf<SetupReply?>(null) }
+    var searching by remember { mutableStateOf(true) }
+    val withNetworkAccess = rememberLocalNetworkAccess { result = SetupReply(false, it) }
+
+    LaunchedEffect(Unit) {
+        withNetworkAccess {
+            scope.launch {
+                // One entry per TV: a newer answer from the same TV replaces the older one.
+                container.sendToTv.find().collect { tv ->
+                    tvs = tvs.filterNot { it.host == tv.host } + tv
+                    if (chosen?.host == tv.host) chosen = tv
+                }
+            }
+            scope.launch { kotlinx.coroutines.delay(8_000); searching = false }
+        }
+    }
+
+    fun send() {
+        val tv = chosen ?: return
+        val s = server ?: return
+        val password = container.smbServers.password(account)
+        if (password == null) {
+            result = SetupReply(false, "This device can't read the saved password any more. Remove the server and add it again.")
+            return
+        }
+        busy = true
+        result = null
+        scope.launch {
+            result = container.sendToTv.send(
+                tv, code,
+                PhoneSubmission(
+                    address = s.host,
+                    guest = s.guest,
+                    username = if (s.domain.isBlank()) s.username else "${s.domain}\\${s.username}",
+                    password = password,
+                    name = s.name,
+                ),
+            )
+            busy = false
+            // A wrong code makes the TV show a new one: clear the field for it.
+            if (result?.ok == false && result?.message?.startsWith("That code") == true) code = ""
+        }
+    }
+
+    Dialog(onDismissRequest = { if (!busy) onDismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .imePadding()
+        ) {
+            ScreenHeader("Send to TV", subtitle = server?.name ?: "") {
+                VIconButton(Icons.Rounded.Close, "Close", onDismiss)
+            }
+            Column(
+                Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp)
+                    .widthIn(max = 640.dp)
+                    .align(Alignment.CenterHorizontally),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Text(
+                    "On the TV, open Veltoret's Settings → Add network server → Use your phone. It shows a code; " +
+                        "pick the TV here and enter it. The server and its password are sent encrypted.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = VColors.TextMuted,
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("TVs on your network", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                    if (searching && tvs.isEmpty()) CircularProgressIndicator(Modifier.size(16.dp), color = VColors.Amber, strokeWidth = 2.dp)
+                }
+                if (tvs.isEmpty() && !searching) {
+                    Text(
+                        "No TV found. Check the TV is showing \"Use your phone\" and that both are on the same Wi-Fi.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = VColors.TextMuted,
+                    )
+                }
+                tvs.forEach { tv ->
+                    val selected = tv == chosen
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (selected) VColors.AmberDim else VColors.Surface)
+                            .border(1.dp, if (selected) VColors.Amber else VColors.Outline, RoundedCornerShape(12.dp))
+                            .clickable { chosen = tv; result = null }
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Icons.Rounded.Tv, null, tint = VColors.AmberSoft)
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(tv.name, style = MaterialTheme.typography.bodyLarge)
+                            Text(tv.host, style = MaterialTheme.typography.bodySmall, color = VColors.TextMuted)
+                        }
+                        if (selected) Icon(Icons.Rounded.CheckCircle, "Selected", tint = VColors.Amber)
+                    }
+                }
+                if (chosen != null) {
+                    VTextField(
+                        code, { text -> code = text.filter(Char::isDigit).take(6); result = null }, "Code on the TV",
+                        Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword, imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { if (code.length == 6 && !busy) send() }),
+                    )
+                }
+                result?.let { Text(it.message, style = MaterialTheme.typography.bodyMedium, color = if (it.ok) VColors.Amber else VColors.Danger) }
+                if (result?.ok == true) {
+                    VButton("Done", onDismiss, Modifier.fillMaxWidth())
+                } else {
+                    VButton(
+                        if (busy) "Sending…" else "Send",
+                        { send() },
+                        Modifier.fillMaxWidth(),
+                        loading = busy,
+                        enabled = !busy && chosen != null && code.length == 6,
+                    )
+                }
                 Spacer(Modifier.height(24.dp))
             }
         }

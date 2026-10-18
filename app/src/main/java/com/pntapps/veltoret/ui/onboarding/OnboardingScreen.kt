@@ -51,6 +51,7 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.CreateNewFolder
 import androidx.compose.material.icons.rounded.Devices
+import androidx.compose.material.icons.rounded.Dns
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
@@ -114,6 +115,7 @@ import com.pntapps.veltoret.data.drive.DriveFile
 import com.pntapps.veltoret.data.storage.LocalStorage
 import com.pntapps.veltoret.data.smb.SmbPath
 import com.pntapps.veltoret.ui.files.AccountAvatar
+import com.pntapps.veltoret.ui.settings.AddServerDialog
 import com.pntapps.veltoret.ui.files.LibraryTypeDialog
 import com.pntapps.veltoret.ui.files.accountSubtitle
 import com.pntapps.veltoret.ui.files.rememberLocalFolderPicker
@@ -414,6 +416,7 @@ private fun ColumnScope.AccountsStep(vm: OnboardingViewModel, onNext: () -> Unit
     val accounts by vm.accounts.collectAsStateWithLifecycle()
     var error by remember { mutableStateOf<ConnectError?>(null) }
     val connector = rememberAccountConnector(onConnected = { error = null }, onError = { error = it })
+    var addingServer by remember { mutableStateOf(false) }
 
     StepLayout(
         illustration = { ConnectIllustration(connected = accounts.isNotEmpty(), working = connector.busy(), modifier = it.widthIn(max = 520.dp)) },
@@ -423,7 +426,8 @@ private fun ColumnScope.AccountsStep(vm: OnboardingViewModel, onNext: () -> Unit
     ) {
         StepHeader(
             "Step 1 · Connect", "Where are your videos?",
-            "Connect the Google Drive that holds them, use folders on this device (phone storage, SD card or USB), or both. You can change this any time.",
+            "Connect the Google Drive that holds them, use folders on this device (phone storage, SD card or USB), " +
+                "a network server (SMB) at home, or all of them. You can change this any time.",
         )
         accounts.forEachIndexed { i, acc ->
             Panel(
@@ -465,6 +469,16 @@ private fun ColumnScope.AccountsStep(vm: OnboardingViewModel, onNext: () -> Unit
                     .entrance(4),
             )
         }
+        VButton(
+            "Add network server",
+            { addingServer = true },
+            icon = Icons.Rounded.Dns,
+            style = ButtonStyle.Secondary,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 10.dp)
+                .entrance(4),
+        )
         AnimatedVisibility(error != null, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
             error?.let { ErrorCard(it, Modifier.padding(top = 14.dp)) }
         }
@@ -480,12 +494,17 @@ private fun ColumnScope.AccountsStep(vm: OnboardingViewModel, onNext: () -> Unit
             Icon(Icons.Rounded.Lock, null, tint = VColors.AmberSoft, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(12.dp))
             Text(
-                "Private by design. Veltoret talks to Google directly from this device and only sees the device folders you pick — no servers, no tracking. " +
+                "Private by design. Veltoret talks to Google and your network servers directly from this device and only sees the folders you pick — no servers of ours, no tracking. " +
                     "You can disconnect at any time in Settings.",
                 style = MaterialTheme.typography.bodySmall,
                 color = VColors.TextMuted,
             )
         }
+    }
+
+    if (addingServer) {
+        // Folders on the server are chosen in the next step, like Drive and device folders.
+        AddServerDialog(onDismiss = { addingServer = false }, onAdded = { _, _ -> addingServer = false })
     }
 }
 
@@ -613,11 +632,16 @@ private fun ColumnScope.FoldersStep(vm: OnboardingViewModel, onNext: () -> Unit)
                     folders.any { it.accountEmail == acc.email } -> "Add another folder"
                     LocalStorage.isLocal(acc.email) && accounts.size > 1 -> "Choose a folder on this device"
                     LocalStorage.isLocal(acc.email) -> "Choose a folder"
+                    SmbPath.isSmb(acc.email) && accounts.size > 1 -> "Choose a folder on ${acc.displayName}"
                     accounts.size > 1 -> "Choose a Drive folder"
                     else -> "Choose a folder"
                 },
                 { if (LocalStorage.isLocal(acc.email)) pickDeviceFolder() else pickerFor = acc.email },
-                icon = if (LocalStorage.isLocal(acc.email)) Icons.Rounded.PhoneAndroid else Icons.Rounded.CreateNewFolder,
+                icon = when {
+                    LocalStorage.isLocal(acc.email) -> Icons.Rounded.PhoneAndroid
+                    SmbPath.isSmb(acc.email) -> Icons.Rounded.Dns
+                    else -> Icons.Rounded.CreateNewFolder
+                },
                 style = if (folders.isEmpty()) ButtonStyle.Primary else ButtonStyle.Secondary,
                 modifier = Modifier
                     .fillMaxWidth()

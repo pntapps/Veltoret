@@ -16,6 +16,8 @@ import com.pntapps.veltoret.data.drive.ZipAfterExtract
 import com.pntapps.veltoret.data.drive.UploadWorker
 import com.pntapps.veltoret.data.library.FilenameParser
 import com.pntapps.veltoret.data.library.SyncWorker
+import com.pntapps.veltoret.data.storage.StorageSpace
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -43,6 +45,8 @@ data class FilesState(
     val sort: FileSort = FileSort.Name,
     val selection: Set<String> = emptySet(),
     val searchQuery: String? = null,
+    /** Space where the open folder lives; null while loading or when unknown. */
+    val space: StorageSpace? = null,
 ) {
     val current: Crumb get() = stack.last()
     val atSharedRoot: Boolean get() = sharedRoot && stack.size == 1
@@ -85,6 +89,8 @@ class FilesViewModel(private val container: AppContainer) : ViewModel() {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private var loadJob: Job? = null
+    private var spaceJob: Job? = null
+    private var spaceKey: String? = null
     private val seenFinishedUploads = mutableSetOf<String>()
 
     init {
@@ -112,6 +118,7 @@ class FilesViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     fun selectAccount(email: String) {
+        spaceKey = null
         _state.update { FilesState(account = email, sort = it.sort, stack = listOf(Crumb(storage.rootId(email), storage.rootName(email)))) }
         load()
     }
@@ -161,6 +168,7 @@ class FilesViewModel(private val container: AppContainer) : ViewModel() {
         val email = s.account ?: return
         loadJob?.cancel()
         _state.update { it.copy(loading = !refresh, refreshing = refresh, error = null) }
+        loadSpace(email, s.current.id, force = refresh)
         loadJob = viewModelScope.launch {
             try {
                 val items = when {
@@ -177,6 +185,26 @@ class FilesViewModel(private val container: AppContainer) : ViewModel() {
             } catch (e: Exception) {
                 _state.update { it.copy(loading = false, refreshing = false, error = e.message ?: "Couldn't load this folder") }
             }
+        }
+    }
+
+    /** Fetches the space summary when the folder is on another volume, share or account, and on every refresh. */
+    private fun loadSpace(email: String, folderId: String, force: Boolean) {
+        val key = storage.spaceKey(email, folderId)
+        if (!force && key == spaceKey && _state.value.space != null) return
+        if (key != spaceKey) _state.update { it.copy(space = null) }
+        spaceKey = key
+        spaceJob?.cancel()
+        if (key == null) return
+        spaceJob = viewModelScope.launch {
+            val space = try {
+                storage.space(email, folderId)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                null
+            }
+            if (_state.value.account == email && spaceKey == key) _state.update { it.copy(space = space) }
         }
     }
 
@@ -216,8 +244,14 @@ class FilesViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
-    fun trash(ids: Collection<String>) = mutate(removedMessage(ids.size)) { email ->
-        ids.forEach { storage.remove(email, it) }
+    fun trash(ids: Collection<String>) = remove(ids, removedMessage(ids.size)) { email, id -> storage.remove(email, id) }
+
+    /** Drive: deletes without the trash (folders with everything in them). Elsewhere deleting is always permanent. */
+    fun deletePermanently(ids: Collection<String>) =
+        remove(ids, if (ids.size == 1) "Deleted 1 item" else "Deleted ${ids.size} items") { email, id -> storage.deletePermanently(email, id) }
+
+    private fun remove(ids: Collection<String>, message: String, delete: suspend (String, String) -> Unit) = mutate(message) { email ->
+        ids.forEach { delete(email, it) }
         container.scanner.onFilesRemoved(ids.toList())
         clearSelection()
         if (_state.value.items.any { it.id in ids && it.isFolder }) SyncWorker.runNow(container.appContext)

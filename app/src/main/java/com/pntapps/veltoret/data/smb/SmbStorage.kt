@@ -18,6 +18,7 @@ import com.hierynomus.smbj.share.DiskShare
 import com.hierynomus.smbj.share.File
 import com.pntapps.veltoret.data.drive.DriveCapabilities
 import com.pntapps.veltoret.data.drive.DriveFile
+import com.pntapps.veltoret.data.storage.StorageSpace
 import com.rapid7.client.dcerpc.mssrvs.ServerService
 import com.rapid7.client.dcerpc.transport.SMBTransportFactories
 import kotlinx.coroutines.Dispatchers
@@ -157,6 +158,17 @@ class SmbStorage(private val servers: SmbServerStore) {
         require(path.segments.isNotEmpty()) { "Shared folders can't be deleted from here" }
         withShare(path) { share ->
             if (share.folderExists(path.sharePath)) share.rmdir(path.sharePath, true) else share.rm(path.sharePath)
+        }
+    }
+
+    /** Size and free space of the shared folder holding [folderId]; null at a server's top level (its list of shares). */
+    suspend fun space(folderId: String): StorageSpace? {
+        val path = SmbPath.parse(folderId)
+        val shareName = path.share ?: return null
+        return withShare(path) { share ->
+            val info = share.shareInformation
+            // Caller free space respects per-user quotas, so it's what can actually be written.
+            StorageSpace(shareName, (info.totalSpace - info.freeSpace).coerceAtLeast(0), info.totalSpace, info.callerFreeSpace)
         }
     }
 

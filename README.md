@@ -52,7 +52,8 @@ them with a full-featured player.
   details and watch progress (artwork is cached after each scan). Drive-only titles step aside until
   you're back online, then the library catches up by itself.
 - **Files**: a full file manager for Drive, the device and network shares: browse, play, rename, move, delete or
-  trash, new folder, multi-select, search, plus background uploads and "Shared with me" for Drive.
+  trash (or delete Drive files permanently), new folder, multi-select, search, used and free storage
+  space for each source, plus background uploads and "Shared with me" for Drive.
   It lists only what Veltoret can use: folders, videos, subtitles and ZIPs (folders and videos on TV).
 - **ZIP extraction**: season packs uploaded as `.zip` are found during scans and can be unpacked
   back into Drive with one tap, after checking there's room for it in Drive. The archive streams through the phone (nothing is stored on it),

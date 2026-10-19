@@ -4,6 +4,14 @@ Notable changes to Veltoret. Newest first. Detailed history is in the git log.
 
 ## Unreleased
 
+### Added
+- **Delete permanently from Google Drive** in Files (phone, tablet and TV): files and folders you own can
+  now skip Drive's trash. "Move to trash" stays the default; the permanent option always asks first and
+  says it can't be undone. It isn't offered for files shared with you.
+- **Storage space in Files**: how much is used, how much is free and the total, with a small bar, for
+  your Google storage (shared with Gmail and Photos), the device volume (internal storage, SD card or
+  USB drive) and the shared folder on a network server.
+
 ### Changed
 - **Smoother scrolling** on Home and in the Movies and TV Shows grids: loading posters no longer redraw
   the whole card on every frame, and rows don't replay their entrance animation when scrolled back into view.

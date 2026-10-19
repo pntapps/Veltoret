@@ -41,6 +41,7 @@ import androidx.compose.material.icons.rounded.FolderOff
 import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.CreateNewFolder
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.DeleteForever
 import androidx.compose.material.icons.rounded.DriveFileRenameOutline
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.FolderOpen
@@ -109,6 +110,8 @@ import com.pntapps.veltoret.ui.util.gutter
 private sealed interface FileDialog {
     data class Rename(val file: DriveFile) : FileDialog
     data class Trash(val ids: Set<String>, val label: String) : FileDialog
+    /** Drive only: skips the trash. */
+    data class DeleteForever(val ids: Set<String>, val label: String, val hasFolder: Boolean) : FileDialog
     data class Move(val ids: Set<String>) : FileDialog
     data class Details(val file: DriveFile) : FileDialog
     data object NewFolder : FileDialog
@@ -191,6 +194,14 @@ fun FilesScreen(navigator: Navigator) {
                     VIconButton(Icons.Rounded.Delete, if (permanent) "Delete" else "Move to trash", {
                         dialog = FileDialog.Trash(state.selection, "${state.selection.size} items")
                     }, tint = VColors.Danger)
+                    // Only the owner can skip Drive's trash, so offer it when every selected item allows it.
+                    val selected = state.items.filter { it.id in state.selection }
+                    if (drive && selected.isNotEmpty() && selected.all { it.capabilities?.canDelete == true }) {
+                        Spacer(Modifier.width(8.dp))
+                        VIconButton(Icons.Rounded.DeleteForever, "Delete permanently", {
+                            dialog = FileDialog.DeleteForever(state.selection, "${state.selection.size} items", selected.any { it.isFolder })
+                        }, tint = VColors.Danger)
+                    }
                 } else {
                     Column(Modifier.weight(1f)) {
                         Text("Files", style = MaterialTheme.typography.headlineLarge)
@@ -264,6 +275,12 @@ fun FilesScreen(navigator: Navigator) {
                     SelectChip("Shared with me", state.sharedRoot, { vm.setSharedRoot(true) })
                 }
                 if (!driveOffline) Breadcrumbs(state.stack, horizontalPadding = gutter() - 6.dp) { vm.goTo(it) }
+                state.space?.takeIf { !driveOffline }?.let {
+                    StorageSummary(
+                        it, MaterialTheme.typography.bodySmall,
+                        Modifier.padding(start = gutter(), end = gutter(), top = 2.dp, bottom = 8.dp).widthIn(max = 480.dp),
+                    )
+                }
             }
 
             PullToRefreshBox(
@@ -325,6 +342,9 @@ fun FilesScreen(navigator: Navigator) {
                                 onRename = { dialog = FileDialog.Rename(file) },
                                 onMove = { dialog = FileDialog.Move(setOf(file.id)) },
                                 onTrash = { dialog = FileDialog.Trash(setOf(file.id), file.name) },
+                                onDeleteForever = if (drive && file.capabilities?.canDelete == true) {
+                                    { dialog = FileDialog.DeleteForever(setOf(file.id), file.name, file.isFolder) }
+                                } else null,
                                 onDetails = { dialog = FileDialog.Details(file) },
                                 onExtract = { dialog = FileDialog.Extract(file) },
                                 onPlay = { context.playFile(file.id, state.account, title = file.name) },
@@ -416,6 +436,21 @@ fun FilesScreen(navigator: Navigator) {
             },
             dismissButton = { TextButton({ dialog = null }) { Text("Cancel", color = VColors.Text) } },
         )
+        is FileDialog.DeleteForever -> AlertDialog(
+            onDismissRequest = { dialog = null },
+            containerColor = VColors.SurfaceHigh,
+            title = { Text("Delete permanently?") },
+            text = {
+                Text(
+                    "\"${d.label}\"" + (if (d.hasFolder) " and everything in it" else "") +
+                        " will be deleted from Google Drive right away. It won't go to the trash, so this can't be undone."
+                )
+            },
+            confirmButton = {
+                TextButton({ vm.deletePermanently(d.ids); dialog = null }) { Text("Delete", color = VColors.Danger) }
+            },
+            dismissButton = { TextButton({ dialog = null }) { Text("Cancel", color = VColors.Text) } },
+        )
         is FileDialog.Move -> DriveFolderPicker(
             email = state.account ?: return,
             title = "Move to",
@@ -485,6 +520,8 @@ private fun FileListRow(
     onRename: () -> Unit,
     onMove: () -> Unit,
     onTrash: () -> Unit,
+    /** Drive files the user owns; null hides "Delete permanently". */
+    onDeleteForever: (() -> Unit)?,
     onDetails: () -> Unit,
     onExtract: () -> Unit,
     onPlay: () -> Unit,
@@ -541,6 +578,9 @@ private fun FileListRow(
                     MenuItem("Details", Icons.Rounded.Info) { menu = false; onDetails() }
                     if (file.capabilities?.canTrash != false && movable) {
                         MenuItem(if (local) "Delete" else "Move to trash", Icons.Rounded.Delete, VColors.Danger) { menu = false; onTrash() }
+                    }
+                    if (onDeleteForever != null && movable) {
+                        MenuItem("Delete permanently", Icons.Rounded.DeleteForever, VColors.Danger) { menu = false; onDeleteForever() }
                     }
                 }
             }

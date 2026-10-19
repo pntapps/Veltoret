@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.InsertDriveFile
 import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.DeleteForever
 import androidx.compose.material.icons.rounded.DriveFileRenameOutline
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.FolderOpen
@@ -59,6 +60,7 @@ import com.pntapps.veltoret.data.storage.MediaLibrary
 import com.pntapps.veltoret.player.playFile
 import com.pntapps.veltoret.ui.components.VImage
 import com.pntapps.veltoret.ui.files.FilesViewModel
+import com.pntapps.veltoret.ui.files.StorageSummary
 import com.pntapps.veltoret.ui.fixmatch.FixMatchViewModel
 import com.pntapps.veltoret.ui.fixmatch.UnmatchedViewModel
 import com.pntapps.veltoret.ui.navigation.FixMatchRoute
@@ -73,6 +75,8 @@ private sealed interface FileAction {
     data class Menu(val file: DriveFile) : FileAction
     data class Rename(val file: DriveFile) : FileAction
     data class Delete(val file: DriveFile) : FileAction
+    /** Drive only: skips the trash. */
+    data class DeleteForever(val file: DriveFile) : FileAction
 }
 
 private fun isVideo(f: DriveFile) = FilenameParser.isVideo(f.name, f.mimeType) || f.mimeType.startsWith("video/")
@@ -152,6 +156,9 @@ fun TvFilesScreen(navigator: Navigator) {
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(start = TvDimens.Edge + 6.dp, top = 12.dp, bottom = 8.dp),
         )
+        state.space?.takeIf { local || online }?.let {
+            StorageSummary(it, MaterialTheme.typography.bodyMedium, Modifier.padding(start = TvDimens.Edge + 6.dp, bottom = 12.dp).width(560.dp))
+        }
         when {
             !local && !online -> TvMessage(
                 Icons.Rounded.CloudOff, "You're offline",
@@ -232,6 +239,11 @@ fun TvFilesScreen(navigator: Navigator) {
                             action = FileAction.Delete(f)
                         }
                     )
+                    if (!readOnly && !permanent && f.capabilities?.canDelete == true) add(
+                        TvAction("Delete permanently", Icons.Rounded.DeleteForever, detail = "Skips Drive's trash. Can't be undone") {
+                            action = FileAction.DeleteForever(f)
+                        }
+                    )
                 },
             )
         }
@@ -248,6 +260,14 @@ fun TvFilesScreen(navigator: Navigator) {
             },
             confirm = if (permanent) "Delete" else "Move to trash",
             onConfirm = { vm.trash(listOf(a.file.id)) },
+            onDismiss = { action = null },
+        )
+        is FileAction.DeleteForever -> TvConfirmDialog(
+            title = "Delete permanently?",
+            message = "\"${a.file.name}\"" + (if (a.file.isFolder) " and everything in it" else "") +
+                " will be deleted from Google Drive right away. It won't go to the trash, so this can't be undone.",
+            confirm = "Delete",
+            onConfirm = { vm.deletePermanently(listOf(a.file.id)) },
             onDismiss = { action = null },
         )
         null -> Unit

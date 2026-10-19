@@ -108,10 +108,10 @@ class MediaLibrary(private val context: Context) {
     )
 
     /** "/storage/emulated/0/Movies/x.mkv" → "/storage/emulated/0"; "/storage/1A2B-3C4D/x.mkv" → "/storage/1A2B-3C4D". */
-    private fun storageRoot(path: String): String? =
+    fun storageRoot(path: String): String? =
         Regex("""^(/storage/emulated/\d+|/storage/[^/]+|/mnt/media_rw/[^/]+)""").find(path)?.value
 
-    private fun volumeLabel(root: String): String {
+    fun volumeLabel(root: String): String {
         if (root.startsWith("/storage/emulated/")) return INTERNAL_LABEL
         val sm = context.getSystemService(StorageManager::class.java)
         return runCatching { sm.getStorageVolume(File(root))?.getDescription(context) }.getOrNull()

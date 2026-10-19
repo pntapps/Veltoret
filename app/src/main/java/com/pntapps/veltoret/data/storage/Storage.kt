@@ -8,6 +8,12 @@ import com.pntapps.veltoret.data.smb.SmbStorage
 import java.io.InputStream
 
 /**
+ * Space where a folder lives: the Google account's storage, the device volume or the shared folder.
+ * [total] and [free] are null when unknown or unlimited (some Google Workspace accounts).
+ */
+data class StorageSpace(val name: String, val used: Long, val total: Long?, val free: Long?)
+
+/**
  * One front door for every file source. [account] is a Google account email, [LocalStorage.ACCOUNT] for
  * folders on this device, or "smb://host" for a network share server ([SmbPath.isSmb]).
  */
@@ -59,6 +65,29 @@ class Storage(
             isLocal(account) -> local.delete(id)
             else -> drive.trash(account, id)
         }
+    }
+
+    /** Skips Drive's trash (owner only; a folder goes with everything in it). Device and network servers: same as [remove]. */
+    suspend fun deletePermanently(account: String, id: String) {
+        when {
+            isSmb(account) -> smb.delete(id)
+            isLocal(account) -> local.delete(id)
+            else -> drive.deletePermanently(account, id)
+        }
+    }
+
+    /** Total, used and free space where [folderId] lives, or null when it can't be told (e.g. a server's list of shares). */
+    suspend fun space(account: String, folderId: String): StorageSpace? = when {
+        isSmb(account) -> smb.space(folderId)
+        isLocal(account) -> local.space(folderId)
+        else -> drive.space(account)
+    }
+
+    /** Folders with the same key have the same [space], so browsing between them needn't ask again. */
+    fun spaceKey(account: String, folderId: String): String? = when {
+        isSmb(account) -> SmbPath.parse(folderId).let { p -> p.share?.let { "${p.host}/$it" } }
+        isLocal(account) -> local.volumeOf(folderId)?.path
+        else -> account
     }
 
     suspend fun move(account: String, id: String, fromParent: String?, toParent: String) {

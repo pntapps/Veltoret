@@ -254,6 +254,13 @@ Each rule below exists because breaking it caused a real bug.
   forget the old one.
 
 **Drive**
+- Deleting in Files defaults to **Move to trash**. "Delete permanently" (`Storage.deletePermanently`) is
+  offered only when Drive says `capabilities.canDelete` (the owner) and always confirms that it skips the
+  trash and can't be undone; for folders it says everything inside goes too.
+- Files shows a storage summary (`Storage.space`): Drive quota (no limit = unlimited), the device volume
+  via `StatFs` (`LocalStorage.volumeOf` knows only Android's own storage provider and the TV media
+  library; others show nothing) and the SMB share's size. It's fetched again only when the volume/share/
+  account changes (`Storage.spaceKey`) or on refresh, so browsing doesn't call Drive's `about` each time.
 - Uploads are resumable with unknown size (`Content-Range: bytes a-b/*`); `DriveStreamingUploadTest`
   covers it.
 - ZIP extraction streams download → unzip → upload with no temp files and supports Keep / Trash /

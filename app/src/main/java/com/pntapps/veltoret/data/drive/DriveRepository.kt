@@ -1,5 +1,6 @@
 package com.pntapps.veltoret.data.drive
 
+import com.pntapps.veltoret.data.storage.StorageSpace
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -45,6 +46,14 @@ class DriveRepository(
         val limit = quota.limit?.toLongOrNull() ?: return null
         val usage = quota.usage?.toLongOrNull() ?: return null
         return (limit - usage).coerceAtLeast(0)
+    }
+
+    /** The account's storage, shared with Gmail and Google Photos. No limit means unlimited. */
+    suspend fun space(email: String): StorageSpace? {
+        val quota = about(email).storageQuota ?: return null
+        val usage = quota.usage?.toLongOrNull() ?: return null
+        val limit = quota.limit?.toLongOrNull()
+        return StorageSpace("Google storage", usage, limit, limit?.let { (it - usage).coerceAtLeast(0) })
     }
 
     suspend fun rename(email: String, id: String, newName: String): DriveFile =

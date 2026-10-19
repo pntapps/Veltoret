@@ -3,12 +3,18 @@ package com.pntapps.veltoret.data.storage
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.os.StatFs
+import android.os.storage.StorageManager
 import android.provider.DocumentsContract
 import android.provider.DocumentsContract.Document
 import com.pntapps.veltoret.data.drive.DriveCapabilities
 import com.pntapps.veltoret.data.drive.DriveFile
+import com.pntapps.veltoret.ui.util.isTv
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.io.FileNotFoundException
 import java.io.InputStream
 import java.time.Instant
@@ -92,6 +98,40 @@ class LocalStorage(private val context: Context) {
             ?: throw FileNotFoundException("Couldn't create the folder here")
     }
 
+    /** Space on the volume holding [folderId] (internal storage at the top level), or null for other providers. */
+    suspend fun space(folderId: String): StorageSpace? = withContext(Dispatchers.IO) {
+        val dir = volumeOf(folderId) ?: return@withContext null
+        runCatching {
+            val stat = StatFs(dir.path)
+            val name = when {
+                !dir.path.startsWith("/storage/emulated/") -> media.volumeLabel(dir.path)
+                context.isTv() -> MediaLibrary.INTERNAL_LABEL
+                else -> "Internal storage"
+            }
+            StorageSpace(name, stat.totalBytes - stat.availableBytes, stat.totalBytes, stat.availableBytes)
+        }.getOrNull()
+    }
+
+    /**
+     * The volume's directory for a folder: internal storage, an SD card or a USB drive. Only folders from
+     * Android's own storage provider ("primary:Movies", "1A2B-3C4D:Films") and the TV media library are known.
+     */
+    @Suppress("DEPRECATION") // getExternalStorageDirectory is only used for its path, for StatFs.
+    fun volumeOf(folderId: String): File? {
+        val internal = Environment.getExternalStorageDirectory()
+        if (folderId == ROOT) return internal
+        if (folderId.startsWith(MediaLibrary.PREFIX)) return media.storageRoot(folderId.removePrefix(MediaLibrary.PREFIX))?.let(::File)
+        val uri = runCatching { Uri.parse(folderId) }.getOrNull() ?: return null
+        if (uri.authority != EXTERNAL_STORAGE_AUTHORITY) return null
+        val volume = runCatching { DocumentsContract.getDocumentId(uri) }.getOrNull()?.substringBefore(':') ?: return null
+        if (volume == "primary" || volume == "home") return internal
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            context.getSystemService(StorageManager::class.java).storageVolumes
+                .firstOrNull { it.uuid == volume }?.directory?.let { return it }
+        }
+        return File("/storage/$volume")
+    }
+
     fun open(id: String): InputStream =
         resolver.openInputStream(Uri.parse(id)) ?: throw FileNotFoundException("This file isn't available")
 
@@ -146,6 +186,7 @@ class LocalStorage(private val context: Context) {
         const val DISPLAY_NAME = "This device"
         /** Top level of "This device" in the Files tab: the list of granted folders. */
         const val ROOT = "device-root"
+        private const val EXTERNAL_STORAGE_AUTHORITY = "com.android.externalstorage.documents"
 
         fun isLocal(account: String?) = account == ACCOUNT
 

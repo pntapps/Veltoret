@@ -1,0 +1,41 @@
+﻿<Window x:Class="Veltoret.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:c="clr-namespace:Veltoret.App.Controls"
+        Title="Veltoret" Width="1440" Height="900" MinWidth="960" MinHeight="600"
+        WindowStartupLocation="CenterScreen"
+        UseLayoutRounding="True"
+        FontFamily="{StaticResource Font.Sans}"
+        Foreground="{StaticResource Brush.Text}"
+        Background="{DynamicResource Brush.Background}">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Nav rail (Android Expanded layout): 92 wide, Surface, 1 px Outline divider on its right. -->
+        <Border x:Name="Rail" Grid.Column="0" Width="93" Background="{DynamicResource Brush.Surface}"
+                BorderBrush="{StaticResource Brush.Outline}" BorderThickness="0,0,1,0">
+            <DockPanel Margin="0,20" LastChildFill="False">
+                <!-- Logo: "V" + amber dot at its baseline. -->
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" HorizontalAlignment="Center" Margin="1,22,0,28">
+                    <TextBlock Text="V" Style="{StaticResource Text.DisplaySmall}" />
+                    <Ellipse Width="6" Height="6" Fill="{StaticResource Brush.Amber}" VerticalAlignment="Bottom" Margin="2,0,0,9" />
+                </StackPanel>
+                <StackPanel x:Name="RailItems" DockPanel.Dock="Top" HorizontalAlignment="Center" />
+                <StackPanel x:Name="OfflineLabel" DockPanel.Dock="Bottom" HorizontalAlignment="Center" Opacity="0" Visibility="Collapsed"
+                            ToolTip="Offline · showing videos on this PC">
+                    <c:Icon Data="{StaticResource Icon.CloudOff}" Size="20" Fill="{StaticResource Brush.AmberSoft}" HorizontalAlignment="Center" />
+                    <TextBlock Text="Offline" Style="{StaticResource Text.LabelSmall}" Foreground="{StaticResource Brush.AmberSoft}"
+                               HorizontalAlignment="Center" Margin="0,4,0,0" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <Grid x:Name="PageHost" Grid.Column="1" ClipToBounds="True" />
+
+        <!-- Overlay: toasts. -->
+        <Grid x:Name="ToastHost" Grid.Column="0" Grid.ColumnSpan="2" />
+    </Grid>
+</Window>

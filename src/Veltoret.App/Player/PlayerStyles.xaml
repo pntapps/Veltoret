@@ -1,0 +1,194 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!--
+        Player-only styles (Android player/PlayerScreen.kt). Self-contained because the controls layer lives in
+        LibVLCSharp's overlay window, outside the main window's resource tree. Flat surfaces, no gradients.
+    -->
+    <FontFamily x:Key="P.Font">pack://application:,,,/Assets/Fonts/#Inter</FontFamily>
+    <FontFamily x:Key="P.Serif">pack://application:,,,/Assets/Fonts/#Fraunces 9pt, pack://application:,,,/Assets/Fonts/#Fraunces, Georgia</FontFamily>
+    <FontFamily x:Key="P.Mono">Consolas, Cascadia Mono, Courier New</FontFamily>
+
+    <SolidColorBrush x:Key="P.Amber" Color="#E8A33D" />
+    <SolidColorBrush x:Key="P.AmberSoft" Color="#F3C77F" />
+    <SolidColorBrush x:Key="P.AmberDim" Color="#3A2B14" />
+    <SolidColorBrush x:Key="P.OnAmber" Color="#1B1206" />
+    <SolidColorBrush x:Key="P.Text" Color="#F3EFE6" />
+    <SolidColorBrush x:Key="P.Muted" Color="#9C9AA3" />
+    <SolidColorBrush x:Key="P.Faint" Color="#6B6973" />
+    <SolidColorBrush x:Key="P.Surface" Color="#15151A" />
+    <SolidColorBrush x:Key="P.SurfaceHigh" Color="#1E1E25" />
+    <SolidColorBrush x:Key="P.SurfaceHigh85" Color="#D91E1E25" />
+    <SolidColorBrush x:Key="P.SurfaceHighest" Color="#26262F" />
+    <SolidColorBrush x:Key="P.Outline" Color="#2C2C35" />
+    <SolidColorBrush x:Key="P.OutlineStrong" Color="#3B3B46" />
+    <SolidColorBrush x:Key="P.Danger" Color="#FF6B5E" />
+    <SolidColorBrush x:Key="P.Chrome" Color="#8C000000" />
+    <SolidColorBrush x:Key="P.White10" Color="#1AFFFFFF" />
+    <SolidColorBrush x:Key="P.White18" Color="#2EFFFFFF" />
+    <SolidColorBrush x:Key="P.White24" Color="#3DFFFFFF" />
+    <SolidColorBrush x:Key="P.HitTest" Color="#01000000" />
+
+    <!-- Material icons (24x24). -->
+    <Geometry x:Key="P.Icon.Play">M8 5v14l11-7z</Geometry>
+    <Geometry x:Key="P.Icon.Pause">M6 19h4V5H6v14zm8-14v14h4V5h-4z</Geometry>
+    <Geometry x:Key="P.Icon.Replay">M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z</Geometry>
+    <Geometry x:Key="P.Icon.Next">M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z</Geometry>
+    <Geometry x:Key="P.Icon.Previous">M6 6h2v12H6zm3.5 6l8.5 6V6z</Geometry>
+    <Geometry x:Key="P.Icon.Forward">M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z</Geometry>
+    <Geometry x:Key="P.Icon.Rewind">M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z</Geometry>
+    <Geometry x:Key="P.Icon.Back">M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z</Geometry>
+    <Geometry x:Key="P.Icon.More">M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z</Geometry>
+    <Geometry x:Key="P.Icon.Lock">M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z</Geometry>
+    <Geometry x:Key="P.Icon.LockOpen">M12 17c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm6-9h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6h1.9c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm0 12H6V10h12v10z</Geometry>
+    <Geometry x:Key="P.Icon.Pip">M19 11h-8v6h8v-6zm4 8V4.98C23 3.88 22.1 3 21 3H3c-1.1 0-2 .88-2 1.98V19c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2zm-2 .02H3V4.97h18v14.05z</Geometry>
+    <Geometry x:Key="P.Icon.Episodes">M19 9H2v2h17V9zm0-4H2v2h17V5zM2 15h13v-2H2v2zm15-2v6l5-3-5-3z</Geometry>
+    <Geometry x:Key="P.Icon.Audio">M12 3v9.28c-.47-.17-.97-.28-1.5-.28C8.01 12 6 14.01 6 16.5S8.01 21 10.5 21c2.31 0 4.2-1.75 4.45-4H15V6h4V3h-7z</Geometry>
+    <Geometry x:Key="P.Icon.Subtitles">M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zM4 12h4v2H4v-2zm10 6H4v-2h10v2zm6 0h-4v-2h4v2zm0-4H10v-2h10v2z</Geometry>
+    <Geometry x:Key="P.Icon.Speed">M20.38 8.57l-1.23 1.85a8 8 0 0 1-.22 7.58H5.07A8 8 0 0 1 15.58 6.85l1.85-1.23A10 10 0 0 0 3.35 19a2 2 0 0 0 1.72 1h13.85a2 2 0 0 0 1.74-1 10 10 0 0 0-.27-10.44zm-9.79 6.84a2 2 0 0 0 2.83 0l5.66-8.49-8.49 5.66a2 2 0 0 0 0 2.83z</Geometry>
+    <Geometry x:Key="P.Icon.Aspect">M19 12h-2v3h-3v2h5v-5zM7 9h3V7H5v5h2V9zm14-6H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16.01H3V4.99h18v14.02z</Geometry>
+    <Geometry x:Key="P.Icon.Fullscreen">M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z</Geometry>
+    <Geometry x:Key="P.Icon.FullscreenExit">M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z</Geometry>
+    <Geometry x:Key="P.Icon.Check">M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z</Geometry>
+    <Geometry x:Key="P.Icon.CheckCircle">M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z</Geometry>
+    <Geometry x:Key="P.Icon.Sleep">M12.34 2.02C6.59 1.82 2 6.42 2 12c0 5.52 4.48 10 10 10 3.71 0 6.93-2.02 8.66-5.02-7.51-.25-12.09-8.43-8.32-14.96z</Geometry>
+    <Geometry x:Key="P.Icon.Info">M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z</Geometry>
+    <Geometry x:Key="P.Icon.Folder">M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z</Geometry>
+    <Geometry x:Key="P.Icon.Computer">M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z</Geometry>
+    <Geometry x:Key="P.Icon.Close">M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z</Geometry>
+    <Geometry x:Key="P.Icon.Expand">M21 11V3h-8l3.29 3.29-10 10L3 13v8h8l-3.29-3.29 10-10z</Geometry>
+    <Geometry x:Key="P.Icon.Volume">M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z</Geometry>
+    <Geometry x:Key="P.Icon.Decoder">M15 9H9v6h6V9zm-2 4h-2v-2h2v2zm8-2V9h-2V7c0-1.1-.9-2-2-2h-2V3h-2v2h-2V3H9v2H7c-1.1 0-2 .9-2 2v2H3v2h2v2H3v2h2v2c0 1.1.9 2 2 2h2v2h2v-2h2v2h2v-2h2c1.1 0 2-.9 2-2v-2h2v-2h-2v-2h2zm-4 6H7V7h10v10z</Geometry>
+    <Geometry x:Key="P.Icon.Zoom">M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14zm2.5-4h-2v2H9v-2H7V9h2V7h1v2h2v1z</Geometry>
+
+    <Style x:Key="P.Icon" TargetType="Path">
+        <Setter Property="Stretch" Value="Uniform" />
+        <Setter Property="Fill" Value="{Binding Path=(TextElement.Foreground), RelativeSource={RelativeSource Self}}" />
+        <Setter Property="IsHitTestVisible" Value="False" />
+    </Style>
+
+    <Style x:Key="P.TextBase" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource P.Font}" />
+        <Setter Property="Foreground" Value="{StaticResource P.Text}" />
+        <Setter Property="FontSize" Value="14" />
+    </Style>
+
+    <!-- Round chrome button: 44 px, white 10 % fill, icon ~52 % of the size. -->
+    <Style x:Key="P.Round" TargetType="Button">
+        <Setter Property="Width" Value="44" />
+        <Setter Property="Height" Value="44" />
+        <Setter Property="Foreground" Value="{StaticResource P.Text}" />
+        <Setter Property="Background" Value="{StaticResource P.White10}" />
+        <Setter Property="Padding" Value="11" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bg" Background="{TemplateBinding Background}" CornerRadius="999">
+                        <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bg" Property="Background" Value="{StaticResource P.White24}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- The play/pause button: amber circle. -->
+    <Style x:Key="P.RoundAccent" TargetType="Button" BasedOn="{StaticResource P.Round}">
+        <Setter Property="Background" Value="{StaticResource P.Amber}" />
+        <Setter Property="Foreground" Value="{StaticResource P.OnAmber}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bg" Background="{TemplateBinding Background}" CornerRadius="999">
+                        <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bg" Property="Background" Value="{StaticResource P.AmberSoft}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Tool chips: 40 px high, radius 12, white 10 % fill; Tag="accent" for the amber one. -->
+    <Style x:Key="P.Chip" TargetType="Button">
+        <Setter Property="Height" Value="40" />
+        <Setter Property="Foreground" Value="{StaticResource P.Text}" />
+        <Setter Property="Background" Value="{StaticResource P.White10}" />
+        <Setter Property="FontFamily" Value="{StaticResource P.Font}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Padding" Value="14,0" />
+        <Setter Property="Margin" Value="0,0,8,0" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bg" Background="{TemplateBinding Background}" CornerRadius="12" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bg" Property="Opacity" Value="0.85" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style x:Key="P.ChipAccent" TargetType="Button" BasedOn="{StaticResource P.Chip}">
+        <Setter Property="Background" Value="{StaticResource P.Amber}" />
+        <Setter Property="Foreground" Value="{StaticResource P.OnAmber}" />
+    </Style>
+    <Style x:Key="P.ChipOutline" TargetType="Button" BasedOn="{StaticResource P.Chip}">
+        <Setter Property="Background" Value="{StaticResource P.SurfaceHighest}" />
+    </Style>
+
+    <!-- A row in a side panel. -->
+    <Style x:Key="P.Row" TargetType="Button">
+        <Setter Property="Foreground" Value="{StaticResource P.Text}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Padding" Value="20,12" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bg" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" CornerRadius="12">
+                        <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bg" Property="Background" Value="{StaticResource P.White10}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45" />
+                            <Setter Property="Cursor" Value="Arrow" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="P.Scroll" TargetType="ScrollViewer">
+        <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+        <Setter Property="HorizontalScrollBarVisibility" Value="Disabled" />
+        <Setter Property="Focusable" Value="False" />
+    </Style>
+</ResourceDictionary>

@@ -1,0 +1,8 @@
+﻿bin/
+obj/
+.vs/
+*.user
+publish/
+artifacts/
+*.secrets.json
+client_secret*.json

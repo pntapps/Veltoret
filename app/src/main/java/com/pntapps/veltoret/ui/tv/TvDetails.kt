@@ -40,6 +40,13 @@ import androidx.compose.foundation.focusGroup
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.Dp
+import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -89,16 +96,21 @@ private fun DetailHeader(
     meta: List<String?>,
     pills: List<String>,
     overview: String,
+    /** The header's height, so focused rows scroll to where the buttons sit ([PivotScrolling]). */
+    onHeight: (Dp) -> Unit,
 ) {
+    val density = LocalDensity.current
     // The backdrop itself is drawn full-screen behind the page (TvBackdrop); this is the text over it.
+    // As tall as its text, so the buttons follow the description at an even gap (a fixed height left a
+    // big hole under short descriptions and let long ones run into the buttons).
     Box(
         Modifier
             .fillMaxWidth()
-            .height(318.dp)
+            .onSizeChanged { onHeight(with(density) { it.height.toDp() }) }
     ) {
         Column(
             Modifier
-                .padding(start = TvDimens.Edge, top = TvDimens.Top + 12.dp)
+                .padding(start = TvDimens.Edge, top = TvDimens.Top + 12.dp, bottom = 20.dp)
                 .width(560.dp)
         ) {
             Text(title, style = MaterialTheme.typography.displaySmall, color = VColors.Text, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -216,9 +228,11 @@ fun TvMovieDetailScreen(id: Int, navigator: Navigator) {
     // The action buttons sit just under the header, so the title never scrolls away while they're focused.
     Box(Modifier.fillMaxSize()) {
     TvBackdrop(TmdbImages.backdrop(movie.backdropPath))
-    PivotScrolling(leading = 322.dp) { LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 60.dp)) {
+    var header by remember { mutableStateOf(318.dp) }
+    PivotScrolling(leading = header + 4.dp) { LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 60.dp)) {
         item("header") {
             DetailHeader(
+                onHeight = { header = it },
                 title = movie.title,
                 tagline = movie.tagline,
                 rating = movie.rating,
@@ -228,33 +242,33 @@ fun TvMovieDetailScreen(id: Int, navigator: Navigator) {
             )
         }
         item("actions") {
-            Row(Modifier.padding(start = TvDimens.Edge, top = 4.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                when {
-                    best == null -> TvButton(
-                        if (state.files.isEmpty()) "No file" else "Needs internet", {}, icon = Icons.Rounded.PlayArrow,
-                        enabled = false, focusRequester = primary,
-                    )
-                    inProgress -> {
-                        TvButton(
-                            "Resume · ${Format.remaining(watch!!.positionMs, watch.durationMs)}",
-                            { context.playFile(best.driveId, best.accountEmail) },
-                            icon = Icons.Rounded.PlayArrow, focusRequester = primary,
-                        )
-                        TvButton("Start over", { context.playFile(best.driveId, best.accountEmail, fromStart = true) }, icon = Icons.Rounded.Replay)
-                    }
-                    else -> TvButton(
-                        if (watch?.watched == true) "Watch again" else "Play",
-                        { context.playFile(best.driveId, best.accountEmail, fromStart = watch?.watched == true) },
-                        icon = Icons.Rounded.PlayArrow, focusRequester = primary,
-                    )
-                }
-                if (watch?.watched == true) TvButton("Mark unwatched", { vm.setWatched(false) }, icon = Icons.Rounded.Undo)
-                else TvButton("Mark watched", { vm.setWatched(true) }, icon = Icons.Rounded.Check)
-                if (state.files.size > 1) TvButton("Versions (${state.files.size})", { versions = true }, icon = Icons.Rounded.Layers)
-                TvWatchlistButton(saved, vm.plans::toggleWatchlist)
-                trailer?.takeIf { online }?.let { key -> TvButton("Trailer", { context.openTrailer(key) }, icon = TrailerIcon) }
-                movie.collectionId?.let { cid -> TvButton("Collection", { navigator.navigate(CollectionRoute(cid)) }, icon = Icons.Rounded.Collections) }
+            val primaryLabel = when {
+                best == null -> if (state.files.isEmpty()) "No file" else "Needs internet"
+                inProgress -> "Resume · ${Format.remaining(watch!!.positionMs, watch.durationMs)}"
+                watch?.watched == true -> "Watch again"
+                else -> "Play"
             }
+            TvActionRow(
+                title = movie.title,
+                primaryLabel = primaryLabel,
+                primary = {
+                    TvButton(
+                        primaryLabel,
+                        { best?.let { context.playFile(it.driveId, it.accountEmail, fromStart = !inProgress && watch?.watched == true) } },
+                        icon = Icons.Rounded.PlayArrow, enabled = best != null, focusRequester = primary,
+                    )
+                },
+                // Most important first; the last ones move into More when the row is full.
+                actions = buildList {
+                    if (best != null && inProgress) add(TvRowAction("Start over", Icons.Rounded.Replay) { context.playFile(best.driveId, best.accountEmail, fromStart = true) })
+                    if (watch?.watched == true) add(TvRowAction("Mark unwatched", Icons.Rounded.Undo) { vm.setWatched(false) })
+                    else add(TvRowAction("Mark watched", Icons.Rounded.Check) { vm.setWatched(true) })
+                    add(watchlistAction(saved, vm.plans::toggleWatchlist))
+                    if (state.files.size > 1) add(TvRowAction("Versions (${state.files.size})", Icons.Rounded.Layers) { versions = true })
+                    movie.collectionId?.let { cid -> add(TvRowAction("Collection", Icons.Rounded.Collections) { navigator.navigate(CollectionRoute(cid)) }) }
+                    trailer?.takeIf { online }?.let { key -> add(TvRowAction("Trailer", TrailerIcon) { context.openTrailer(key) }) }
+                },
+            )
         }
         item("cast") { CastRow(state.cast) }
         item("related") {
@@ -282,11 +296,56 @@ fun TvMovieDetailScreen(id: Int, navigator: Navigator) {
     }
 }
 
-/** One composable whose text and icon change, so focus stays on it when toggled. */
+/** Toggling changes only its text and icon (same place in the row), so focus stays on it. */
+private fun watchlistAction(saved: Boolean, onToggle: () -> Unit) =
+    TvRowAction(if (saved) "On Watchlist" else "Watch later", if (saved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder, onToggle)
+
+/** One button in a TV detail page's action row. */
+private class TvRowAction(val label: String, val icon: ImageVector, val run: () -> Unit)
+
+/**
+ * The action row, always one line: [primary] (Play/Resume) then [actions], most important first. What
+ * doesn't fit the screen moves into a "More" panel, least important (last) first: a full row ran off
+ * the right edge ("Trai") on movies with Resume, Start over and a trailer.
+ */
 @Composable
-private fun TvWatchlistButton(saved: Boolean, onToggle: () -> Unit) {
-    TvButton(if (saved) "On Watchlist" else "Watch later", onToggle, icon = if (saved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder)
+private fun TvActionRow(title: String, primaryLabel: String, primary: @Composable () -> Unit, actions: List<TvRowAction>) {
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val style = MaterialTheme.typography.titleSmall
+    // TvButton: 22 dp padding each side, a 22 dp icon and 10 dp before the text.
+    fun width(label: String): Dp = with(density) { measurer.measure(label, style).size.width.toDp() } + 22.dp * 2 + 32.dp
+    var more by remember { mutableStateOf(false) }
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        // Room for the focused button's zoom at the right edge.
+        val available = maxWidth - TvDimens.Edge - 32.dp
+        val widths = actions.map { width(it.label) }
+        val primaryWidth = width(primaryLabel)
+        val shown = (actions.size downTo 0).first { k ->
+            val overflow = k < actions.size
+            primaryWidth + widths.take(k).fold(0.dp) { a, w -> a + w + ROW_GAP } + (if (overflow) ROW_GAP + MORE_SIZE else 0.dp) <= available
+        }
+        Row(
+            Modifier.padding(start = TvDimens.Edge, top = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(ROW_GAP),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            primary()
+            actions.take(shown).forEach { TvButton(it.label, it.run, icon = it.icon) }
+            if (shown < actions.size) TvIconButton(Icons.Rounded.MoreVert, "More", { more = true }, size = MORE_SIZE)
+        }
+        if (more) {
+            TvActionsDialog(
+                title = title,
+                actions = actions.drop(shown).map { TvAction(it.label, it.icon, run = it.run) },
+                onDismiss = { more = false },
+            )
+        }
+    }
 }
+
+private val ROW_GAP = 12.dp
+private val MORE_SIZE = 48.dp
 
 private fun versionDetail(f: MediaFileEntity, online: Boolean): String = listOfNotNull(
     FilenameParser.qualityTags(f.name, f.height).take(3).joinToString(" · ").ifBlank { null },
@@ -329,9 +388,11 @@ fun TvShowDetailScreen(id: Int, navigator: Navigator) {
     // The action buttons sit just under the header, so the title never scrolls away while they're focused.
     Box(Modifier.fillMaxSize()) {
     TvBackdrop(TmdbImages.backdrop(show.backdropPath))
-    PivotScrolling(leading = 322.dp) { LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 60.dp)) {
+    var header by remember { mutableStateOf(318.dp) }
+    PivotScrolling(leading = header + 4.dp) { LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 60.dp)) {
         item("header") {
             DetailHeader(
+                onHeight = { header = it },
                 title = show.name,
                 tagline = show.tagline,
                 rating = show.rating,
@@ -346,25 +407,32 @@ fun TvShowDetailScreen(id: Int, navigator: Navigator) {
             )
         }
         item("actions") {
-            Row(Modifier.padding(start = TvDimens.Edge, top = 4.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (target != null) {
-                    val code = Format.episodeCode(target.file.season, target.file.episode)
+            val primaryLabel = target?.let {
+                val code = Format.episodeCode(it.file.season, it.file.episode)
+                if (it.resuming) "Resume $code" else "Play $code"
+            } ?: "All caught up"
+            TvActionRow(
+                title = show.name,
+                primaryLabel = primaryLabel,
+                primary = {
                     TvButton(
-                        if (target.resuming) "Resume $code" else "Play $code",
-                        { context.playFile(target.file.driveId, target.file.accountEmail) },
-                        icon = Icons.Rounded.PlayArrow, focusRequester = primary,
+                        primaryLabel,
+                        { target?.let { context.playFile(it.file.driveId, it.file.accountEmail) } },
+                        icon = if (target != null) Icons.Rounded.PlayArrow else Icons.Rounded.Check,
+                        enabled = target != null, focusRequester = primary,
                     )
-                } else {
-                    TvButton("All caught up", {}, icon = Icons.Rounded.Check, enabled = false, focusRequester = primary)
-                }
-                TvButton(
-                    if (seasonWatched) "Mark season unwatched" else "Mark season watched",
-                    { vm.setSeasonWatched(!seasonWatched) },
-                    icon = if (seasonWatched) Icons.Rounded.Undo else Icons.Rounded.Check,
-                )
-                TvWatchlistButton(saved, vm.plans::toggleWatchlist)
-                trailer?.takeIf { online }?.let { key -> TvButton("Trailer", { context.openTrailer(key) }, icon = TrailerIcon) }
-            }
+                },
+                actions = buildList {
+                    add(
+                        TvRowAction(
+                            if (seasonWatched) "Mark season unwatched" else "Mark season watched",
+                            if (seasonWatched) Icons.Rounded.Undo else Icons.Rounded.Check,
+                        ) { vm.setSeasonWatched(!seasonWatched) }
+                    )
+                    add(watchlistAction(saved, vm.plans::toggleWatchlist))
+                    trailer?.takeIf { online }?.let { key -> add(TvRowAction("Trailer", TrailerIcon) { context.openTrailer(key) }) }
+                },
+            )
         }
         if (state.seasons.size > 1) {
             item("seasons") {

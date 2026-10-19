@@ -63,6 +63,10 @@ Notable changes to Veltoret. Newest first. Detailed history is in the git log.
   The TV player shows the same hint.
 
 ### Fixed
+- **TV movie and show pages: no more gap above the buttons.** The buttons now sit just under the
+  description instead of at a fixed height, and long titles no longer run into them. When there are
+  more buttons than fit (e.g. Resume, Start over and a trailer), the least used move into a ⋮ panel
+  instead of running off the screen ("Trai").
 - **Full button labels on movie and show pages.** On landscape tablets "Resume" was cut to "Resu". The
   buttons stay on one line: "Mark watched" moved into the ⋮ menu, and on narrow screens the Trailer and
   then Watchlist buttons move into ⋮ instead of squeezing Play.

@@ -305,6 +305,12 @@ Each rule below exists because breaking it caused a real bug.
 - Home and detail pages draw artwork with `TvBackdrop` (full-screen picture + flat `VColors.BackdropDim`,
   no gradient) using the default `w1280` backdrop URL that `ArtworkPrefetch` caches; keep text in the
   left column at most ~560dp wide so it stays readable.
+- TV detail headers (`TvDetails.DetailHeader`) are as tall as their text, and the page's `PivotScrolling`
+  spot follows the measured header height. A fixed 318dp header left a big gap above the buttons under
+  short descriptions and let long ones run into them.
+- TV detail buttons (`TvActionRow`) stay on one line: it measures the labels and moves what doesn't fit into
+  a ⋮ side panel, least important first (Trailer, Collection, Versions, Watch later…). Five buttons ran off
+  the screen ("Trai"). Keep new actions in order of importance in the `actions` list.
 - Rows/grids use `PivotScrolling` so focus stays at a fixed spot. Text fields need `tvTextFieldExit()`,
   otherwise ↑/↓ are trapped inside the field.
 - A focused item that changes with state (e.g. the Settings scan row while scanning) must stay one

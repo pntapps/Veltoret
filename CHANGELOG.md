@@ -12,6 +12,11 @@ Notable changes to Veltoret. Newest first. Detailed history is in the git log.
   stopping hands the video back to the phone at the TV's position. Works for Google Drive, device and
   network-share files: the phone streams them to the TV. Subtitle files are converted for the TV; a
   warning appears for DTS or TrueHD audio, which most Chromecasts can't play.
+- **Voice search and "Hey Google"**: a microphone in Search on phones, tablets and TVs (Google's voice
+  input; Veltoret records nothing itself). "Hey Google, play Hokum on Veltoret" finds the title in your
+  library and plays it, including episodes ("… Below season 1 episode 2", "S01E02"); with no match,
+  Search opens with what you said. "Search for … on Veltoret" opens Search. Whether the Assistant
+  passes these requests on depends on the phone or TV's Google app.
 - **Play on TV**: when Veltoret is also installed on the TV, the Cast button lists it first and sends
   the title to Veltoret's player on the TV instead of Chromecast, so every audio track, DTS/TrueHD sound
   and built-in subtitles work. The TV plays the same file or its own copy of the movie or episode when

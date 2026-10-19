@@ -26,6 +26,9 @@ them with a full-featured player.
   for shows on your Watchlist.
 - **Collections**: every movie of a collection ("2 of 4 in your library"), from the movie page or Home.
 - **Search** by title, actor, director, creator or collection, with the reason each result matched.
+- **Voice**: a microphone in Search (phone, tablet and TV), and "Hey Google, play Hokum on Veltoret" or
+  "… play Below season 1 episode 2 on Veltoret" plays it from your library; "search for … on
+  Veltoret" opens Search. Uses the device's own voice input; Veltoret never records audio itself.
 - **Movies & TV Shows**: poster grids with watched / in-progress / 4K filters, genres, sorting,
   and a source filter (this device, a Google account or a network server).
 - **Detail pages**: overview, cast, quality badges (4K, HDR, HEVC, Atmos…), versions across

@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SearchOff
 import androidx.compose.material3.Icon
@@ -28,6 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -48,6 +50,9 @@ import com.pntapps.veltoret.ui.theme.VColors
 import com.pntapps.veltoret.ui.util.LocalWidthClass
 import com.pntapps.veltoret.ui.util.WidthClass
 import com.pntapps.veltoret.ui.util.appViewModel
+import com.pntapps.veltoret.ui.util.rememberVoiceInput
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -63,6 +68,22 @@ data class SearchState(val query: String = "", val movies: List<PosterItem> = em
 class SearchViewModel(container: AppContainer) : ViewModel() {
     val query = MutableStateFlow("")
     private val library = container.libraryRepository
+    /** Counts spoken searches (the mic, or "search for … on Veltoret"), so screens can leave the keyboard closed. */
+    val spoken = MutableStateFlow(0)
+
+    init {
+        viewModelScope.launch {
+            container.spokenSearch.filterNotNull().collect {
+                container.spokenSearch.value = null
+                speak(it)
+            }
+        }
+    }
+
+    fun speak(text: String) {
+        query.value = text.trim()
+        spoken.value++
+    }
 
     private val ids = query.debounce(200).mapLatest { q ->
         if (q.isBlank()) emptyList<SearchHit>() to emptyList() else library.search(q.trim())
@@ -91,7 +112,12 @@ fun SearchScreen(navigator: Navigator) {
     val state by vm.state.collectAsStateWithLifecycle()
     val query by vm.query.collectAsStateWithLifecycle()
     val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { focus.requestFocus() }
+    val spoken by vm.spoken.collectAsStateWithLifecycle()
+    // A spoken search shows its results straight away; typing opens the keyboard.
+    LaunchedEffect(Unit) { if (spoken == 0) focus.requestFocus() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    LaunchedEffect(spoken) { if (spoken > 0) keyboard?.hide() }
+    val voice = rememberVoiceInput("Say a title, actor or director", vm::speak)
     val compact = LocalWidthClass.current == WidthClass.Compact
 
     Column(Modifier.fillMaxSize()) {
@@ -102,9 +128,15 @@ fun SearchScreen(navigator: Navigator) {
             label = "Titles, actors, directors, collections",
             leadingIcon = Icons.Rounded.Search,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            trailing = if (query.isNotEmpty()) {
-                { IconButton(onClick = { vm.query.value = "" }) { Icon(Icons.Rounded.Close, "Clear", tint = VColors.TextMuted) } }
-            } else null,
+            trailing = when {
+                query.isNotEmpty() -> {
+                    { IconButton(onClick = { vm.query.value = "" }) { Icon(Icons.Rounded.Close, "Clear", tint = VColors.TextMuted) } }
+                }
+                voice != null -> {
+                    { IconButton(onClick = voice) { Icon(Icons.Rounded.Mic, "Search by voice", tint = VColors.Amber) } }
+                }
+                else -> null
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = gutter())

@@ -43,7 +43,7 @@ export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"
 
 - **Unit tests** (`app/src/test`): `FilenameParserTest`, `FilenameParserCorpusTest` (one line per naming
   style; add a line for every name that parses wrong), `PlayTargetsTest`, `DriveStreamingUploadTest`, `RelatedTitlesTest`, `TrailerPickTest`, `SmbPathTest`, `SmbDiscoveryTest`,
-  `PairingCryptoTest`, `PlansTest`, `CastTest`, `CastAudioTest`, `TvLinkTest`. Run
+  `PairingCryptoTest`, `PlansTest`, `CastTest`, `CastAudioTest`, `TvLinkTest`, `VoiceQueryTest`. Run
   them after any change to parsing, play targets or uploads, and add cases for new behavior.
 - **Device tests** (`app/src/androidTest`): **do not run `connectedAndroidTest`**. It uninstalls the app
   afterwards, which wipes the tester's library, accounts and folder permissions, and it runs on every
@@ -276,6 +276,17 @@ Each rule below exists because breaking it caused a real bug.
 - On the TV a linked player (`PlayerArgs.link`) starts at the phone's position and languages, never
   auto-plays the next episode (the phone sends it) and stays on the last frame when it ends. Back on the
   TV closes it and the phone takes over; the phone's Stop closes it.
+
+**Voice**
+- The mic uses the device's voice input (`rememberVoiceInput`, `RecognizerIntent`; the manifest `<queries>`
+  entry is what lets Android 11+ see it), so no microphone permission. It's hidden where there's none.
+- "Hey Google, play …" (`MEDIA_PLAY_FROM_SEARCH`) and "search for …" (`SEARCH`) land on `VoiceActivity`,
+  not MainActivity: sent to MainActivity, Android only brought an open Veltoret forward and dropped the
+  request. `VoiceQuery` (covered by `VoiceQueryTest`) parses "season 1 episode 2" / "S01E02" / a year and
+  matches normalized titles; a match plays through `openRequests`, no match opens Search
+  (`searchRequests` → `spokenSearch`: two flows, one reader each, so the screen can't take the words before
+  navigation sees them). Spoken searches show results with the keyboard closed.
+- TV Search: → in the empty box steps to the mic (`tvTextFieldExit` otherwise keeps → for the cursor).
 
 **Offline mode**
 - `Connectivity` (in `data/net`) exposes `online`. Offline, `LibraryRepository.movies()` / `shows()` /

@@ -31,4 +31,12 @@ fun HandleOpenRequests(navigator: Navigator) {
             file?.let { context.playFile(it.driveId, it.accountEmail) }
         }
     }
+    // "Search for … on Veltoret": open Search; its view model takes the words from searchRequests.
+    LaunchedEffect(Unit) {
+        container.searchRequests.filterNotNull().collect { words ->
+            container.searchRequests.value = null
+            container.spokenSearch.value = words
+            navigator.navigate(SearchRoute)
+        }
+    }
 }

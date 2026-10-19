@@ -104,6 +104,10 @@ class AppContainer(context: Context) {
     val plans = com.pntapps.veltoret.data.plans.PlansRepository(appContext, database.plansDao())
     /** A title a notification asked to open (and maybe play); the app shell handles and clears it. */
     val openRequests = kotlinx.coroutines.flow.MutableStateFlow<com.pntapps.veltoret.data.plans.OpenTarget?>(null)
+    /** "Search for … on Veltoret", or "Hey Google, play …" with no match: Search opens with these words. */
+    val searchRequests = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+    /** The words handed to the Search screen once it's open (one reader each, so neither misses them). */
+    val spokenSearch = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
     val playback = com.pntapps.veltoret.data.library.PlaybackResolver(database.mediaFileDao(), database.watchDao(), connectivity)
     /** Chromecast; set up on the main thread by the activities (never on TV). */
     val cast by lazy { com.pntapps.veltoret.player.cast.CastController(appContext, this) }

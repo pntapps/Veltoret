@@ -198,8 +198,10 @@ While your app is in *Testing* mode, Google only lets listed accounts sign in.
 code** — Google recognises the app from its package name and SHA-1.
 
 > [!TIP]
-> Forked the project and changed `applicationId` in `app/build.gradle.kts`? Use **your**
-> package name here instead.
+> `com.pntapps.veltoret` is the official package name, registered to PNT Apps. It's fine for a build
+> you only install on your own devices. If you changed `applicationId` in `app/build.gradle.kts`
+> (needed before sharing your build, see [Share](#-share-veltoret-with-friends-and-family-optional)),
+> use **your** package name here instead.
 
 > [!IMPORTANT]
 > Google can take **5–10 minutes** to apply a new client. If sign-in fails right away, wait a
@@ -325,6 +327,20 @@ You do steps 1–3 once; after that, each new version is a single build.
 > [!IMPORTANT]
 > Device folders work for everyone straight away. **Google Drive only works for accounts you add as
 > test users** (step 3). That's how Google's *Testing* mode works, and it allows up to 100 people.
+
+### 0. Use your own package name (once)
+
+`com.pntapps.veltoret` belongs to PNT Apps: it's registered with Google for the official builds, so
+APKs you share must use **your own** package name.
+
+1. In `app/build.gradle.kts`, change `applicationId = "com.pntapps.veltoret"` to your own, for example
+   `com.yourname.veltoret`. Don't use `com.pntapps`, and don't present your build as an official PNT
+   Apps release. Leave `namespace` and the code's packages as they are.
+2. Use that package name everywhere Google asks for one (Step 6 and step 2 below).
+3. Android is starting to require that apps installed outside Google Play come from a **registered
+   package name** ([Android developer verification](https://developer.android.com/developer-verification)):
+   some countries now, worldwide from 2027. Register yours with your own developer account so the
+   people you share with can keep installing it.
 
 ### 1. Create a release signing key (once)
 

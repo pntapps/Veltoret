@@ -26,3 +26,4 @@ keystore.properties
 # Built apps (a private release build may contain your TMDB key)
 *.apk
 *.aab
+app/src/main/assets/adi-registration.properties

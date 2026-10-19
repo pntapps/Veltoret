@@ -372,6 +372,10 @@ Each rule below exists because breaking it caused a real bug.
   Google OAuth client (package name + SHA-1) as described in `SETUP.md`; nothing Google-specific is in
   the repo. Don't add real SHA-1 fingerprints, emails, device serials or personal file paths to code,
   tests or docs.
+- **Never change `applicationId` (`com.pntapps.veltoret`)** in the repo. It's registered to PNT Apps with
+  Google (Android developer verification) for the official, release-key-signed builds; changing it breaks
+  installs and updates for everyone who has the app. Forks set their own (README "Official builds and
+  forks", SETUP "Share" step 0). The registration proof file `adi-registration.properties` is git-ignored.
 - Keep `.idea/` ignored except `.idea/codeStyles/`.
 - Don't name real piracy or release sites in code, tests or docs; use made-up examples like
   `ReleaseSite.at`.

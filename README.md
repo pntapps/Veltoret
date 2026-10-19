@@ -142,6 +142,15 @@ Veltoret is developed by **PNT Apps**.
 - About us: [pntapps.com/about](https://www.pntapps.com/about)
 - Privacy policy: [pntapps.com/privacy](https://www.pntapps.com/privacy)
 
+### Official builds and forks
+
+Official Veltoret builds are published by PNT Apps under the package name `com.pntapps.veltoret`,
+which is registered to PNT Apps with Google. Building it for your own phone or TV is fine as it is.
+If you **share or publish your own build or fork**, change `applicationId` in `app/build.gradle.kts`
+to your own package name (for example `com.yourname.veltoret`). Don't use `com.pntapps` or the PNT Apps
+name, and don't present your build as an official PNT Apps release. See
+[SETUP.md](SETUP.md#-share-veltoret-with-friends-and-family-optional).
+
 ## License
 
 Veltoret is free software under the [GNU General Public License v3.0](LICENSE). You may use, study,

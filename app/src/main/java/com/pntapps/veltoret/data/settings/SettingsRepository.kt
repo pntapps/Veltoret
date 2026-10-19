@@ -33,6 +33,8 @@ data class AppSettings(
     val lastScanAt: Long = 0,
     /** Notify on the day a show on the Watchlist airs a new episode. */
     val newEpisodeAlerts: Boolean = true,
+    /** TV only: a phone on the Wi-Fi may open Veltoret and play here ("Play on TV"). */
+    val playFromPhone: Boolean = true,
 ) {
     val tmdbKey: String get() = tmdbKeyOverride.ifBlank { BuildConfig.BUNDLED_TMDB_KEY }
 }
@@ -52,6 +54,7 @@ class SettingsRepository(private val context: Context) {
         val subBackground = booleanPreferencesKey("sub_background")
         val lastScan = longPreferencesKey("last_scan")
         val newEpisodeAlerts = booleanPreferencesKey("new_episode_alerts")
+        val playFromPhone = booleanPreferencesKey("play_from_phone")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
@@ -68,6 +71,7 @@ class SettingsRepository(private val context: Context) {
             subtitleBackground = p[Keys.subBackground] ?: false,
             lastScanAt = p[Keys.lastScan] ?: 0L,
             newEpisodeAlerts = p[Keys.newEpisodeAlerts] ?: true,
+            playFromPhone = p[Keys.playFromPhone] ?: true,
         )
     }
 
@@ -85,4 +89,5 @@ class SettingsRepository(private val context: Context) {
     suspend fun setSubtitleBackground(value: Boolean) = context.dataStore.edit { it[Keys.subBackground] = value }
     suspend fun setLastScan(time: Long) = context.dataStore.edit { it[Keys.lastScan] = time }
     suspend fun setNewEpisodeAlerts(value: Boolean) = context.dataStore.edit { it[Keys.newEpisodeAlerts] = value }
+    suspend fun setPlayFromPhone(value: Boolean) = context.dataStore.edit { it[Keys.playFromPhone] = value }
 }

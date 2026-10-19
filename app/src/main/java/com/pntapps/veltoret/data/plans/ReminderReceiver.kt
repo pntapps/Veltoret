@@ -76,6 +76,8 @@ class RescheduleReceiver : BroadcastReceiver() {
         container.appScope.launch {
             try {
                 withTimeoutOrNull(25_000) { container.plans.restore(context, container) }
+                // TV: "Play on TV" listens again after a restart (starting it from boot is allowed).
+                com.pntapps.veltoret.data.tvlink.TvLinkService.start(context, container.settings.current().playFromPhone)
             } finally {
                 pending.finish()
             }

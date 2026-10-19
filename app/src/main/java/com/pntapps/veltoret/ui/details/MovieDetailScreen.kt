@@ -18,6 +18,7 @@ import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Replay
+import androidx.compose.material.icons.rounded.RemoveDone
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -139,7 +140,6 @@ fun MovieDetailScreen(id: Int, navigator: Navigator) {
     val online = rememberOnline()
     val context = LocalContext.current
     val wide = LocalWidthClass.current != WidthClass.Compact
-    var menuOpen by remember { mutableStateOf(false) }
 
     val movie = state.movie
     if (movie == null) {
@@ -177,55 +177,35 @@ fun MovieDetailScreen(id: Int, navigator: Navigator) {
                     Text(Format.remaining(watch.positionMs, watch.durationMs), style = MaterialTheme.typography.bodySmall, color = VColors.TextMuted)
                     Spacer(Modifier.height(12.dp))
                 }
-                // One row on landscape tablets; elsewhere the icon buttons get their own row so Play keeps its label
-                // (five buttons in one row squeezed it to "Pla").
-                val oneRow = LocalWidthClass.current == WidthClass.Expanded
-                val icons: @Composable () -> Unit = {
-                    WatchlistButton(saved, vm.plans::toggleWatchlist)
-                    trailer?.takeIf { online }?.let { TrailerButton(it, compact = true) }
-                    Box {
-                        VIconButton(Icons.Rounded.MoreVert, "More", { menuOpen = true }, size = 48.dp)
-                        DropdownMenu(menuOpen, { menuOpen = false }, containerColor = VColors.SurfaceHigh) {
-                            DropdownMenuItem(
-                                text = { Text("Fix match") },
-                                leadingIcon = { Icon(Icons.Rounded.Edit, null) },
-                                onClick = {
-                                    menuOpen = false
-                                    navigator.navigate(FixMatchRoute(state.files.map { it.driveId }, MediaKind.MOVIE.name, movie.title))
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Remind me…") },
-                                leadingIcon = { Icon(Icons.Rounded.NotificationsActive, null) },
-                                onClick = { menuOpen = false; reminding = true },
-                            )
-                        }
-                    }
+                // One line: Play, Trailer, Watchlist, ⋮ ("Mark watched" lives in ⋮; the rest move there when crowded).
+                val playLabel = when {
+                    resumable -> "Resume"
+                    watch?.watched == true -> "Watch again"
+                    else -> "Play"
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    VButton(
-                        text = when {
-                            resumable -> "Resume"
-                            watch?.watched == true -> "Watch again"
-                            else -> "Play"
+                DetailActionRow(
+                    playLabel = playLabel,
+                    play = {
+                        DetailPlayButton(
+                            playLabel,
+                            icon = if (watch?.watched == true) Icons.Rounded.Replay else Icons.Rounded.PlayArrow,
+                            enabled = best != null && canPlayNow(best.accountEmail, online),
+                            fill = !wide,
+                        ) { best?.let { context.playFile(it.driveId, it.accountEmail, fromStart = watch?.watched == true) } }
+                    },
+                    trailerKey = trailer?.takeIf { online },
+                    labelledTrailer = false,
+                    saved = saved,
+                    onToggleWatchlist = vm.plans::toggleWatchlist,
+                    menu = listOf(
+                        if (watch?.watched == true) DetailMenuItem("Mark unwatched", Icons.Rounded.RemoveDone) { vm.setWatched(false) }
+                        else DetailMenuItem("Mark watched", Icons.Rounded.Check) { vm.setWatched(true) },
+                        DetailMenuItem("Remind me…", Icons.Rounded.NotificationsActive) { reminding = true },
+                        DetailMenuItem("Fix match", Icons.Rounded.Edit) {
+                            navigator.navigate(FixMatchRoute(state.files.map { it.driveId }, MediaKind.MOVIE.name, movie.title))
                         },
-                        onClick = { best?.let { context.playFile(it.driveId, it.accountEmail, fromStart = watch?.watched == true) } },
-                        icon = if (watch?.watched == true) Icons.Rounded.Replay else Icons.Rounded.PlayArrow,
-                        enabled = best != null && canPlayNow(best.accountEmail, online),
-                        modifier = Modifier.weight(1f, fill = !wide),
-                    )
-                    VButton(
-                        text = if (watch?.watched == true) "Watched" else "Mark watched",
-                        onClick = { vm.setWatched(watch?.watched != true) },
-                        icon = Icons.Rounded.Check,
-                        style = if (watch?.watched == true) ButtonStyle.Secondary else ButtonStyle.Ghost,
-                    )
-                    if (oneRow) icons()
-                }
-                if (!oneRow) {
-                    Spacer(Modifier.height(10.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) { icons() }
-                }
+                    ),
+                )
                 ReminderList(reminders, vm.plans::cancelReminder)
                 Overview(movie.overview)
                 CreditLine("Director", movie.director)

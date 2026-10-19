@@ -39,6 +39,14 @@ import com.pntapps.veltoret.data.library.FilenameParser
 import com.pntapps.veltoret.data.library.WatchKeys
 import com.pntapps.veltoret.data.settings.AppSettings
 import com.pntapps.veltoret.data.tmdb.TmdbImages
+import com.pntapps.veltoret.data.tvlink.LinkCommand
+import com.pntapps.veltoret.data.tvlink.LinkPlay
+import com.pntapps.veltoret.data.tvlink.LinkPlayer
+import com.pntapps.veltoret.data.tvlink.LinkStatus
+import com.pntapps.veltoret.data.tvlink.LinkTrack
+import com.pntapps.veltoret.data.tvlink.TvLink
+import com.pntapps.veltoret.player.cast.CastAudioOption
+import com.pntapps.veltoret.ui.util.isTv
 import com.pntapps.veltoret.player.cast.CastMedia
 import com.pntapps.veltoret.player.cast.CastSubtitle
 import com.pntapps.veltoret.player.cast.CastSubtitles
@@ -56,8 +64,27 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
-data class PlayerArgs(val fileId: String, val accountEmail: String?, val title: String?, val fromStart: Boolean)
+data class PlayerArgs(
+    val fileId: String,
+    val accountEmail: String?,
+    val title: String?,
+    val fromStart: Boolean,
+    /** Set when a phone asked this TV to play ("Play on TV"). */
+    val link: LinkArgs? = null,
+)
+
+/** How a phone asked this TV to play: where to start and which languages. */
+data class LinkArgs(
+    val startMs: Long,
+    val audioLanguage: String?,
+    /** A language, [LinkPlay.SUBTITLES_OFF], or null for the TV's usual choice. */
+    val subtitleLanguage: String?,
+    /** The TV has no copy: the video streams from the phone. */
+    val fromPhone: Boolean,
+    val subtitle: String?,
+)
 
 data class ExternalSubInfo(val id: String, val label: String, val language: String?)
 
@@ -103,12 +130,14 @@ data class PlayerUi(
     val boost: Float = 0f,
     /** Shown when loading is slow ("Loading from MyNAS…"); null for files on this device. */
     val loadingFrom: String? = null,
+    /** Casting waits for "Which audio on the TV?" (the file has several audio tracks). */
+    val castAudioChoice: CastMedia? = null,
 )
 
 enum class ResizeMode(val label: String) { Fit("Fit"), Fill("Fill"), Stretch("Stretch") }
 
 @OptIn(UnstableApi::class)
-class PlayerViewModel(private val container: AppContainer, args: PlayerArgs) : ViewModel() {
+class PlayerViewModel(private val container: AppContainer, args: PlayerArgs) : ViewModel(), LinkPlayer {
 
     private val library = container.libraryRepository
     private val watch = container.watchRepository
@@ -142,6 +171,13 @@ class PlayerViewModel(private val container: AppContainer, args: PlayerArgs) : V
     val cast = container.cast
     /** The cast reached the end of this file and that was handled (next episode or close). */
     private var castEndHandled = false
+    /** "Play on TV": a phone asked for this video; it controls the player and starts the next episode. */
+    private var link: LinkArgs? = args.link
+    /** The phone's video played to the end (the player stays open for the phone's next request). */
+    private var linkEnded = false
+    /** The audio for the TV was chosen in this player; later episodes keep that language without asking. */
+    private var castAudioChosen = false
+    private var pendingCastStart = 0L
 
     private val listener = object : Player.Listener {
         override fun onPlaybackStateChanged(state: Int) {
@@ -200,12 +236,14 @@ class PlayerViewModel(private val container: AppContainer, args: PlayerArgs) : V
                 if (player.isPlaying) saveProgress()
             }
         }
+        // On a TV, a paired phone can see and control what plays ("Play on TV").
+        if (container.appContext.isTv()) container.tvLinkHost.attach(this)
         // Connecting to a TV hands the video over; disconnecting brings it back, paused where the TV was.
         viewModelScope.launch {
             var wasConnected = cast.state.value.connected
             cast.state.collect { st ->
                 when {
-                    st.connected && !wasConnected -> if (_ui.value.title.isNotEmpty() && _ui.value.error == null) castCurrent(player.currentPosition)
+                    st.connected && !wasConnected -> if (_ui.value.title.isNotEmpty() && _ui.value.error == null) castCurrent(player.currentPosition, ask = true)
                     !st.connected && wasConnected -> resumeFromCast(st)
                     st.connected && st.finished && st.media?.fileId == fileId && !castEndHandled -> {
                         castEndHandled = true
@@ -219,17 +257,25 @@ class PlayerViewModel(private val container: AppContainer, args: PlayerArgs) : V
 
     private fun castingHere(): Boolean = cast.state.value.let { it.connected && it.media?.fileId == fileId }
 
-    /** Sends the open video to the TV at [startMs]; the phone's player pauses. */
-    fun castCurrent(startMs: Long) {
+    /**
+     * Sends the open video to the TV at [startMs]; the phone's player pauses. With several audio tracks
+     * (MKV), [ask] shows "Which audio on the TV?" first, unless a choice was already made in this player.
+     */
+    fun castCurrent(startMs: Long, ask: Boolean = false) {
         val account = email ?: return
         player.playWhenReady = false
         // The phone's "Resumed at …" notice doesn't apply to the TV (and would reappear when casting stops).
-        _ui.update { it.copy(resumedFrom = null) }
+        _ui.update { it.copy(resumedFrom = null, castAudioChoice = null) }
         castEndHandled = false
         val f = file
         val id = fileId
-        val ui = _ui.value
         viewModelScope.launch {
+            // The tracks (and the saved audio choice) decide which audio the TV gets, so wait for them.
+            withTimeoutOrNull(8_000) {
+                while (player.currentTracks.isEmpty || restore != null) delay(100)
+            }
+            if (id != fileId) return@launch
+            val ui = _ui.value
             val (poster, backdrop) = when {
                 f?.movieId != null -> library.movieEntity(f.movieId)?.let { TmdbImages.poster(it.posterPath, "w500") to TmdbImages.backdrop(it.backdropPath) }
                 f?.showId != null -> library.showEntity(f.showId)?.let { s ->
@@ -244,23 +290,96 @@ class PlayerViewModel(private val container: AppContainer, args: PlayerArgs) : V
                     CastSubtitle(sub.id, sub.label, sub.language, CastSubtitles.toVtt(lines, ui.subtitleOffsetMs * 1000))
                 }
             }
-            cast.load(
-                CastMedia(
-                    fileId = id, file = f, uri = mediaUri(account), title = ui.title, subtitle = ui.subtitle,
-                    posterUrl = poster, backdropUrl = backdrop, isEpisode = ui.isEpisode,
-                    subtitles = subtitles, activeSubtitle = ui.selectedExternal, audioWarning = castAudioWarning(),
-                ),
-                startMs,
+            val selected = selectedAudioTrack()
+            val media = CastMedia(
+                fileId = id, file = f, uri = mediaUri(account), title = ui.title, subtitle = ui.subtitle,
+                posterUrl = poster, backdropUrl = backdrop, isEpisode = ui.isEpisode,
+                subtitles = subtitles, activeSubtitle = ui.selectedExternal,
+                audioWarning = castAudioWarning(selected), audioTrack = selected, audioOptions = castAudioOptions(),
+                audioLanguage = audioFormat(selected ?: -1)?.let { (g, i) -> g.getTrackFormat(i).language }
+                    ?: selectedFormat(C.TRACK_TYPE_AUDIO)?.language,
+                subtitleLanguage = subtitleChoice(),
+            )
+            // Veltoret on a TV plays every track itself; only a Chromecast needs the audio chosen first.
+            if (ask && !castAudioChosen && media.audioOptions.size > 1 && cast.state.value.link == null) {
+                pendingCastStart = startMs
+                _ui.update { it.copy(castAudioChoice = media) }
+            } else {
+                cast.load(media, startMs)
+            }
+        }
+    }
+
+    /** "Which audio on the TV?" answered (null = keep the current one); the phone switches to it too. */
+    fun chooseCastAudio(track: Long?) {
+        val media = _ui.value.castAudioChoice ?: return
+        _ui.update { it.copy(castAudioChoice = null) }
+        castAudioChosen = true
+        if (track == null || track == media.audioTrack) return cast.load(media, pendingCastStart)
+        selectAudioTrack(track)
+        cast.load(media.copy(audioTrack = track, audioWarning = castAudioWarning(track)), pendingCastStart)
+    }
+
+    /** Switches the audio on the TV (it reloads the video at the same spot); the phone follows. */
+    fun switchCastAudio(track: Long) {
+        val st = cast.state.value
+        val media = st.media?.takeIf { it.fileId == fileId } ?: return
+        if (media.audioTrack == track) return
+        castAudioChosen = true
+        selectAudioTrack(track)
+        cast.load(media.copy(audioTrack = track, audioWarning = castAudioWarning(track), activeSubtitle = st.activeSubtitle), st.positionMs)
+    }
+
+    /** The audio tracks a Chromecast can be switched between: MKV only (see CastAudio). */
+    private fun castAudioOptions(): List<CastAudioOption> {
+        val formats = player.currentTracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
+            .flatMap { g -> (0 until g.length).map { g.getTrackFormat(it) } }
+        if (formats.size < 2 || formats.any { it.containerMimeType != MimeTypes.VIDEO_MATROSKA || trackNumber(it) == null }) return emptyList()
+        val titles = MediaFormats.trackTitles(formats, "Track", ::languageName)
+        return formats.mapIndexed { n, f ->
+            CastAudioOption(
+                track = trackNumber(f)!!,
+                label = titles[n],
+                detail = listOfNotNull(MediaFormats.audioCodec(f.sampleMimeType), MediaFormats.channels(f.channelCount)).joinToString(" · "),
             )
         }
     }
 
+    private fun audioFormat(track: Long): Pair<Tracks.Group, Int>? = player.currentTracks.groups
+        .filter { it.type == C.TRACK_TYPE_AUDIO }
+        .firstNotNullOfOrNull { g -> (0 until g.length).firstOrNull { trackNumber(g.getTrackFormat(it)) == track }?.let { g to it } }
+
+    private fun selectAudioTrack(track: Long) {
+        audioFormat(track)?.let { (g, i) -> if (!g.isTrackSelected(i)) selectTrack(g, i) }
+    }
+
+    private fun selectedFormat(type: Int): androidx.media3.common.Format? = player.currentTracks.groups
+        .filter { it.type == type && it.isSelected }
+        .firstNotNullOfOrNull { g -> (0 until g.length).firstOrNull(g::isTrackSelected)?.let { g.getTrackFormat(it) } }
+
+    /** "Play on TV": the subtitle language shown here, [LinkPlay.SUBTITLES_OFF], or null when unknown. */
+    private fun subtitleChoice(): String? {
+        val ui = _ui.value
+        ui.selectedExternal?.let { id -> return ui.externalSubs.firstOrNull { it.id == id }?.language }
+        selectedFormat(C.TRACK_TYPE_TEXT)?.let { return it.language }
+        return if (C.TRACK_TYPE_TEXT in player.trackSelectionParameters.disabledTrackTypes) LinkPlay.SUBTITLES_OFF else null
+    }
+
+    /** The selected audio track's container track number. */
+    private fun selectedAudioTrack(): Long? = player.currentTracks.groups
+        .filter { it.type == C.TRACK_TYPE_AUDIO && it.isSelected }
+        .firstNotNullOfOrNull { g -> (0 until g.length).firstOrNull(g::isTrackSelected)?.let { trackNumber(g.getTrackFormat(it)) } }
+
+    /** MKV TrackNumber; Media3's Matroska extractor uses it as the format id. */
+    private fun trackNumber(f: androidx.media3.common.Format): Long? = f.id?.substringAfterLast(':')?.toLongOrNull()
+
     /**
      * Chromecasts decode audio themselves and usually can't play DTS or TrueHD; Veltoret can't convert it.
-     * Checks the selected audio track, or the file name before tracks are known.
+     * Checks [track] (or the selected audio track), or the file name before tracks are known.
      */
-    private fun castAudioWarning(): String? {
-        val selected = player.currentTracks.groups
+    private fun castAudioWarning(track: Long?): String? {
+        val chosen = track?.let(::audioFormat)?.let { (g, i) -> listOf(g.getTrackFormat(i).sampleMimeType) }
+        val selected = chosen ?: player.currentTracks.groups
             .filter { it.type == C.TRACK_TYPE_AUDIO && it.isSelected }
             .flatMap { g -> (0 until g.length).filter(g::isTrackSelected).map { g.getTrackFormat(it).sampleMimeType } }
         val dts = setOf(MimeTypes.AUDIO_DTS, MimeTypes.AUDIO_DTS_HD, MimeTypes.AUDIO_DTS_EXPRESS, MimeTypes.AUDIO_DTS_X)
@@ -394,6 +513,8 @@ class PlayerViewModel(private val container: AppContainer, args: PlayerArgs) : V
     fun open(args: PlayerArgs) {
         if (_ui.value.title.isNotEmpty()) saveProgress()
         titleHint = args.title
+        link = args.link
+        linkEnded = false
         loadJob?.cancel()
         loadJob = viewModelScope.launch { load(args.fileId, args.accountEmail, args.fromStart) }
     }
@@ -409,6 +530,8 @@ class PlayerViewModel(private val container: AppContainer, args: PlayerArgs) : V
         email = entity?.accountEmail ?: emailHint
         externals.clear()
         restore = prefs.trackMemory(id)
+        // The phone's language choices win over what this TV remembered for the file.
+        link?.let { l -> restore = linkTracks(restore ?: TrackMemory(), l) }
         triedSoftwareFallback = false
         _decoders.update { it.copy(droppedFrames = 0) }
         val account = email
@@ -418,7 +541,7 @@ class PlayerViewModel(private val container: AppContainer, args: PlayerArgs) : V
         }
 
         var title = titleHint ?: entity?.name ?: "Video"
-        var subtitle: String? = null
+        var subtitle: String? = link?.subtitle
         if (entity?.movieId != null) {
             library.movieEntity(entity.movieId)?.let { m ->
                 title = m.title
@@ -433,7 +556,7 @@ class PlayerViewModel(private val container: AppContainer, args: PlayerArgs) : V
 
         val next = entity?.let { library.nextEpisodeFile(it) }
         val previous = entity?.let { library.previousEpisodeFile(it) }
-        val resumeAt = if (fromStart) 0L else {
+        val resumeAt = link?.startMs ?: if (fromStart) 0L else {
             val key = entity?.let(WatchKeys::forFile) ?: WatchKeys.file(id)
             watch.get(key)?.takeIf { !it.watched && it.positionMs > 10_000 }?.positionMs ?: 0L
         }
@@ -457,6 +580,7 @@ class PlayerViewModel(private val container: AppContainer, args: PlayerArgs) : V
                 autoPlayCancelled = false,
                 introSkipped = false,
                 loadingFrom = when {
+                    TvLink.isStream(id) -> "your phone"
                     container.storage.isLocal(account) -> null
                     container.storage.isSmb(account) -> container.storage.rootName(account)
                     else -> "Google Drive"
@@ -473,7 +597,7 @@ class PlayerViewModel(private val container: AppContainer, args: PlayerArgs) : V
         // Subtitle files sitting next to the video with the same base name (Movie.srt, Movie.en.srt …).
         if (entity != null) loadSidecarSubtitles(entity)
         // Connected to a TV: this video plays there (with its subtitle files, loaded just above).
-        if (casting) castCurrent(resumeAt)
+        if (casting) castCurrent(resumeAt, ask = true)
     }
 
     private suspend fun episodeLabel(n: MediaFileEntity): String {
@@ -483,7 +607,8 @@ class PlayerViewModel(private val container: AppContainer, args: PlayerArgs) : V
 
     // Device files play straight from storage, network share files by their smb:// id; Drive files stream through DriveMedia.
     private fun mediaUri(account: String): Uri =
-        if (container.storage.isLocal(account) || container.storage.isSmb(account)) Uri.parse(fileId) else DriveMedia.uri(fileId, account)
+        if (TvLink.isStream(fileId) || container.storage.isLocal(account) || container.storage.isSmb(account)) Uri.parse(fileId)
+        else DriveMedia.uri(fileId, account)
 
     private fun buildItem(): MediaItem = MediaItem.Builder()
         .setUri(mediaUri(email!!))
@@ -624,6 +749,8 @@ class PlayerViewModel(private val container: AppContainer, args: PlayerArgs) : V
     fun saveProgress() {
         // While this video is on the TV, CastController saves the real position; the paused phone player is stale.
         if (castingHere()) return
+        // A phone's stream: the phone saves its own progress from the TV's position.
+        if (TvLink.isStream(fileId)) return
         val duration = player.duration.takeIf { it != C.TIME_UNSET && it > 0 } ?: file?.durationMs ?: return
         val position = player.currentPosition
         val f = file
@@ -635,7 +762,12 @@ class PlayerViewModel(private val container: AppContainer, args: PlayerArgs) : V
         val duration = player.duration.takeIf { it != C.TIME_UNSET && it > 0 } ?: file?.durationMs ?: 0L
         val f = file
         val id = fileId
-        container.appScope.launch { watch.savePosition(f, id, duration, duration) }
+        if (!TvLink.isStream(id)) container.appScope.launch { watch.savePosition(f, id, duration, duration) }
+        // The phone decides what plays next (and saves its own progress); stay on the last frame.
+        if (link != null) {
+            linkEnded = true
+            return
+        }
         val sleep = _ui.value.sleep
         if (sleep?.endOfEpisode == true) {
             _ui.update { it.copy(sleep = null, notice = "Sleep timer: stopped") }
@@ -949,8 +1081,87 @@ class PlayerViewModel(private val container: AppContainer, args: PlayerArgs) : V
         }
     }
 
+    // ---------------------------------------------------------------------------------------------
+    // "Play on TV": a paired phone's remote (this player runs on the TV)
+    // ---------------------------------------------------------------------------------------------
+
+    private fun trackEntries(type: Int) = player.currentTracks.groups.filter { it.type == type }.flatMap { g -> (0 until g.length).map { g to it } }
+
+    override fun linkStatus(): LinkStatus {
+        val ui = _ui.value
+        val audio = trackEntries(C.TRACK_TYPE_AUDIO)
+        val audioTitles = MediaFormats.trackTitles(audio.map { (g, i) -> g.getTrackFormat(i) }, "Track", ::languageName)
+        val text = trackEntries(C.TRACK_TYPE_TEXT)
+        val textTitles = MediaFormats.trackTitles(text.map { (g, i) -> g.getTrackFormat(i) }, "Subtitle", ::languageName)
+        val state = player.playbackState
+        return LinkStatus(
+            active = true,
+            title = ui.title,
+            source = if (TvLink.isStream(fileId)) LinkStatus.SOURCE_PHONE else LinkStatus.SOURCE_TV,
+            playing = player.playWhenReady && state != Player.STATE_ENDED,
+            buffering = state == Player.STATE_BUFFERING,
+            positionMs = player.currentPosition,
+            durationMs = player.duration.takeIf { it != C.TIME_UNSET && it > 0 } ?: 0,
+            ended = linkEnded,
+            error = ui.error,
+            audio = audio.mapIndexed { n, (g, i) ->
+                val f = g.getTrackFormat(i)
+                LinkTrack("a$n", audioTitles[n], listOfNotNull(MediaFormats.audioCodec(f.sampleMimeType), MediaFormats.channels(f.channelCount)).joinToString(" · "))
+            },
+            audioSelected = audio.indexOfFirst { (g, i) -> g.isTrackSelected(i) }.takeIf { it >= 0 }?.let { "a$it" },
+            subtitles = text.mapIndexed { n, _ -> LinkTrack("t$n", textTitles[n]) } + ui.externalSubs.map { LinkTrack("x:${it.id}", it.label) },
+            subtitleSelected = ui.selectedExternal?.let { "x:$it" }
+                ?: text.indexOfFirst { (g, i) -> g.isTrackSelected(i) }.takeIf { it >= 0 }?.let { "t$it" },
+        )
+    }
+
+    override fun linkCommand(command: LinkCommand) {
+        when (command.type) {
+            LinkCommand.PLAY -> {
+                if (player.playbackState == Player.STATE_ENDED) player.seekTo(0)
+                linkEnded = false
+                player.play()
+            }
+            LinkCommand.PAUSE -> player.pause()
+            LinkCommand.SEEK -> command.positionMs?.let {
+                linkEnded = false
+                player.seekTo(it.coerceAtLeast(0))
+            }
+            LinkCommand.STOP -> {
+                link = null
+                _ui.update { it.copy(finished = true) }
+            }
+            LinkCommand.AUDIO -> command.track?.removePrefix("a")?.toIntOrNull()
+                ?.let { trackEntries(C.TRACK_TYPE_AUDIO).getOrNull(it) }
+                ?.let { (g, i) -> selectTrack(g, i) }
+            LinkCommand.SUBTITLE -> {
+                val track = command.track
+                when {
+                    track == null -> disableSubtitles()
+                    track.startsWith("x:") -> selectExternal(track.removePrefix("x:"))
+                    else -> track.removePrefix("t").toIntOrNull()
+                        ?.let { trackEntries(C.TRACK_TYPE_TEXT).getOrNull(it) }
+                        ?.let { (g, i) -> selectTrack(g, i) }
+                }
+            }
+        }
+    }
+
+    /** The phone's audio and subtitle languages on top of what this TV remembered for the file. */
+    private fun linkTracks(memory: TrackMemory, l: LinkArgs): TrackMemory {
+        var m = memory
+        if (l.audioLanguage != null) m = m.copy(audioIndex = null, audioLanguage = l.audioLanguage)
+        m = when (l.subtitleLanguage) {
+            null -> m
+            LinkPlay.SUBTITLES_OFF -> m.copy(subtitleMode = TrackMemory.SUB_OFF)
+            else -> m.copy(subtitleMode = TrackMemory.SUB_EMBEDDED, subtitleIndex = null, subtitleLanguage = l.subtitleLanguage)
+        }
+        return m
+    }
+
     override fun onCleared() {
         saveProgress()
+        container.tvLinkHost.detach(this, finished = linkEnded)
         sleepJob?.cancel()
         enhancer?.release()
         player.removeListener(listener)

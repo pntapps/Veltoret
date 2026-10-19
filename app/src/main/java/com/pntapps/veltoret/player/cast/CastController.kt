@@ -6,7 +6,9 @@ import android.net.wifi.WifiManager
 import android.os.PowerManager
 import android.util.Log
 import androidx.annotation.OptIn
+import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSpec
 import com.google.android.gms.cast.MediaInfo
 import com.google.android.gms.cast.MediaLoadRequestData
 import com.google.android.gms.cast.MediaMetadata
@@ -24,8 +26,17 @@ import com.google.android.gms.common.images.WebImage
 import com.pntapps.veltoret.AppContainer
 import com.pntapps.veltoret.BuildConfig
 import com.pntapps.veltoret.data.db.MediaFileEntity
+import com.pntapps.veltoret.data.tvlink.LinkCommand
+import com.pntapps.veltoret.data.tvlink.LinkException
+import com.pntapps.veltoret.data.tvlink.LinkPlay
+import com.pntapps.veltoret.data.tvlink.LinkStatus
+import com.pntapps.veltoret.data.tvlink.LinkTrack
+import com.pntapps.veltoret.data.tvlink.LinkTv
+import com.pntapps.veltoret.data.tvlink.TvLink
 import com.pntapps.veltoret.ui.util.isTv
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,6 +45,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.net.DatagramSocket
 import java.net.InetAddress
+
+/** An audio track the TV can play instead of the file's default one ([CastAudio]). */
+data class CastAudioOption(val track: Long, val label: String, val detail: String)
 
 /** One subtitle for the Chromecast, already converted to WebVTT. */
 data class CastSubtitle(val id: String, val label: String, val language: String?, val vtt: String)
@@ -53,6 +67,13 @@ data class CastMedia(
     val activeSubtitle: String? = null,
     /** Set when the audio is a format Chromecasts usually can't decode (DTS, TrueHD). */
     val audioWarning: String? = null,
+    /** The MKV track number of the audio to play; the file's other audio tracks are hidden from the TV. */
+    val audioTrack: Long? = null,
+    /** The audio tracks to choose from (MKV with several); empty when the TV gets the file as it is. */
+    val audioOptions: List<CastAudioOption> = emptyList(),
+    /** "Play on TV": the phone's audio language and subtitle choice (a language or LinkPlay.SUBTITLES_OFF). */
+    val audioLanguage: String? = null,
+    val subtitleLanguage: String? = null,
 )
 
 data class CastState(
@@ -69,12 +90,23 @@ data class CastState(
     val finished: Boolean = false,
     val error: String? = null,
     val activeSubtitle: String? = null,
+    /** Connected to Veltoret on a TV ("Play on TV") rather than a Chromecast. */
+    val link: LinkTv? = null,
+    /** "Play on TV": LinkStatus.SOURCE_TV (its own copy) or SOURCE_PHONE (streaming from this phone). */
+    val linkSource: String? = null,
+    val linkAudio: List<LinkTrack> = emptyList(),
+    val linkAudioSelected: String? = null,
+    val linkSubtitles: List<LinkTrack> = emptyList(),
+    val linkSubtitleSelected: String? = null,
 )
 
 /**
  * Chromecast through Google Cast's Default Media Receiver: no receiver app or server of our own. Videos
  * stream from [CastServer] on the phone. Watch progress is saved like local playback, so casting and the
  * phone resume each other. Cast's own media notification gives lock-screen and notification controls.
+ *
+ * Also "Play on TV" ([connectLink]): Veltoret on a TV plays the title itself (its own copy when it has
+ * one, else this phone's stream from [CastServer]) and this phone is the remote, through the same state.
  */
 @OptIn(UnstableApi::class)
 class CastController(private val context: Context, private val container: AppContainer) {
@@ -88,6 +120,7 @@ class CastController(private val context: Context, private val container: AppCon
     private var wifiLock: WifiManager.WifiLock? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private var lastSavedAt = 0L
+    private var linkJob: Job? = null
 
     /** Sets Cast up on the main thread; returns false where it isn't available (TV, no Play services). */
     fun init(): Boolean {
@@ -124,6 +157,7 @@ class CastController(private val context: Context, private val container: AppCon
     }
 
     private fun onConnected(s: CastSession) {
+        if (_state.value.link != null) disconnectLink(stopTv = true)
         session = s
         s.remoteMediaClient?.let { client ->
             client.registerCallback(mediaCallback)
@@ -146,7 +180,119 @@ class CastController(private val context: Context, private val container: AppCon
 
     /** Stops casting (and the video on the TV). */
     fun disconnect() {
+        if (_state.value.link != null) return disconnectLink(stopTv = true)
         castContext?.sessionManager?.endCurrentSession(true)
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // "Play on TV" (Veltoret on the TV)
+    // ---------------------------------------------------------------------------------------------
+
+    /** Connects to Veltoret on [tv] (already paired); the open video goes there like a cast. */
+    fun connectLink(tv: LinkTv) {
+        if (session != null) castContext?.sessionManager?.endCurrentSession(true)
+        linkJob?.cancel()
+        _state.update { CastState(available = it.available, connected = true, deviceName = tv.name, link = tv, positionMs = it.positionMs, media = it.media) }
+        linkJob = container.appScope.launch { pollLink(tv) }
+    }
+
+    private fun disconnectLink(stopTv: Boolean) {
+        val tv = _state.value.link ?: return
+        linkJob?.cancel()
+        linkJob = null
+        saveProgress()
+        if (stopTv) container.appScope.launch { runCatching { container.tvLink.command(tv, LinkCommand(LinkCommand.STOP)) } }
+        server.stop()
+        releaseLocks()
+        _state.update { CastState(available = it.available, positionMs = it.positionMs, media = it.media) }
+    }
+
+    private fun loadLink(tv: LinkTv, media: CastMedia, startMs: Long) {
+        _state.update {
+            it.copy(media = media, finished = false, error = null, positionMs = startMs, buffering = true, playing = false, linkSource = null)
+        }
+        container.appScope.launch(Dispatchers.IO) {
+            try {
+                // The TV plays its own copy when it has one; the phone's stream is the fallback.
+                server.start(phoneAddressFacing(InetAddress.getByName(tv.host)))
+                val stream = TvLink.streamUrl(server.media("v${media.fileId.hashCode().toUInt()}", media.uri, mimeFor(media), media.file?.sizeBytes))
+                val f = media.file
+                val request = LinkPlay(
+                    title = media.title, subtitle = media.subtitle,
+                    fileId = media.fileId, accountEmail = f?.accountEmail.orEmpty(), fileName = f?.name,
+                    movieId = f?.movieId, showId = f?.showId, season = f?.season, episode = f?.episode,
+                    streamUrl = stream, startMs = startMs,
+                    audioLanguage = media.audioLanguage, subtitleLanguage = media.subtitleLanguage,
+                )
+                val source = container.tvLink.play(tv, request)
+                if (source == LinkStatus.SOURCE_PHONE) withContext(Dispatchers.Main) { acquireLocks() }
+                _state.update { it.copy(linkSource = source) }
+            } catch (e: Exception) {
+                if (BuildConfig.DEBUG) Log.w("VeltoretLink", "play failed", e)
+                _state.update { it.copy(error = e.message ?: "Couldn't play on ${tv.name}", buffering = false) }
+            }
+        }
+    }
+
+    private fun linkCommand(command: LinkCommand) {
+        val tv = _state.value.link ?: return
+        container.appScope.launch {
+            runCatching { container.tvLink.command(tv, command) }
+                .onFailure { e -> _state.update { it.copy(error = e.message) } }
+        }
+    }
+
+    fun selectLinkAudio(id: String) {
+        _state.update { it.copy(linkAudioSelected = id) }
+        linkCommand(LinkCommand(LinkCommand.AUDIO, track = id))
+    }
+
+    fun selectLinkSubtitle(id: String?) {
+        _state.update { it.copy(linkSubtitleSelected = id) }
+        linkCommand(LinkCommand(LinkCommand.SUBTITLE, track = id))
+    }
+
+    /** Follows the TV once a second: position, play state, its real audio and subtitle tracks. */
+    private suspend fun pollLink(tv: LinkTv) {
+        var wasActive = false
+        var failures = 0
+        while (true) {
+            delay(1_000)
+            val status = runCatching { container.tvLink.status(tv) }.getOrElse { e ->
+                if (++failures >= 6) _state.update { it.copy(error = (e as? LinkException)?.message ?: "Lost touch with ${tv.name}") }
+                null
+            } ?: continue
+            failures = 0
+            if (!status.active) {
+                // The player was closed on the TV (Back): the phone takes over where it stopped.
+                if (wasActive && !status.ended) return withContext(Dispatchers.Main) { disconnectLink(stopTv = false) }
+                if (status.ended) _state.update { it.copy(playing = false, buffering = false, finished = true) }
+                continue
+            }
+            wasActive = true
+            val wasPlaying = _state.value.playing
+            _state.update {
+                it.copy(
+                    playing = status.playing,
+                    buffering = status.buffering,
+                    positionMs = status.positionMs,
+                    durationMs = status.durationMs.takeIf { d -> d > 0 } ?: it.durationMs,
+                    finished = status.ended,
+                    error = status.error,
+                    linkSource = status.source.ifEmpty { it.linkSource },
+                    linkAudio = status.audio,
+                    linkAudioSelected = status.audioSelected,
+                    linkSubtitles = status.subtitles,
+                    linkSubtitleSelected = status.subtitleSelected,
+                )
+            }
+            val now = System.currentTimeMillis()
+            when {
+                status.ended -> saveProgress(ended = true)
+                wasPlaying && !status.playing -> saveProgress()
+                status.playing && now - lastSavedAt > 10_000 -> saveProgress()
+            }
+        }
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -156,6 +302,7 @@ class CastController(private val context: Context, private val container: AppCon
     /** Sends [media] to the TV, starting at [startMs]. */
     fun load(media: CastMedia, startMs: Long) {
         if (BuildConfig.DEBUG) Log.d("VeltoretCast", "load ${media.title} at $startMs session=${session != null} client=${session?.remoteMediaClient != null}")
+        _state.value.link?.let { return loadLink(it, media, startMs) }
         val s = session ?: return
         val client = s.remoteMediaClient ?: return
         // Cast's own calls must happen on the main thread; only the server and network work go to IO.
@@ -164,7 +311,9 @@ class CastController(private val context: Context, private val container: AppCon
             try {
                 val urls = withContext(Dispatchers.IO) {
                     server.start(phoneAddressFacing(device ?: error("The TV's address is unknown")))
-                    val video = server.media("v${media.fileId.hashCode().toUInt()}", media.uri, mimeFor(media), media.file?.sizeBytes)
+                    val patches = media.audioTrack?.let { keep -> CastAudio.hideAllBut(CastAudio.audioTracks(reader(media.uri)), keep) }.orEmpty()
+                    if (BuildConfig.DEBUG) Log.d("VeltoretCast", "audio track ${media.audioTrack}: ${patches.size} bytes changed")
+                    val video = server.media("v${media.fileId.hashCode().toUInt()}a${media.audioTrack ?: 0}", media.uri, mimeFor(media), media.file?.sizeBytes, patches)
                     video to media.subtitles.mapIndexed { i, sub -> sub to server.text("s$i-${sub.id.hashCode().toUInt()}", sub.vtt) }
                 }
                 val tracks = urls.second.mapIndexed { i, (sub, url) ->
@@ -220,11 +369,19 @@ class CastController(private val context: Context, private val container: AppCon
         }
     }
 
-    fun play() { session?.remoteMediaClient?.play() }
-    fun pause() { session?.remoteMediaClient?.pause() }
+    fun play() {
+        if (_state.value.link != null) return linkCommand(LinkCommand(LinkCommand.PLAY))
+        session?.remoteMediaClient?.play()
+    }
+
+    fun pause() {
+        if (_state.value.link != null) return linkCommand(LinkCommand(LinkCommand.PAUSE))
+        session?.remoteMediaClient?.pause()
+    }
 
     fun seekTo(ms: Long) {
-        session?.remoteMediaClient?.seek(MediaSeekOptions.Builder().setPosition(ms.coerceAtLeast(0)).build())
+        if (_state.value.link != null) linkCommand(LinkCommand(LinkCommand.SEEK, positionMs = ms.coerceAtLeast(0)))
+        else session?.remoteMediaClient?.seek(MediaSeekOptions.Builder().setPosition(ms.coerceAtLeast(0)).build())
         _state.update { it.copy(positionMs = ms.coerceAtLeast(0)) }
     }
 
@@ -282,6 +439,24 @@ class CastController(private val context: Context, private val container: AppCon
     // ---------------------------------------------------------------------------------------------
     // Helpers
     // ---------------------------------------------------------------------------------------------
+
+    /** Reads the file through the player's data sources (Drive, device, SMB). */
+    private fun reader(uri: Uri) = CastAudio.Reader { position, length ->
+        val source = container.mediaDataSources().createDataSource()
+        try {
+            source.open(DataSpec.Builder().setUri(uri).setPosition(position).setLength(length.toLong()).build())
+            val out = java.io.ByteArrayOutputStream(length)
+            val buffer = ByteArray(16 * 1024)
+            while (out.size() < length) {
+                val n = source.read(buffer, 0, minOf(buffer.size, length - out.size()))
+                if (n == C.RESULT_END_OF_INPUT) break
+                out.write(buffer, 0, n)
+            }
+            out.toByteArray()
+        } finally {
+            runCatching { source.close() }
+        }
+    }
 
     /** The phone's address on the network the Chromecast is on (a UDP "connect" picks the right interface). */
     private fun phoneAddressFacing(device: InetAddress): InetAddress {

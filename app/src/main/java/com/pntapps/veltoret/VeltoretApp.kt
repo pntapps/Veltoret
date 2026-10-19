@@ -15,6 +15,9 @@ import com.pntapps.veltoret.data.library.SyncWorker
 import com.pntapps.veltoret.data.plans.UpcomingWorker
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.map
+import com.pntapps.veltoret.data.tvlink.TvLinkService
+import com.pntapps.veltoret.ui.util.isTv
 
 class VeltoretApp : Application(), SingletonImageLoader.Factory {
 
@@ -32,6 +35,13 @@ class VeltoretApp : Application(), SingletonImageLoader.Factory {
             }
             // Alarms don't survive the app being force-stopped either: set reminders again on every start.
             container.plans.restore(this@VeltoretApp, container)
+        }
+        // TV: keep the "Play on TV" listener running so a phone can open Veltoret here.
+        if (isTv()) {
+            container.tvLinkHost.init(this)
+            container.appScope.launch {
+                container.settings.settings.map { it.playFromPhone }.distinctUntilChanged().collect { TvLinkService.start(this@VeltoretApp, it) }
+            }
         }
         // Coming back online: catch up on Drive folders and TMDB matches that were skipped while offline.
         container.appScope.launch {

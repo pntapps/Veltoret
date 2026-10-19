@@ -53,6 +53,8 @@ class PlayerPrefs(context: Context) {
     }
 
     fun updateTrackMemory(videoKey: String, change: (TrackMemory) -> TrackMemory) {
+        // A phone's stream ("Play on TV") gets a new address each time; the phone remembers its own choices.
+        if (com.pntapps.veltoret.data.tvlink.TvLink.isStream(videoKey)) return
         val m = change(trackMemory(videoKey) ?: TrackMemory())
         val raw = listOf(
             m.audioIndex?.toString(), m.audioLanguage, m.subtitleMode, m.subtitleIndex?.toString(),

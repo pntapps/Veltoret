@@ -12,6 +12,17 @@ Notable changes to Veltoret. Newest first. Detailed history is in the git log.
   stopping hands the video back to the phone at the TV's position. Works for Google Drive, device and
   network-share files: the phone streams them to the TV. Subtitle files are converted for the TV; a
   warning appears for DTS or TrueHD audio, which most Chromecasts can't play.
+- **Play on TV**: when Veltoret is also installed on the TV, the Cast button lists it first and sends
+  the title to Veltoret's player on the TV instead of Chromecast, so every audio track, DTS/TrueHD sound
+  and built-in subtitles work. The TV plays the same file or its own copy of the movie or episode when
+  it has one, and otherwise streams it from the phone. The phone is the remote (play/pause, seek, ±10 s,
+  next episode, the TV's audio and subtitle tracks, Stop) and progress carries over both ways. A phone
+  pairs once with a 6-digit code shown on the TV. Veltoret on the TV opens by itself when a phone plays
+  something (TV Settings → Play from your phone; newer TVs need "Display over other apps"), and paired
+  phones can be forgotten there. Chromecast stays available for TVs without Veltoret.
+- **Choose the audio language on a Chromecast**: casting an MKV video with several audio tracks (e.g.
+  Hindi and English) first asks which one the TV should play, and an Audio button on the casting screen
+  switches it while you watch. Chromecasts otherwise always play the file's default track.
 - **Watchlist**: "Watch later" (the bookmark button) on any movie or show page, phone, tablet and TV, and a
   Watchlist row on Home. Movies leave the row once watched; shows stay for their new episodes.
 - **Reminders**: "Remind me…" on a movie, a show or any episode (hold an episode, or tap the bell on one
@@ -52,6 +63,9 @@ Notable changes to Veltoret. Newest first. Detailed history is in the git log.
   The TV player shows the same hint.
 
 ### Fixed
+- **Full button labels on movie and show pages.** On landscape tablets "Resume" was cut to "Resu". The
+  buttons stay on one line: "Mark watched" moved into the ⋮ menu, and on narrow screens the Trailer and
+  then Watchlist buttons move into ⋮ instead of squeezing Play.
 - **ZIP extraction checks Google Drive's free space first.** The ZIP stays in Drive until the end, so
   extracting needs about the ZIP's size free on top of it; the dialog now shows what's needed and what's
   free, and won't start an extraction that can't fit. If Drive fills up part-way, it stops at once with a

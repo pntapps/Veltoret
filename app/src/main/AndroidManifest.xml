@@ -14,6 +14,12 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- TV: "Play on TV" listener (TvLinkService). Connected-device services need a matching permission;
+         multicast is what its DNS-SD announcement uses. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <!-- TV, Android 10+: lets a phone open Veltoret from the background ("Display over other apps"). -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <!-- TVs have no folder picker, so "Videos on this TV" reads Android's video library instead.
          Asked for only when the user chooses that option. -->
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
@@ -78,6 +84,10 @@
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
+        <service
+            android:name=".data.tvlink.TvLinkService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
         <service
             android:name="androidx.work.impl.foreground.SystemForegroundService"
             android:foregroundServiceType="dataSync"

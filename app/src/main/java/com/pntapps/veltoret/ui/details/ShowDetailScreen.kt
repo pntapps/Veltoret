@@ -245,7 +245,6 @@ fun ShowDetailScreen(id: Int, navigator: Navigator) {
     val widthClass = LocalWidthClass.current
     val wide = widthClass != WidthClass.Compact
     val gutter = gutter()
-    var menuOpen by remember { mutableStateOf(false) }
 
     val show = state.show
     if (show == null) {
@@ -280,58 +279,32 @@ fun ShowDetailScreen(id: Int, navigator: Navigator) {
                 if (target?.resuming == true && target.state != null) {
                     VProgress(target.state.progress, Modifier.padding(bottom = 12.dp))
                 }
-                val showIcons: @Composable () -> Unit = {
-                    trailer?.takeIf { online }?.let { TrailerButton(it, compact = !wide) }
-                    WatchlistButton(saved, vm.plans::toggleWatchlist)
-                    Box {
-                        VIconButton(Icons.Rounded.MoreVert, "More", { menuOpen = true }, size = 48.dp)
-                        DropdownMenu(menuOpen, { menuOpen = false }, containerColor = VColors.SurfaceHigh) {
-                            DropdownMenuItem(
-                                text = { Text("Remind me…") },
-                                leadingIcon = { Icon(Icons.Rounded.NotificationsActive, null) },
-                                onClick = { menuOpen = false; reminding = show.name to null },
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Mark season watched") },
-                                leadingIcon = { Icon(Icons.Rounded.DoneAll, null) },
-                                onClick = { menuOpen = false; vm.setSeasonWatched(true) },
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Mark season unwatched") },
-                                leadingIcon = { Icon(Icons.Rounded.RemoveDone, null) },
-                                onClick = { menuOpen = false; vm.setSeasonWatched(false) },
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Fix match") },
-                                leadingIcon = { Icon(Icons.Rounded.Edit, null) },
-                                onClick = {
-                                    menuOpen = false
-                                    navigator.navigate(FixMatchRoute(state.allFileIds, MediaKind.EPISODE.name, show.name))
-                                },
-                            )
+                // One line: Play, Trailer, Watchlist, ⋮ (the least used move into ⋮ when crowded).
+                val label = when {
+                    target == null -> "All caught up"
+                    target.resuming -> "Resume ${Format.episodeCode(target.file.season, target.file.episode)}"
+                    else -> "Play ${Format.episodeCode(target.file.season, target.file.episode)}"
+                }
+                DetailActionRow(
+                    playLabel = label,
+                    play = {
+                        DetailPlayButton(label, Icons.Rounded.PlayArrow, enabled = target != null, fill = !wide) {
+                            target?.let { context.playFile(it.file.driveId, it.file.accountEmail) }
                         }
-                    }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    val label = when {
-                        target == null -> "All caught up"
-                        target.resuming -> "Resume ${Format.episodeCode(target.file.season, target.file.episode)}"
-                        else -> "Play ${Format.episodeCode(target.file.season, target.file.episode)}"
-                    }
-                    VButton(
-                        label,
-                        { target?.let { context.playFile(it.file.driveId, it.file.accountEmail) } },
-                        icon = Icons.Rounded.PlayArrow,
-                        enabled = target != null,
-                        modifier = Modifier.weight(1f, fill = !wide),
-                    )
-                    if (wide) showIcons()
-                }
-                // Phones: three icons beside Play cut its label ("Resume S1 · E10"), so they get their own row.
-                if (!wide) {
-                    Spacer(Modifier.height(10.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) { showIcons() }
-                }
+                    },
+                    trailerKey = trailer?.takeIf { online },
+                    labelledTrailer = wide,
+                    saved = saved,
+                    onToggleWatchlist = vm.plans::toggleWatchlist,
+                    menu = listOf(
+                        DetailMenuItem("Remind me…", Icons.Rounded.NotificationsActive) { reminding = show.name to null },
+                        DetailMenuItem("Mark season watched", Icons.Rounded.DoneAll) { vm.setSeasonWatched(true) },
+                        DetailMenuItem("Mark season unwatched", Icons.Rounded.RemoveDone) { vm.setSeasonWatched(false) },
+                        DetailMenuItem("Fix match", Icons.Rounded.Edit) {
+                            navigator.navigate(FixMatchRoute(state.allFileIds, MediaKind.EPISODE.name, show.name))
+                        },
+                    ),
+                )
                 ReminderList(reminders, vm.plans::cancelReminder)
                 Overview(show.overview)
                 // "Next episode  S3 · E2 "Title" · Friday" while one is announced.

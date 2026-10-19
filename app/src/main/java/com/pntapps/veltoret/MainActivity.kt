@@ -21,6 +21,7 @@ import com.pntapps.veltoret.data.plans.DeepLinks
 import com.pntapps.veltoret.data.settings.AppSettings
 import com.pntapps.veltoret.ui.AppShell
 import com.pntapps.veltoret.ui.tv.TvApp
+import com.pntapps.veltoret.ui.tv.TvLinkPairingPanel
 import com.pntapps.veltoret.ui.tv.TvOnboarding
 import com.pntapps.veltoret.ui.util.isTv
 import com.pntapps.veltoret.ui.onboarding.OnboardingScreen
@@ -35,6 +36,12 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         DeepLinks.consume(this, intent)?.let { container.openRequests.value = it }
+    }
+
+    /** TV: a phone asked to play something while Veltoret couldn't open itself; opening it starts that. */
+    override fun onResume() {
+        super.onResume()
+        if (isTv()) container.tvLinkHost.takePending()?.let(::startActivity)
     }
 
     @Volatile
@@ -76,6 +83,8 @@ class MainActivity : ComponentActivity() {
                             // TVs get the remote-first interface; phones, tablets and foldables the touch one.
                             else -> if (tv) TvApp() else AppShell()
                         }
+                        // "Play on TV": the code a pairing phone asks for.
+                        if (tv) TvLinkPairingPanel()
                     }
                 }
             }

@@ -32,7 +32,8 @@ class CastServer(private val dataSources: DataSource.Factory) {
     private sealed interface Entry {
         val mime: String
         /** [length] is the file size when known (library files), else found on first request. */
-        class Media(val uri: Uri, override val mime: String, var length: Long?) : Entry
+        /** [patches]: bytes changed in the stream (CastAudio hides the audio tracks not chosen). */
+        class Media(val uri: Uri, override val mime: String, var length: Long?, val patches: Map<Long, Byte>) : Entry
         class Text(val bytes: ByteArray, override val mime: String) : Entry
     }
 
@@ -67,8 +68,8 @@ class CastServer(private val dataSources: DataSource.Factory) {
     }
 
     /** The URL the Chromecast loads [uri] from. */
-    fun media(id: String, uri: Uri, mime: String, length: Long?): String {
-        entries[id] = Entry.Media(uri, mime, length?.takeIf { it > 0 })
+    fun media(id: String, uri: Uri, mime: String, length: Long?, patches: Map<Long, Byte> = emptyMap()): String {
+        entries[id] = Entry.Media(uri, mime, length?.takeIf { it > 0 }, patches)
         return url(id)
     }
 
@@ -150,11 +151,14 @@ class CastServer(private val dataSources: DataSource.Factory) {
             source.open(DataSpec.Builder().setUri(entry.uri).setPosition(start).setLength(length ?: C.LENGTH_UNSET.toLong()).build())
             val buffer = ByteArray(256 * 1024)
             var remaining = length ?: Long.MAX_VALUE
+            var position = start
             while (remaining > 0) {
                 val n = source.read(buffer, 0, minOf(buffer.size.toLong(), remaining).toInt())
                 if (n == C.RESULT_END_OF_INPUT) break
+                CastAudio.apply(entry.patches, position, buffer, n)
                 out.write(buffer, 0, n)
                 remaining -= n
+                position += n
             }
         } finally {
             runCatching { source.close() }

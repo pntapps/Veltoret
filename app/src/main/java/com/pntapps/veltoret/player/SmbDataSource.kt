@@ -81,18 +81,24 @@ class SmbDataSource(private val smb: SmbStorage) : BaseDataSource(/* isNetwork =
     }
 }
 
-/** Sends "smb://" URIs to [smb] and everything else to [other] (Drive over HTTP). */
+/** Sends "smb://" URIs to [smb], "vlink://" (a phone streaming to this TV) to [link], everything else to [other] (Drive over HTTP). */
 @OptIn(UnstableApi::class)
-class SchemeRoutingDataSource(private val smb: DataSource, private val other: DataSource) : DataSource {
+class SchemeRoutingDataSource(private val smb: DataSource, private val other: DataSource, private val link: DataSource) : DataSource {
     private var current: DataSource? = null
 
     override fun addTransferListener(transferListener: TransferListener) {
         smb.addTransferListener(transferListener)
         other.addTransferListener(transferListener)
+        link.addTransferListener(transferListener)
     }
 
     override fun open(dataSpec: DataSpec): Long {
-        val source = if (SmbPath.isSmb(dataSpec.uri.toString())) smb else other
+        val source = when {
+            SmbPath.isSmb(dataSpec.uri.toString()) -> smb
+            // A video a phone streams to this TV ("Play on TV").
+            dataSpec.uri.scheme == com.pntapps.veltoret.data.tvlink.TvLink.STREAM_SCHEME -> link
+            else -> other
+        }
         current = source
         return source.open(dataSpec)
     }
@@ -107,6 +113,6 @@ class SchemeRoutingDataSource(private val smb: DataSource, private val other: Da
     }
 
     class Factory(private val smb: DataSource.Factory, private val other: DataSource.Factory) : DataSource.Factory {
-        override fun createDataSource(): DataSource = SchemeRoutingDataSource(smb.createDataSource(), other.createDataSource())
+        override fun createDataSource(): DataSource = SchemeRoutingDataSource(smb.createDataSource(), other.createDataSource(), LinkDataSource())
     }
 }

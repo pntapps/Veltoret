@@ -107,6 +107,12 @@ class AppContainer(context: Context) {
     val playback = com.pntapps.veltoret.data.library.PlaybackResolver(database.mediaFileDao(), database.watchDao(), connectivity)
     /** Chromecast; set up on the main thread by the activities (never on TV). */
     val cast by lazy { com.pntapps.veltoret.player.cast.CastController(appContext, this) }
+    /** "Play on TV": paired TVs (on a phone) or phones (on a TV). */
+    val tvLinkStore by lazy { com.pntapps.veltoret.data.tvlink.TvLinkStore(appContext) }
+    /** The TV's side of "Play on TV" (TvLinkService runs its listener). */
+    val tvLinkHost by lazy { com.pntapps.veltoret.data.tvlink.TvLinkHost(appContext, this) }
+    /** The phone's side of "Play on TV". */
+    val tvLink by lazy { com.pntapps.veltoret.data.tvlink.TvLinkClient(appContext, json, tvLinkStore) }
 
     /**
      * Reads media from Drive (signed in on every open), this device and network shares. The player and

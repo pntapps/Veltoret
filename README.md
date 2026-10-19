@@ -70,7 +70,12 @@ them with a full-featured player.
 - **Chromecast**: cast from Home or the player to a Chromecast or Google TV on your Wi-Fi; the phone
   becomes the remote and streams the file to the TV (Drive, device and network-share files alike),
   with resume, progress, subtitle files and lock-screen controls. Video and audio are decoded by the
-  TV, so DTS/TrueHD audio usually has no sound there (Veltoret warns you).
+  TV, so DTS/TrueHD audio usually has no sound there (Veltoret warns you). For MKV files with several
+  audio tracks you pick the language before casting and can switch it from the casting screen.
+- **Play on TV**: with Veltoret also on the TV, the same Cast button sends the title to Veltoret's own
+  player there: every audio track, DTS/TrueHD sound, built-in subtitles. The TV plays its own copy when
+  its library has one, otherwise the phone streams it. The phone becomes the remote, with the TV's real
+  audio and subtitle tracks. Pair once with a code the TV shows; Veltoret opens on the TV by itself.
 - **Multiple Google accounts**, merged into one library.
 - **Library scans you can follow**: scan everything or a single folder from Settings, with live progress
   (current folder, videos found, new files, TMDB matching), a progress bar and Cancel. Scans keep running

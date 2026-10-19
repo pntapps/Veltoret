@@ -1,5 +1,6 @@
 package com.pntapps.veltoret.player
 
+import com.pntapps.veltoret.player.cast.CastAudioDialog
 import com.pntapps.veltoret.player.cast.CastButton
 import com.pntapps.veltoret.player.cast.CastingScreen
 
@@ -194,8 +195,12 @@ fun PlayerScreen(
             hasNext = castUi.next != null,
             onPrevious = viewModel::playPrevious,
             onNext = viewModel::playNext,
+            onAudio = viewModel::switchCastAudio,
             onExit = onExit,
         )
+        castUi.castAudioChoice?.let { media ->
+            CastAudioDialog(castState.deviceName, media.audioOptions, media.audioTrack, viewModel::chooseCastAudio)
+        }
         return
     }
     val player by viewModel.playerFlow.collectAsStateWithLifecycle()

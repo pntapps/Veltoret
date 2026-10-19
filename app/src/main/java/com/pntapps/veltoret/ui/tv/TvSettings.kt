@@ -1,6 +1,8 @@
 package com.pntapps.veltoret.ui.tv
 
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -37,6 +39,11 @@ import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PersonAdd
 import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material.icons.rounded.Tv
+import androidx.compose.material.icons.rounded.PhoneAndroid
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import com.pntapps.veltoret.data.tvlink.LinkPeer
+import com.pntapps.veltoret.data.tvlink.TvLinkService
+import com.pntapps.veltoret.ui.util.rememberLocalNetworkAccess
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -93,6 +100,7 @@ private sealed interface SettingsDialog {
     data object SubSize : SettingsDialog
     data object TmdbKey : SettingsDialog
     data class Message(val text: String) : SettingsDialog
+    data class ForgetPhone(val phone: LinkPeer) : SettingsDialog
 }
 
 @Composable
@@ -121,6 +129,14 @@ fun TvSettingsScreen(navigator: Navigator) {
         onDenied = { dialog = SettingsDialog.Message("Veltoret needs access to the TV's videos to show them. You can allow it in the TV's Settings → Apps → Veltoret → Permissions.") },
     )
     val hasDevice = accounts.any { LocalStorage.isLocal(it.email) }
+    val phones by context.container.tvLinkStore.peers.collectAsStateWithLifecycle()
+    val withNetwork = rememberLocalNetworkAccess { dialog = SettingsDialog.Message(it) }
+    // Android 10+ lets an app open itself from the background only with "Display over other apps".
+    var overlayAllowed by remember { mutableStateOf(true) }
+    LifecycleResumeEffect(Unit) {
+        overlayAllowed = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || android.provider.Settings.canDrawOverlays(context)
+        onPauseOrDispose { }
+    }
 
     // After a panel or picker closes, focus goes back to the row that opened it (TvFocusMemory); the
     // list is the fallback when that row is gone.
@@ -245,6 +261,32 @@ fun TvSettingsScreen(navigator: Navigator) {
         item { TvListItem("Text size", { dialog = SettingsDialog.SubSize }, trailing = subtitleSizes.firstOrNull { it.first == settings.subtitleScale }?.second ?: "Normal") }
         item { Toggle("Background box", "Dark box behind subtitle text", settings.subtitleBackground, vm::setSubBackground) }
 
+        item { Section("Play from your phone") }
+        item {
+            Toggle(
+                "Play from your phone", "Veltoret on a phone can open this TV, play here and be the remote",
+                settings.playFromPhone,
+            ) { on -> if (on) withNetwork { vm.setPlayFromPhone(true); TvLinkService.start(context, true) } else vm.setPlayFromPhone(false) }
+        }
+        if (settings.playFromPhone && !overlayAllowed) {
+            item {
+                TvListItem(
+                    "Let Veltoret open by itself",
+                    {
+                        val opened = runCatching {
+                            context.startActivity(Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:${context.packageName}")))
+                        }.isSuccess
+                        if (!opened) dialog = SettingsDialog.Message("This TV has no setting for it. Open Veltoret on the TV before playing from your phone.")
+                    },
+                    subtitle = "Allow \"Display over other apps\" so your phone can start Veltoret when it's closed",
+                    leading = Icons.Rounded.ErrorOutline,
+                )
+            }
+        }
+        items(phones, key = { "phone:" + it.id }) { phone ->
+            TvListItem(phone.name, { dialog = SettingsDialog.ForgetPhone(phone) }, subtitle = "Paired phone · select to forget", leading = Icons.Rounded.PhoneAndroid)
+        }
+
         item { Section("Appearance") }
         item { Toggle("Pure black", "True black background for OLED TVs", settings.oledBlack, vm::setOled) }
 
@@ -345,6 +387,13 @@ fun TvSettingsScreen(navigator: Navigator) {
                 TvButton("OK", { dialog = null }, focusRequester = ok)
             }
         }
+        is SettingsDialog.ForgetPhone -> TvConfirmDialog(
+            title = "Forget ${d.phone.name}?",
+            message = "It won't be able to play on this TV until it pairs again with a new code.",
+            confirm = "Forget",
+            onConfirm = { context.container.tvLinkStore.remove(d.phone.id) },
+            onDismiss = { dialog = null },
+        )
         null -> Unit
     }
 }

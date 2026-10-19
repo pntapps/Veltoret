@@ -248,6 +248,11 @@ class PlayerActivity : ComponentActivity() {
         private const val EXTRA_ACCOUNT = "account"
         private const val EXTRA_TITLE = "title"
         private const val EXTRA_FROM_START = "from_start"
+        private const val EXTRA_LINK_START = "link_start"
+        private const val EXTRA_LINK_AUDIO = "link_audio"
+        private const val EXTRA_LINK_SUBTITLES = "link_subtitles"
+        private const val EXTRA_LINK_FROM_PHONE = "link_from_phone"
+        private const val EXTRA_LINK_SUBTITLE = "link_subtitle"
         private const val ACTION_PIP = "com.pntapps.veltoret.PIP_CONTROL"
         private const val EXTRA_PIP_ACTION = "pip_action"
         private const val PIP_PLAY_PAUSE = 1
@@ -259,14 +264,30 @@ class PlayerActivity : ComponentActivity() {
             accountEmail = intent.getStringExtra(EXTRA_ACCOUNT),
             title = intent.getStringExtra(EXTRA_TITLE),
             fromStart = intent.getBooleanExtra(EXTRA_FROM_START, false),
+            link = if (!intent.hasExtra(EXTRA_LINK_START)) null else LinkArgs(
+                startMs = intent.getLongExtra(EXTRA_LINK_START, 0),
+                audioLanguage = intent.getStringExtra(EXTRA_LINK_AUDIO),
+                subtitleLanguage = intent.getStringExtra(EXTRA_LINK_SUBTITLES),
+                fromPhone = intent.getBooleanExtra(EXTRA_LINK_FROM_PHONE, false),
+                subtitle = intent.getStringExtra(EXTRA_LINK_SUBTITLE),
+            ),
         )
 
-        fun intent(context: Context, fileId: String, accountEmail: String?, title: String?, fromStart: Boolean) =
+        fun intent(context: Context, fileId: String, accountEmail: String?, title: String?, fromStart: Boolean, link: LinkArgs? = null) =
             Intent(context, PlayerActivity::class.java)
                 .putExtra(EXTRA_FILE_ID, fileId)
                 .putExtra(EXTRA_ACCOUNT, accountEmail)
                 .putExtra(EXTRA_TITLE, title)
                 .putExtra(EXTRA_FROM_START, fromStart)
+                .apply {
+                    if (link != null) {
+                        putExtra(EXTRA_LINK_START, link.startMs)
+                        putExtra(EXTRA_LINK_AUDIO, link.audioLanguage)
+                        putExtra(EXTRA_LINK_SUBTITLES, link.subtitleLanguage)
+                        putExtra(EXTRA_LINK_FROM_PHONE, link.fromPhone)
+                        putExtra(EXTRA_LINK_SUBTITLE, link.subtitle)
+                    }
+                }
     }
 }
 

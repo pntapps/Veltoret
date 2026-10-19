@@ -180,6 +180,7 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
 
     fun setOled(v: Boolean) = viewModelScope.launch { s.setOledBlack(v) }
     fun setAutoPlay(v: Boolean) = viewModelScope.launch { s.setAutoPlayNext(v) }
+    fun setPlayFromPhone(v: Boolean) = viewModelScope.launch { s.setPlayFromPhone(v) }
     fun setSkip(v: Int) = viewModelScope.launch { s.setSkipSeconds(v) }
     fun setSeek(v: Int) = viewModelScope.launch { s.setSeekSeconds(v) }
     fun setAudioLang(v: String) = viewModelScope.launch { s.setAudioLanguage(v) }

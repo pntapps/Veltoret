@@ -43,7 +43,7 @@ export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"
 
 - **Unit tests** (`app/src/test`): `FilenameParserTest`, `FilenameParserCorpusTest` (one line per naming
   style; add a line for every name that parses wrong), `PlayTargetsTest`, `DriveStreamingUploadTest`, `RelatedTitlesTest`, `TrailerPickTest`, `SmbPathTest`, `SmbDiscoveryTest`,
-  `PairingCryptoTest`, `PlansTest`, `CastTest`. Run
+  `PairingCryptoTest`, `PlansTest`, `CastTest`, `CastAudioTest`, `TvLinkTest`. Run
   them after any change to parsing, play targets or uploads, and add cases for new behavior.
 - **Device tests** (`app/src/androidTest`): **do not run `connectedAndroidTest`**. It uninstalls the app
   afterwards, which wipes the tester's library, accounts and folder permissions, and it runs on every
@@ -75,6 +75,7 @@ app/src/main/java/com/pntapps/veltoret/
 │   ├── storage/         LocalStorage (SAF device folders) + Storage (one facade for Drive, device and SMB)
 │   ├── smb/             Network shares: SmbStorage (smbj), SmbServerStore (encrypted passwords), SmbPath, SmbDiscovery
 │   ├── pairing/         "Use your phone" on TV: PhoneSetupServer (QR page + Send to TV), SendToTv, PairingCrypto
+│   ├── tvlink/          "Play on TV": TvLinkServer/TvLinkService/TvLinkHost (TV), TvLinkClient (phone), TvLinkStore
 │   ├── library/         FilenameParser, LibraryScanner, repositories, PlayTargets, SyncWorker (+ scan notification)
 │   ├── plans/           Watchlist + reminders (PlansRepository, ReminderReceiver), UpcomingWorker, PlanNotifications
 │   ├── tmdb/            TMDB API, models, matching (TmdbRepository.pickBest) and caching
@@ -192,9 +193,10 @@ Each rule below exists because breaking it caused a real bug.
   once per episode (`alerted_episodes` prefs). TVs never post them (Google TV hides app notifications).
 - **Dialogs on scrolling pages go outside the `LazyColumn`.** A dialog emitted from a lazy item disappears
   when that item scrolls out of view (the reminder dialog did).
-- **Detail page buttons**: the icon buttons (Watchlist, Trailer, More) get their own row below Play where
-  they don't fit beside it: movie pages except on landscape tablets, show pages on phones. One row squeezed
-  Play's label ("Pla").
+- **Detail page buttons** (`DetailActionRow`, movie and show pages): always one line, Play then Trailer,
+  Watchlist and ⋮; "Mark watched" lives in ⋮. It measures Play's real label against the space it has
+  (not the width class) and, when crowded, drops Trailer's label, then moves Trailer, then Watchlist into
+  ⋮. A squeezed row cut Play to "Pla" and "Resume" to "Resu"; two rows were rejected as a design.
 - **Database changes need a migration.** Bump the version in `VeltoretDatabase`, add an `AutoMigration` or a
   manual `Migration`, and commit the new schema JSON in `app/schemas`. Never use destructive fallback;
   users would lose their libraries and watch history.
@@ -249,6 +251,31 @@ Each rule below exists because breaking it caused a real bug.
 - The TV decodes everything: no FFmpeg there. DTS/TrueHD get a warning (`castAudioWarning`); subtitles are
   the sidecar/added files converted to WebVTT (`CastSubtitles`, sync offset applied). Embedded MKV
   subtitles aren't sent. Never on TV (`CastController.init` refuses), and Cast needs Play services.
+- **Audio language on a Chromecast** (`CastAudio`, covered by `CastAudioTest`): the receiver reports no
+  audio tracks and always plays the default one, so `CastServer` rewrites the TrackType byte of every
+  other MKV audio track (to 0x20) in the streamed bytes. Same length, so offsets and seeking hold; the
+  file is never changed. MKV only (`castAudioOptions` checks the container); each choice gets its own URL
+  so the receiver doesn't reuse a stream. Casting waits for the player's tracks and saved choice first.
+
+**Play on TV (`data/tvlink`)**
+- Veltoret on a phone sends a title to Veltoret on a TV through `CastController` (`connectLink`; `CastState.link`),
+  so the remote screen, progress saving and next episode are shared with Chromecast. The TV gets every
+  track itself, so the Chromecast audio question is skipped for it.
+- The TV picks the source in `TvLinkHost.play`: the same file id if its library has it (and can play it
+  now), else its own copy (`PlaybackResolver.movieFile` / `episodeFile` by TMDB id), else the phone's
+  stream. The stream is `vlink://` (served by `CastServer`) and read by `LinkDataSource` over a plain socket,
+  because Android blocks cleartext OkHttp. Stream ids are never saved as progress or track memory on the TV.
+- Only `/hello` and pairing are unsigned. `/play`, `/command` and `/status` are HMAC-signed with the paired
+  secret (`TvLink.sign`, ±5 min, repeated signatures refused). Pairing reuses `PairingCrypto` with a code the
+  TV shows (`TvLinkPairingPanel`), a new code after every miss. Secrets live in `TvLinkStore` (Keystore,
+  excluded from backups). Never log or persist what a phone sends beyond that.
+- The TV listener is a `connectedDevice` foreground service (`TvLinkService`) started at app start and at
+  boot, only on TV with **Play from your phone** on; Android 17 TVs need `ACCESS_LOCAL_NETWORK` first.
+  Android 10+ blocks opening an activity from the background without "Display over other apps"
+  (`TvLinkHost.canOpen`); then the request waits in `takePending` until Veltoret is opened.
+- On the TV a linked player (`PlayerArgs.link`) starts at the phone's position and languages, never
+  auto-plays the next episode (the phone sends it) and stays on the last frame when it ends. Back on the
+  TV closes it and the phone takes over; the phone's Stop closes it.
 
 **Offline mode**
 - `Connectivity` (in `data/net`) exposes `online`. Offline, `LibraryRepository.movies()` / `shows()` /

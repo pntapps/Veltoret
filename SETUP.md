@@ -273,6 +273,18 @@ or choose **Use your phone** to skip typing:
 
 The phone must be on the same Wi-Fi as the TV. The QR page sends the password over your home
 network without encryption, once; **Send to TV** encrypts it.
+
+### 📺 Play from your phone on a TV with Veltoret
+
+With Veltoret on both the phone and the TV (same Wi-Fi), tap the **Cast** button on the phone and pick
+the TV marked **Veltoret**. The first time, the TV shows a 6-digit code: type it on the phone. After
+that the phone plays straight on the TV and becomes the remote. The TV uses its own copy of the movie
+or episode when its library has one; otherwise the phone streams it (keep the phone on the Wi-Fi).
+
+Veltoret on the TV opens by itself when the phone sends something (**TV Settings → Play from your
+phone**, on by default). On Android 10 and newer TVs, also allow **Display over other apps** there;
+if the TV has no such setting, open Veltoret on the TV first. Paired phones are listed in the same
+section, where you can forget them. TVs without Veltoret still work through **Chromecast**.
 Network shares only work while this device is on the same network as the server. Deleting a file
 from a network share in **Files** is permanent (there's no trash). On Android 17 and later,
 Veltoret asks for the **Nearby devices** permission the first time, to reach your home network.
@@ -430,6 +442,8 @@ progress and settings.
 | **"Google Drive is full"** while extracting a ZIP, or the Extract button is greyed out | Extracting needs free space about the size of the ZIP, because the ZIP stays until the end | Free up space (Gmail and Google Photos share it) and empty Drive's trash, then extract again; it continues where it stopped. |
 | **"Couldn't reach the server"** for a network share | The server is off, asleep, or this device is on another network (or mobile data) | Turn the server on and join the same Wi-Fi. |
 | **"Wrong username or password"** when adding a network server | The share needs its own login | Use the username and password set on the router, NAS or PC for file sharing. |
+| The phone says **"Open Veltoret on the TV to start it"** | The TV doesn't let apps open themselves | In TV **Settings → Play from your phone**, allow **Display over other apps**, or open Veltoret on the TV first: the video starts once it's open. |
+| A TV with Veltoret isn't in the Cast list | **Play from your phone** is off on the TV, or it's on another network | Turn it on in the TV's Settings, and keep both on the same Wi-Fi. |
 | A server isn't listed in **Add network server** | It doesn't announce itself or isn't on this Wi-Fi | Type its address instead, e.g. `\\192.168.0.10`; your router's admin page lists devices and their addresses. |
 | Sign-in doesn't open on the emulator | Emulator image has no Google Play | Use an emulator image marked **Google Play**, or a real device. |
 

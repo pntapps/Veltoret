@@ -3,11 +3,14 @@
 -->
 <data-extraction-rules>
     <!-- Network server passwords are encrypted with a Keystore key that isn't backed up or transferred;
-         a copy couldn't be decrypted, so it's left out (SmbServerStore.PREFS). -->
+         a copy couldn't be decrypted, so it's left out (SmbServerStore.PREFS). Paired TVs and phones
+         ("Play on TV" secrets, TvLinkStore.PREFS) are the same. -->
     <cloud-backup>
         <exclude domain="sharedpref" path="smb_servers.xml"/>
+        <exclude domain="sharedpref" path="tv_link.xml"/>
     </cloud-backup>
     <device-transfer>
         <exclude domain="sharedpref" path="smb_servers.xml"/>
+        <exclude domain="sharedpref" path="tv_link.xml"/>
     </device-transfer>
 </data-extraction-rules>

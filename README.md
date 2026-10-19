@@ -2,6 +2,8 @@
 
 **Your movies and shows, as a private cinema.**
 
+Developed by [PNT Apps](https://www.pntapps.com) · [pntapps.com](https://www.pntapps.com)
+
 Veltoret is an open-source Android app that turns the video files in your Google Drive, and on your
 phone, SD card or USB drive, into a beautiful Movies and TV Shows library, with posters, cast and episode guides from TMDB, and plays
 them with a full-featured player.
@@ -119,6 +121,14 @@ What changed recently: see **[CHANGELOG.md](CHANGELOG.md)**.
 - Cross-device watch-progress sync via Drive's app-data folder
 - Styled ASS/SSA subtitle rendering (libass)
 
+## Developer
+
+Veltoret is developed by **PNT Apps**.
+
+- Website: [pntapps.com](https://www.pntapps.com)
+- About us: [pntapps.com/about](https://www.pntapps.com/about)
+- Privacy policy: [pntapps.com/privacy](https://www.pntapps.com/privacy)
+
 ## License
 
 Veltoret is free software under the [GNU General Public License v3.0](LICENSE). You may use, study,
@@ -139,7 +149,9 @@ Third-party code:
 
 ## Attribution and trademarks
 
-This product uses the TMDB API but is not endorsed or certified by TMDB. Movie and TV metadata and
+<img src="https://www.themoviedb.org/assets/v4/logos/v2/blue_short-8e7b30f73a4020692ccca9c88bafe5dcb6f8a62a4c6bc55cd9ba82bb2cd95f6c.svg" alt="TMDB" height="16">
+
+This application uses TMDB and the TMDB APIs but is not endorsed, certified, or otherwise approved by TMDB. Movie and TV metadata and
 artwork come from [The Movie Database (TMDB)](https://www.themoviedb.org/).
 
 Google Drive is a trademark of Google LLC. Veltoret is an independent project and is not affiliated

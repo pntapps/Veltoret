@@ -53,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.pntapps.veltoret.ui.components.TmdbAttribution
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pntapps.veltoret.BuildConfig
@@ -342,7 +343,7 @@ private fun TmdbStep(vm: OnboardingViewModel, onNext: () -> Unit) {
             }
         }
         Spacer(Modifier.height(18.dp))
-        Text("This product uses the TMDB API but is not endorsed or certified by TMDB.", style = MaterialTheme.typography.bodySmall, color = VColors.TextFaint)
+        TmdbAttribution(logoHeight = 16.dp)
     }
     if (entering) {
         TvTextDialog(

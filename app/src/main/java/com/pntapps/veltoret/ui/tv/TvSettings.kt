@@ -25,6 +25,11 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Groups
+import androidx.compose.material.icons.rounded.Language
+import androidx.compose.material.icons.rounded.PrivacyTip
+import com.pntapps.veltoret.ui.components.Developer
+import com.pntapps.veltoret.ui.components.TmdbAttribution
 import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material.icons.rounded.LiveTv
 import androidx.compose.material.icons.rounded.Movie
@@ -258,15 +263,12 @@ fun TvSettingsScreen(navigator: Navigator) {
         }
 
         item { Section("About") }
-        item { TvListItem("Veltoret ${BuildConfig.VERSION_NAME}", {}, subtitle = "Free and open source", leading = Icons.Rounded.Info) }
-        item {
-            Text(
-                "This product uses the TMDB API but is not endorsed or certified by TMDB.",
-                style = MaterialTheme.typography.bodySmall,
-                color = VColors.TextFaint,
-                modifier = Modifier.padding(start = 18.dp, top = 8.dp),
-            )
-        }
+        item { TvListItem("Veltoret ${BuildConfig.VERSION_NAME}", {}, subtitle = "Free and open source · Developed by ${Developer.NAME}", leading = Icons.Rounded.Info) }
+        // TVs often have no browser: show the addresses to type on a phone instead of links.
+        item { TvListItem("Website", {}, subtitle = "pntapps.com", leading = Icons.Rounded.Language) }
+        item { TvListItem("About us", {}, subtitle = "pntapps.com/about", leading = Icons.Rounded.Groups) }
+        item { TvListItem("Privacy policy", {}, subtitle = "pntapps.com/privacy", leading = Icons.Rounded.PrivacyTip) }
+        item { TmdbAttribution(Modifier.padding(start = 18.dp, top = 12.dp), logoHeight = 16.dp) }
     }
 
     when (val d = dialog) {

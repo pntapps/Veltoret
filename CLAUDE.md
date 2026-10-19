@@ -279,7 +279,7 @@ Each rule below exists because breaking it caused a real bug.
   otherwise every loading poster recomposes every frame. `entrance` plays once (saved state) because lazy
   lists replayed it each time a row scrolled back into view. Judge smoothness on a **release** build:
   debug Compose is several times slower (Home on a Samsung tablet: ~10% janky frames in debug, ~2% in release).
-- Dark, cinematic design with **no gradients anywhere**: flat surfaces, hairline outlines, amber accent.
+- Dark, cinematic design with **no gradients anywhere** (the only exception is TMDB's unmodified logo): flat surfaces, hairline outlines, amber accent.
   Use the `VColors` tokens and shared components (`Components.kt`, `Motion.kt`).
 - **Use `MaterialTheme.colorScheme.background` for page backgrounds, never `VColors.Background`.**
   "Pure black" mode changes the theme background; hard-coded colors show as lighter bands.
@@ -302,8 +302,11 @@ Each rule below exists because breaking it caused a real bug.
 - Don't name real piracy or release sites in code, tests or docs; use made-up examples like
   `ReleaseSite.at`.
 - Keep license and attribution notices intact: `LICENSE` (GPL-3.0), the Apache header and modification
-  note in `VeltoretMatroskaExtractor.java`, `third_party/fonts/OFL.txt`, and TMDB's "uses the TMDB API
-  but is not endorsed or certified by TMDB" wording in the README and the app's About section. Any new
+  note in `VeltoretMatroskaExtractor.java`, `third_party/fonts/OFL.txt`, and TMDB's attribution: TMDB's API terms
+  (section 3) require **the TMDB logo and the notice** "uses TMDB and the TMDB APIs but is not endorsed,
+  certified, or otherwise approved by TMDB". The app shows both through `TmdbAttribution` (Settings and TV
+  Settings About, both onboardings; logo `res/drawable/tmdb_logo.xml`, TMDB's own gradient, kept smaller than
+  Veltoret's name); the README shows them in Attribution. Developer links (PNT Apps) live in `Developer`. Any new
   dependency must be GPL-3.0 compatible.
 - Commit messages: a short summary line, then what changed and why.
 

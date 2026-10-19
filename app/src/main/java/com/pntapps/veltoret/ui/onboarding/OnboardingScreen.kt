@@ -82,6 +82,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import com.pntapps.veltoret.ui.components.TmdbAttribution
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
@@ -724,11 +725,7 @@ private fun ColumnScope.TmdbStep(vm: OnboardingViewModel, onNext: () -> Unit) {
                 Text("Use my own TMDB key instead", style = MaterialTheme.typography.labelLarge, color = VColors.Amber)
             }
             Spacer(Modifier.height(16.dp))
-            Text(
-                "This product uses the TMDB API but is not endorsed or certified by TMDB.",
-                style = MaterialTheme.typography.bodySmall,
-                color = VColors.TextFaint,
-            )
+            TmdbAttribution()
         }
         return
     }
@@ -799,11 +796,7 @@ private fun ColumnScope.TmdbStep(vm: OnboardingViewModel, onNext: () -> Unit) {
             }
         }
         Spacer(Modifier.height(16.dp))
-        Text(
-            "This product uses the TMDB API but is not endorsed or certified by TMDB.",
-            style = MaterialTheme.typography.bodySmall,
-            color = VColors.TextFaint,
-        )
+        TmdbAttribution()
     }
 }
 

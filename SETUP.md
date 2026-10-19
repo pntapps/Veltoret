@@ -478,5 +478,5 @@ For sharing an APK with friends and family, follow the
 
 <p align="center">
   <b>Stuck?</b> Open an issue with a screenshot of the error card and we'll help.<br/>
-  <sub>This product uses the TMDB API but is not endorsed or certified by TMDB.</sub>
+  <sub>This application uses TMDB and the TMDB APIs but is not endorsed, certified, or otherwise approved by TMDB.</sub>
 </p>

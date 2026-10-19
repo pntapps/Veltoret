@@ -23,6 +23,9 @@ import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.CreateNewFolder
 import androidx.compose.material.icons.rounded.Key
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Language
+import androidx.compose.material.icons.rounded.PrivacyTip
 import androidx.compose.material.icons.rounded.LiveTv
 import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.PersonAdd
@@ -58,6 +61,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalUriHandler
+import com.pntapps.veltoret.ui.components.Developer
+import com.pntapps.veltoret.ui.components.TmdbAttribution
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -200,6 +206,9 @@ fun SettingsScreen(navigator: Navigator) {
     // Where the folder picker opens below the root (a network path the user typed).
     var pickerStart by remember { mutableStateOf<List<Crumb>>(emptyList()) }
     val scope = rememberCoroutineScope()
+    val uriHandler = LocalUriHandler.current
+    // Some devices have no browser; opening a link there would crash.
+    fun openLink(url: String) = runCatching { uriHandler.openUri(url) }.onFailure { vm.messages.tryEmit("No browser to open $url") }
     val pickDeviceFolder = rememberLocalFolderPicker { uri -> scope.launch { deviceFolder = vm.adoptDeviceFolder(uri) } }
 
     LaunchedEffect(Unit) { vm.messages.collect { snackbar.showSnackbar(it) } }
@@ -337,14 +346,15 @@ fun SettingsScreen(navigator: Navigator) {
             item { GroupTitle("About") }
             item {
                 Group {
-                    SettingRow("Veltoret", "Version ${BuildConfig.VERSION_NAME} · open source")
+                    SettingRow("Veltoret", "Version ${BuildConfig.VERSION_NAME} · open source · Developed by ${Developer.NAME}")
                     Divider()
-                    Text(
-                        "This product uses the TMDB API but is not endorsed or certified by TMDB.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = VColors.TextMuted,
-                        modifier = Modifier.padding(16.dp),
-                    )
+                    SettingRow("Website", "pntapps.com", Icons.Rounded.Language) { openLink(Developer.WEBSITE) }
+                    Divider()
+                    SettingRow("About us", "Who makes Veltoret", Icons.Rounded.Info) { openLink(Developer.ABOUT) }
+                    Divider()
+                    SettingRow("Privacy policy", "What happens to your data", Icons.Rounded.PrivacyTip) { openLink(Developer.PRIVACY) }
+                    Divider()
+                    TmdbAttribution(Modifier.padding(16.dp), color = VColors.TextMuted)
                 }
             }
     }

@@ -5,6 +5,10 @@ Notable changes to Veltoret. Newest first. Detailed history is in the git log.
 ## Unreleased
 
 ### Added
+- **About**: Settings now says Veltoret is developed by PNT Apps and links to the website
+  (pntapps.com), About us and the privacy policy. On TV the addresses are shown to type on a phone.
+- **TMDB attribution** now shows TMDB's logo with the notice their API terms require ("uses TMDB and
+  the TMDB APIs but is not endorsed, certified, or otherwise approved by TMDB"), in Settings and onboarding.
 - **Delete permanently from Google Drive** in Files (phone, tablet and TV): files and folders you own can
   now skip Drive's trash. "Move to trash" stays the default; the permanent option always asks first and
   says it can't be undone. It isn't offered for files shared with you.

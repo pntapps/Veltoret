@@ -136,6 +136,19 @@ What changed recently: see **[CHANGELOG.md](CHANGELOG.md)**.
 - Offline downloads
 - Cross-device watch-progress sync via Drive's app-data folder
 - Styled ASS/SSA subtitle rendering (libass)
+- Google TV "Continue watching" row: in-progress titles on the Google TV home screen
+- Profiles: separate progress, Watchlist and recommendations per family member
+- Kids mode: a profile limited by age rating, with a PIN to leave it
+- Chapters and automatic "Skip intro" / "Skip credits" from MKV chapter markers
+- Missing episodes: which episodes of each season aren't in the library
+- Subtitle downloads (OpenSubtitles, with your own key)
+- Match the TV's refresh rate to the video (e.g. 23.976 fps)
+- Custom lists ("MCU in order", "Weekend with kids") as rows on Home
+- Duplicates and storage helper: find extra copies and the space they use
+- Home screen layout: reorder or hide rows, on phone and TV
+- Watch stats and a yearly recap
+- Backup and restore of watch history, lists and settings to Google Drive
+- More languages: TMDB metadata language first, then the app's own text
 
 ## Developer
 

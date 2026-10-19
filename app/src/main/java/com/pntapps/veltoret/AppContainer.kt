@@ -105,6 +105,22 @@ class AppContainer(context: Context) {
     /** A title a notification asked to open (and maybe play); the app shell handles and clears it. */
     val openRequests = kotlinx.coroutines.flow.MutableStateFlow<com.pntapps.veltoret.data.plans.OpenTarget?>(null)
     val playback = com.pntapps.veltoret.data.library.PlaybackResolver(database.mediaFileDao(), database.watchDao(), connectivity)
+    /** Chromecast; set up on the main thread by the activities (never on TV). */
+    val cast by lazy { com.pntapps.veltoret.player.cast.CastController(appContext, this) }
+
+    /**
+     * Reads media from Drive (signed in on every open), this device and network shares. The player and
+     * the Cast server share it.
+     */
+    @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+    fun mediaDataSources(): androidx.media3.datasource.DefaultDataSource.Factory {
+        val http = androidx.media3.datasource.okhttp.OkHttpDataSource.Factory(mediaHttp).setUserAgent("Veltoret")
+        val drive = androidx.media3.datasource.ResolvingDataSource.Factory(http, com.pntapps.veltoret.player.DriveMedia.Resolver(auth))
+        // Network share files ("smb://…") are read with smbj; everything else that isn't on the device is Drive.
+        val upstream = com.pntapps.veltoret.player.SchemeRoutingDataSource.Factory(com.pntapps.veltoret.player.SmbDataSource.Factory(smbStorage), drive)
+        return androidx.media3.datasource.DefaultDataSource.Factory(appContext, upstream)
+    }
+
     val scanner = LibraryScanner(
         database.accountDao(), database.mediaFileDao(), database.catalogDao(), storage, tmdbRepository, settings, connectivity,
     )

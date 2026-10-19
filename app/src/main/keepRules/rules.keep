@@ -26,3 +26,7 @@
 # risk a stripped class breaking sign-in or share listing in release builds only.
 -keep class com.hierynomus.** { *; }
 -keep class com.rapid7.client.dcerpc.** { *; }
+
+# ---- Chromecast ----
+# Cast finds its options provider by the class name in the manifest.
+-keep class com.pntapps.veltoret.player.cast.CastOptionsProvider { *; }

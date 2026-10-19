@@ -1,5 +1,8 @@
 package com.pntapps.veltoret.player
 
+import com.pntapps.veltoret.player.cast.CastButton
+import com.pntapps.veltoret.player.cast.CastingScreen
+
 import android.content.Context
 import android.media.AudioManager
 import android.net.Uri
@@ -178,6 +181,23 @@ fun PlayerScreen(
     onEnterPip: () -> Unit,
     onRotate: () -> Unit,
 ) {
+    // Casting: the phone becomes the remote for the TV.
+    val castState by viewModel.cast.state.collectAsStateWithLifecycle()
+    if (castState.connected && !inPip) {
+        val castUi by viewModel.ui.collectAsStateWithLifecycle()
+        LaunchedEffect(castUi.finished) { if (castUi.finished) onExit() }
+        BackHandler { onExit() }
+        CastingScreen(
+            state = castState.copy(error = castState.error ?: castUi.error),
+            title = castUi.title,
+            hasPrevious = castUi.previous != null,
+            hasNext = castUi.next != null,
+            onPrevious = viewModel::playPrevious,
+            onNext = viewModel::playNext,
+            onExit = onExit,
+        )
+        return
+    }
     val player by viewModel.playerFlow.collectAsStateWithLifecycle()
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -497,6 +517,7 @@ fun PlayerScreen(
                         }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        CastButton(chrome = true)
                         if (ui.isEpisode) ChromeButton(Icons.Rounded.VideoLibrary, "Episodes") { sheet = Sheet.Episodes }
                         if (!narrow) ChromeButton(Icons.Rounded.PictureInPictureAlt, "Picture in picture", onClick = onEnterPip)
                         ChromeButton(Icons.Rounded.LockOpen, "Lock controls") { locked = true; controlsVisible = true; interaction++ }

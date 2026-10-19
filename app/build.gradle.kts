@@ -120,6 +120,8 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.play.services.auth)
+    implementation(libs.play.services.cast.framework)
+    implementation(libs.androidx.mediarouter)
     implementation(libs.zxing.core)
     implementation(libs.smbj)
     implementation(libs.smb.dcerpc) {

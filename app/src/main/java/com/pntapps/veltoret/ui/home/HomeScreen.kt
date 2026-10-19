@@ -118,6 +118,8 @@ fun HomeScreen(navigator: Navigator) {
                     ScanChip(state.scan.phase, state.scan.filesFound)
                     Spacer(Modifier.width(8.dp))
                 }
+                com.pntapps.veltoret.player.cast.CastButton()
+                Spacer(Modifier.width(8.dp))
                 VIconButton(Icons.Rounded.Search, "Search", { navigator.navigate(SearchRoute) })
             }
         }

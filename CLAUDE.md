@@ -43,7 +43,7 @@ export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"
 
 - **Unit tests** (`app/src/test`): `FilenameParserTest`, `FilenameParserCorpusTest` (one line per naming
   style; add a line for every name that parses wrong), `PlayTargetsTest`, `DriveStreamingUploadTest`, `RelatedTitlesTest`, `TrailerPickTest`, `SmbPathTest`, `SmbDiscoveryTest`,
-  `PairingCryptoTest`, `PlansTest`. Run
+  `PairingCryptoTest`, `PlansTest`, `CastTest`. Run
   them after any change to parsing, play targets or uploads, and add cases for new behavior.
 - **Device tests** (`app/src/androidTest`): **do not run `connectedAndroidTest`**. It uninstalls the app
   afterwards, which wipes the tester's library, accounts and folder permissions, and it runs on every
@@ -81,6 +81,7 @@ app/src/main/java/com/pntapps/veltoret/
 │   ├── settings/        DataStore preferences
 │   └── demo/            Debug-only demo library
 ├── player/              PlayerActivity / PlayerScreen / PlayerViewModel, data sources, subtitles
+│   └── cast/            Chromecast: CastController (session, load, progress), CastServer (phone → TV HTTP), screens
 └── ui/                  AppShell + Navigation 3, theme, shared components, one package per screen
 app/src/main/java/androidx/media3/extractor/mkv/VeltoretMatroskaExtractor.java   Patched Media3 file
 ```
@@ -235,6 +236,20 @@ Each rule below exists because breaking it caused a real bug.
   (the add-server form and "Use your phone" panel both ran off the bottom before).
 - `TvFolderPicker` won't pick a server's top level (its list of shares), like the "This TV" root.
 
+**Chromecast (`player/cast`)**
+- Default Media Receiver only (no receiver app). The TV can't read Drive, device or SMB files, so
+  `CastServer` streams them from the phone through `AppContainer.mediaDataSources()` (the player's own
+  sources: keep both on it). It runs only while casting, behind a random token, answers home-network
+  addresses only, supports Range (seeking) and sends CORS headers (the receiver fetches subtitles by XHR).
+- **Cast framework calls must run on the main thread** (`CastSession.getCastDevice` threw "Must be called
+  from the main thread" from IO); only the server and socket work go to `Dispatchers.IO`.
+- While a video is on the TV the phone's player stays paused and `PlayerViewModel.saveProgress` skips it;
+  `CastController.saveProgress` saves the TV's position instead (resume works both ways). Disconnecting
+  seeks the phone's player to the TV's position, paused.
+- The TV decodes everything: no FFmpeg there. DTS/TrueHD get a warning (`castAudioWarning`); subtitles are
+  the sidecar/added files converted to WebVTT (`CastSubtitles`, sync offset applied). Embedded MKV
+  subtitles aren't sent. Never on TV (`CastController.init` refuses), and Cast needs Play services.
+
 **Offline mode**
 - `Connectivity` (in `data/net`) exposes `online`. Offline, `LibraryRepository.movies()` / `shows()` /
   `episodeFiles()` return only titles and episodes with a device copy, and `PlaybackResolver` and the
@@ -340,7 +355,7 @@ Each rule below exists because breaking it caused a real bug.
 
 Don't reverse these without the maintainer:
 
-- English (US) only. Phone, tablet and foldable first; Android TV, offline downloads and Chromecast later.
+- English (US) only. Phone, tablet and foldable first; offline downloads later.
 - Users bring their own TMDB key and Google Cloud OAuth client; the app has no server.
 - Google is optional; device-only use is fully supported.
 - No software video decoding library: modern devices decode 10-bit HEVC in hardware.

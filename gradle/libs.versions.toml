@@ -23,6 +23,9 @@ retrofit = "3.0.0"
 kotlinxSerialization = "1.11.0"
 coroutines = "1.11.0"
 playServicesAuth = "22.0.0"
+# Chromecast: Google Cast sender (Play services, like sign-in) and the media route picker it plugs into.
+playServicesCast = "22.1.0"
+mediarouter = "1.7.0"
 splashscreen = "1.2.0"
 checkerQual = "4.3.1"
 # SMB (network shares): smbj for SMB2/3 file access, dcerpc to list a server's shares.
@@ -76,6 +79,8 @@ kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "coroutines" }
 play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
+play-services-cast-framework = { group = "com.google.android.gms", name = "play-services-cast-framework", version.ref = "playServicesCast" }
+androidx-mediarouter = { group = "androidx.mediarouter", name = "mediarouter", version.ref = "mediarouter" }
 checker-qual = { group = "org.checkerframework", name = "checker-qual", version.ref = "checkerQual" }
 kotlin-gradle-plugin = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin", version.ref = "kotlin" }
 

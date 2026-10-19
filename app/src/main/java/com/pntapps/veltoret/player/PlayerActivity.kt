@@ -82,6 +82,7 @@ class PlayerActivity : ComponentActivity() {
             hide(WindowInsetsCompat.Type.systemBars())
         }
         ContextCompat.registerReceiver(this, pipReceiver, IntentFilter(ACTION_PIP), ContextCompat.RECEIVER_NOT_EXPORTED)
+        container.cast.init()
 
         // The player can be rebuilt (decoder switch): keep the media session and listeners on the live one.
         lifecycleScope.launch {

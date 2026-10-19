@@ -5,6 +5,13 @@ Notable changes to Veltoret. Newest first. Detailed history is in the git log.
 ## Unreleased
 
 ### Added
+- **Chromecast**: a Cast button on Home and in the player (phones and tablets) sends the video to a
+  Chromecast, Google TV or TV with Chromecast built-in on the same Wi-Fi. The phone becomes the remote
+  (artwork, seek bar, play/pause, ±10 s, next episode, subtitles, Stop casting), with controls in the
+  notification and on the lock screen. It resumes where you left off, saves progress as you watch, and
+  stopping hands the video back to the phone at the TV's position. Works for Google Drive, device and
+  network-share files: the phone streams them to the TV. Subtitle files are converted for the TV; a
+  warning appears for DTS or TrueHD audio, which most Chromecasts can't play.
 - **Watchlist**: "Watch later" (the bookmark button) on any movie or show page, phone, tablet and TV, and a
   Watchlist row on Home. Movies leave the row once watched; shows stay for their new episodes.
 - **Reminders**: "Remind me…" on a movie, a show or any episode (hold an episode, or tap the bell on one

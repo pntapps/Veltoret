@@ -55,6 +55,7 @@ class MainActivity : ComponentActivity() {
             intent.getStringExtra("preview_onboarding")?.let { name -> OnboardingStep.entries.firstOrNull { it.name == name } }
         } else null
         val tv = isTv()
+        container.cast.init()
         // Opened from a reminder or new-episode notification (not again after a rotation).
         if (savedInstanceState == null) DeepLinks.consume(this, intent)?.let { container.openRequests.value = it }
         setContent {

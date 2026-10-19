@@ -67,6 +67,10 @@ them with a full-featured player.
 - **ZIP extraction**: season packs uploaded as `.zip` are found during scans and can be unpacked
   back into Drive with one tap, after checking there's room for it in Drive. The archive streams through the phone (nothing is stored on it),
   resumes after interruptions, and the new folder is added to the library automatically.
+- **Chromecast**: cast from Home or the player to a Chromecast or Google TV on your Wi-Fi; the phone
+  becomes the remote and streams the file to the TV (Drive, device and network-share files alike),
+  with resume, progress, subtitle files and lock-screen controls. Video and audio are decoded by the
+  TV, so DTS/TrueHD audio usually has no sound there (Veltoret warns you).
 - **Multiple Google accounts**, merged into one library.
 - **Library scans you can follow**: scan everything or a single folder from Settings, with live progress
   (current folder, videos found, new files, TMDB matching), a progress bar and Cancel. Scans keep running
@@ -121,9 +125,7 @@ What changed recently: see **[CHANGELOG.md](CHANGELOG.md)**.
 
 ## Roadmap
 
-- Android TV (Compose for TV, D-pad focus)
 - Offline downloads
-- Chromecast
 - Cross-device watch-progress sync via Drive's app-data folder
 - Styled ASS/SSA subtitle rendering (libass)
 

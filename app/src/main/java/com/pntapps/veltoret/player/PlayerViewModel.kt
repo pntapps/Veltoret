@@ -39,6 +39,9 @@ import com.pntapps.veltoret.data.library.FilenameParser
 import com.pntapps.veltoret.data.library.WatchKeys
 import com.pntapps.veltoret.data.settings.AppSettings
 import com.pntapps.veltoret.data.tmdb.TmdbImages
+import com.pntapps.veltoret.player.cast.CastMedia
+import com.pntapps.veltoret.player.cast.CastSubtitle
+import com.pntapps.veltoret.player.cast.CastSubtitles
 import com.pntapps.veltoret.ui.util.Format
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -135,6 +138,11 @@ class PlayerViewModel(private val container: AppContainer, args: PlayerArgs) : V
     private var sleepJob: Job? = null
     private var loadJob: Job? = null
 
+    /** Chromecast. While connected, videos play on the TV and this player stays paused. */
+    val cast = container.cast
+    /** The cast reached the end of this file and that was handled (next episode or close). */
+    private var castEndHandled = false
+
     private val listener = object : Player.Listener {
         override fun onPlaybackStateChanged(state: Int) {
             if (state == Player.STATE_ENDED) onEnded()
@@ -192,6 +200,94 @@ class PlayerViewModel(private val container: AppContainer, args: PlayerArgs) : V
                 if (player.isPlaying) saveProgress()
             }
         }
+        // Connecting to a TV hands the video over; disconnecting brings it back, paused where the TV was.
+        viewModelScope.launch {
+            var wasConnected = cast.state.value.connected
+            cast.state.collect { st ->
+                when {
+                    st.connected && !wasConnected -> if (_ui.value.title.isNotEmpty() && _ui.value.error == null) castCurrent(player.currentPosition)
+                    !st.connected && wasConnected -> resumeFromCast(st)
+                    st.connected && st.finished && st.media?.fileId == fileId && !castEndHandled -> {
+                        castEndHandled = true
+                        onCastEnded()
+                    }
+                }
+                wasConnected = st.connected
+            }
+        }
+    }
+
+    private fun castingHere(): Boolean = cast.state.value.let { it.connected && it.media?.fileId == fileId }
+
+    /** Sends the open video to the TV at [startMs]; the phone's player pauses. */
+    fun castCurrent(startMs: Long) {
+        val account = email ?: return
+        player.playWhenReady = false
+        // The phone's "Resumed at …" notice doesn't apply to the TV (and would reappear when casting stops).
+        _ui.update { it.copy(resumedFrom = null) }
+        castEndHandled = false
+        val f = file
+        val id = fileId
+        val ui = _ui.value
+        viewModelScope.launch {
+            val (poster, backdrop) = when {
+                f?.movieId != null -> library.movieEntity(f.movieId)?.let { TmdbImages.poster(it.posterPath, "w500") to TmdbImages.backdrop(it.backdropPath) }
+                f?.showId != null -> library.showEntity(f.showId)?.let { s ->
+                    val ep = if (f.season != null && f.episode != null) library.episode(f.showId, f.season, f.episode) else null
+                    TmdbImages.poster(s.posterPath, "w500") to (TmdbImages.still(ep?.stillPath, "w780") ?: TmdbImages.backdrop(s.backdropPath))
+                }
+                else -> null
+            } ?: (null to null)
+            val subtitles = withContext(Dispatchers.Default) {
+                externals.values.map { sub ->
+                    val lines = sub.cues.map { c -> CastSubtitles.Line(c.startUs, c.endUs, c.cues.joinToString("\n") { cue -> cue.text?.toString().orEmpty() }) }
+                    CastSubtitle(sub.id, sub.label, sub.language, CastSubtitles.toVtt(lines, ui.subtitleOffsetMs * 1000))
+                }
+            }
+            cast.load(
+                CastMedia(
+                    fileId = id, file = f, uri = mediaUri(account), title = ui.title, subtitle = ui.subtitle,
+                    posterUrl = poster, backdropUrl = backdrop, isEpisode = ui.isEpisode,
+                    subtitles = subtitles, activeSubtitle = ui.selectedExternal, audioWarning = castAudioWarning(),
+                ),
+                startMs,
+            )
+        }
+    }
+
+    /**
+     * Chromecasts decode audio themselves and usually can't play DTS or TrueHD; Veltoret can't convert it.
+     * Checks the selected audio track, or the file name before tracks are known.
+     */
+    private fun castAudioWarning(): String? {
+        val selected = player.currentTracks.groups
+            .filter { it.type == C.TRACK_TYPE_AUDIO && it.isSelected }
+            .flatMap { g -> (0 until g.length).filter(g::isTrackSelected).map { g.getTrackFormat(it).sampleMimeType } }
+        val dts = setOf(MimeTypes.AUDIO_DTS, MimeTypes.AUDIO_DTS_HD, MimeTypes.AUDIO_DTS_EXPRESS, MimeTypes.AUDIO_DTS_X)
+        val name = (file?.name ?: "").uppercase()
+        val codec = when {
+            selected.any { it in dts } -> "DTS"
+            selected.any { it == MimeTypes.AUDIO_TRUEHD } -> "Dolby TrueHD"
+            selected.isNotEmpty() -> null
+            Regex("""\bTRUEHD\b""").containsMatchIn(name) -> "Dolby TrueHD"
+            Regex("""\bDTS""").containsMatchIn(name) -> "DTS"
+            else -> null
+        } ?: return null
+        return "This video's audio is $codec, which most Chromecasts can't play, so there may be no sound. Another version of it may work."
+    }
+
+    /** The cast ended: the phone takes over, paused at the TV's position. */
+    private fun resumeFromCast(st: com.pntapps.veltoret.player.cast.CastState) {
+        val media = st.media ?: return
+        if (media.fileId != fileId) return
+        if (st.positionMs > 0) player.seekTo(st.positionMs)
+        player.playWhenReady = false
+    }
+
+    private fun onCastEnded() {
+        val next = _ui.value.next
+        if (next != null && _ui.value.settings.autoPlayNext) playNext()
+        else _ui.update { it.copy(finished = true) }
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -207,11 +303,7 @@ class PlayerViewModel(private val container: AppContainer, args: PlayerArgs) : V
             .setEnableDecoderFallback(true)
             // "Software decoding" = try Android's built-in software decoders before the hardware ones.
             .apply { if (preferSoftware) setMediaCodecSelector(softwareFirst) }
-        val http = OkHttpDataSource.Factory(container.mediaHttp).setUserAgent("Veltoret")
-        val drive = ResolvingDataSource.Factory(http, DriveMedia.Resolver(container.auth))
-        // Network share files ("smb://…") are read with smbj; everything else that isn't on the device is Drive.
-        val upstream = SchemeRoutingDataSource.Factory(SmbDataSource.Factory(container.smbStorage), drive)
-        val dataSource = DefaultDataSource.Factory(context, upstream)
+        val dataSource = container.mediaDataSources()
             .apply { if (com.pntapps.veltoret.BuildConfig.DEBUG) setTransferListener(DebugTransferLog) }
         // Note: never enable "constant bitrate seeking always" — Drive URLs carry no file extension, and
         // that flag lets the MP3/ADTS sniffers claim MKV files (no tracks, invented duration).
@@ -375,10 +467,13 @@ class PlayerViewModel(private val container: AppContainer, args: PlayerArgs) : V
         applyLanguagePreferences(entity?.showId)
         player.setMediaItem(buildItem(), resumeAt)
         player.prepare()
-        player.playWhenReady = true
+        val casting = cast.state.value.connected
+        player.playWhenReady = !casting
 
         // Subtitle files sitting next to the video with the same base name (Movie.srt, Movie.en.srt …).
         if (entity != null) loadSidecarSubtitles(entity)
+        // Connected to a TV: this video plays there (with its subtitle files, loaded just above).
+        if (casting) castCurrent(resumeAt)
     }
 
     private suspend fun episodeLabel(n: MediaFileEntity): String {
@@ -386,9 +481,12 @@ class PlayerViewModel(private val container: AppContainer, args: PlayerArgs) : V
         return listOfNotNull(Format.episodeCode(n.season, n.episode), ep?.name).joinToString("  ·  ")
     }
 
+    // Device files play straight from storage, network share files by their smb:// id; Drive files stream through DriveMedia.
+    private fun mediaUri(account: String): Uri =
+        if (container.storage.isLocal(account) || container.storage.isSmb(account)) Uri.parse(fileId) else DriveMedia.uri(fileId, account)
+
     private fun buildItem(): MediaItem = MediaItem.Builder()
-        // Device files play straight from storage, network share files by their smb:// id; Drive files stream through DriveMedia.
-        .setUri(if (container.storage.isLocal(email) || container.storage.isSmb(email)) Uri.parse(fileId) else DriveMedia.uri(fileId, email!!))
+        .setUri(mediaUri(email!!))
         .setMediaId(fileId)
         .setMediaMetadata(MediaMetadata.Builder().setTitle(_ui.value.title).setSubtitle(_ui.value.subtitle).build())
         .build()
@@ -524,6 +622,8 @@ class PlayerViewModel(private val container: AppContainer, args: PlayerArgs) : V
     // ---------------------------------------------------------------------------------------------
 
     fun saveProgress() {
+        // While this video is on the TV, CastController saves the real position; the paused phone player is stale.
+        if (castingHere()) return
         val duration = player.duration.takeIf { it != C.TIME_UNSET && it > 0 } ?: file?.durationMs ?: return
         val position = player.currentPosition
         val f = file

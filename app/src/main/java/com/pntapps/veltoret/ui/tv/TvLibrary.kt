@@ -35,6 +35,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.pntapps.veltoret.data.storage.LocalStorage
 import com.pntapps.veltoret.player.playFile
 import com.pntapps.veltoret.ui.components.LoadingBox
 import com.pntapps.veltoret.ui.home.HomeViewModel
@@ -64,6 +65,12 @@ fun TvLibraryScreen(isShows: Boolean, navigator: Navigator) {
     val online = rememberOnline()
     val title = if (isShows) "TV Shows" else "Movies"
     var genrePicker by remember { mutableStateOf(false) }
+    var sourcePicker by remember { mutableStateOf(false) }
+    fun sourceLabel(id: String?) = when {
+        id == null -> "All sources"
+        LocalStorage.isLocal(id) -> "This TV"
+        else -> state.sources.firstOrNull { it.id == id }?.label ?: id
+    }
 
     var lastFocused by rememberSaveable { mutableStateOf<String?>(null) }
     val requesters = remember { mutableMapOf<String, FocusRequester>() }
@@ -119,6 +126,9 @@ fun TvLibraryScreen(isShows: Boolean, navigator: Navigator) {
                             item("genre") {
                                 TvChip(state.genre ?: "All genres", state.genre != null, { genrePicker = true })
                             }
+                            if (state.sources.isNotEmpty()) item("source") {
+                                TvChip("Source: ${sourceLabel(state.source)}", state.source != null, { sourcePicker = true })
+                            }
                             item("sort") {
                                 // OK cycles through the sort orders.
                                 TvChip("Sort: ${state.sort.label}", false, {
@@ -161,6 +171,16 @@ fun TvLibraryScreen(isShows: Boolean, navigator: Navigator) {
             selected = state.genre,
             onDismiss = { genrePicker = false },
             onSelect = { vm.setGenre(it); genrePicker = false },
+        )
+    }
+    if (sourcePicker) {
+        TvChoiceDialog(
+            title = "Source",
+            options = listOf<String?>(null) + state.sources.map { it.id },
+            label = { sourceLabel(it) },
+            selected = state.source,
+            onDismiss = { sourcePicker = false },
+            onSelect = { vm.setSource(it); sourcePicker = false },
         )
     }
 }

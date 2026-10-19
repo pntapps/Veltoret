@@ -85,6 +85,9 @@ interface MediaFileDao {
     @Query("SELECT * FROM media_files WHERE kind = 'EPISODE' AND showId IS NOT NULL")
     fun observeEpisodeFiles(): Flow<List<MediaFileEntity>>
 
+    @Query("SELECT DISTINCT movieId AS titleId, accountEmail FROM media_files WHERE movieId IS NOT NULL")
+    fun observeMovieSources(): Flow<List<TitleSource>>
+
     @Query("SELECT * FROM media_files WHERE movieId = :movieId AND accountEmail = 'device' ORDER BY height DESC, sizeBytes DESC LIMIT 1")
     suspend fun deviceCopyOfMovie(movieId: Int): MediaFileEntity?
 

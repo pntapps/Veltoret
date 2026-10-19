@@ -12,6 +12,7 @@ import com.pntapps.veltoret.data.db.SeasonEntity
 import com.pntapps.veltoret.data.db.ShowEntity
 import com.pntapps.veltoret.data.db.ShowRow
 import com.pntapps.veltoret.data.db.SubtitleFileEntity
+import com.pntapps.veltoret.data.db.TitleSource
 import com.pntapps.veltoret.data.net.Connectivity
 import com.pntapps.veltoret.data.storage.LocalStorage
 import kotlinx.coroutines.flow.Flow
@@ -52,6 +53,9 @@ class LibraryRepository(
     fun unmatched(): Flow<List<MediaFileEntity>> = files.observeUnmatched()
     fun folderCounts(): Flow<Map<Long, Int>> = files.observeFolderCounts().map { list -> list.associate { it.folderId to it.videos } }
     fun ignored(): Flow<List<MediaFileEntity>> = files.observeIgnored()
+    /** Which sources hold each movie, for the Movies screen's source filter. */
+    fun movieSources(): Flow<List<TitleSource>> = files.observeMovieSources()
+
     fun episodeFiles(): Flow<List<MediaFileEntity>> = combine(files.observeEpisodeFiles(), connectivity.online) { list, online ->
         if (online) list else list.filter { LocalStorage.isLocal(it.accountEmail) }
     }

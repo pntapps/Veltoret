@@ -221,6 +221,12 @@ data class MovieRow(
     val deviceFiles: Int,
 )
 
+/** One source (account email, "device" or "smb://host") that holds a copy of a movie or an episode of a show. */
+data class TitleSource(
+    val titleId: Int,
+    val accountEmail: String,
+)
+
 data class ShowRow(
     @Embedded val show: ShowEntity,
     val addedAt: Long,

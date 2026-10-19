@@ -24,6 +24,8 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -36,7 +38,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.pntapps.veltoret.AppContainer
+import com.pntapps.veltoret.data.db.AccountEntity
 import com.pntapps.veltoret.data.db.MediaKind
+import com.pntapps.veltoret.data.smb.SmbPath
+import com.pntapps.veltoret.data.storage.LocalStorage
 import com.pntapps.veltoret.data.db.progress
 import com.pntapps.veltoret.data.tmdb.TmdbImages
 import com.pntapps.veltoret.ui.components.EmptyState
@@ -70,6 +75,9 @@ enum class LibraryFilter(val label: String) {
 
 enum class LibrarySort(val label: String) { Recent("Recently added"), Title("Title"), Year("Release year"), Rating("Rating") }
 
+/** A place titles are stored: an account email, [LocalStorage.ACCOUNT] or "smb://host". */
+data class LibrarySource(val id: String, val label: String)
+
 data class LibraryUiState(
     val loading: Boolean = true,
     val items: List<PosterItem> = emptyList(),
@@ -79,9 +87,13 @@ data class LibraryUiState(
     val genre: String? = null,
     val sort: LibrarySort = LibrarySort.Recent,
     val unmatched: Int = 0,
+    /** Sources to filter by; empty when there's only one (or offline, where only device copies show). */
+    val sources: List<LibrarySource> = emptyList(),
+    /** The chosen source, or null for all of them. */
+    val source: String? = null,
 )
 
-private data class Controls(val filter: LibraryFilter, val genre: String?, val sort: LibrarySort)
+private data class Controls(val filter: LibraryFilter, val genre: String?, val sort: LibrarySort, val source: String? = null)
 
 class LibraryEntry(
     val item: PosterItem,
@@ -91,6 +103,8 @@ class LibraryEntry(
     val genres: List<String>,
     val status: LibraryFilter,
     val uhd: Boolean,
+    /** Sources holding a copy of the movie or any episode of the show. */
+    val sources: Set<String>,
 )
 
 abstract class LibraryViewModel : ViewModel() {
@@ -100,11 +114,26 @@ abstract class LibraryViewModel : ViewModel() {
     fun setFilter(f: LibraryFilter) { controls.value = controls.value.copy(filter = f) }
     fun setGenre(g: String?) { controls.value = controls.value.copy(genre = g) }
     fun setSort(s: LibrarySort) { controls.value = controls.value.copy(sort = s) }
+    fun setSource(source: String?) { controls.value = controls.value.copy(source = source) }
 
-    protected fun build(entriesFlow: Flow<List<LibraryEntry>>, unmatched: Flow<Int>): StateFlow<LibraryUiState> =
-        combine(entriesFlow, controls, unmatched) { entries, c, unmatchedCount ->
+    protected fun build(
+        entriesFlow: Flow<List<LibraryEntry>>,
+        unmatched: Flow<Int>,
+        accounts: Flow<List<AccountEntity>>,
+        online: Flow<Boolean>,
+    ): StateFlow<LibraryUiState> =
+        combine(entriesFlow, controls, unmatched, accounts, online) { entries, c, unmatchedCount, accountList, isOnline ->
+            // Device first, then Google accounts, then network servers; only sources that hold something.
+            val present = entries.flatMapTo(HashSet()) { it.sources }
+            val sources = if (!isOnline) emptyList() else accountList
+                .filter { it.email in present }
+                .sortedBy { if (LocalStorage.isLocal(it.email)) 0 else if (SmbPath.isSmb(it.email)) 2 else 1 }
+                .map { LibrarySource(it.email, if (LocalStorage.isLocal(it.email)) LocalStorage.DISPLAY_NAME else if (SmbPath.isSmb(it.email)) it.displayName else it.email) }
+                .takeIf { it.size > 1 }.orEmpty()
+            // A source that's gone (removed, or offline) means all of them.
+            val source = c.source?.takeIf { id -> sources.any { it.id == id } }
             val filtered = entries.filter { e ->
-                (c.genre == null || c.genre in e.genres) && when (c.filter) {
+                (source == null || source in e.sources) && (c.genre == null || c.genre in e.genres) && when (c.filter) {
                     LibraryFilter.All -> true
                     LibraryFilter.UltraHd -> e.uhd
                     else -> e.status == c.filter
@@ -125,14 +154,17 @@ abstract class LibraryViewModel : ViewModel() {
                 genre = c.genre,
                 sort = c.sort,
                 unmatched = unmatchedCount,
+                sources = sources,
+                source = source,
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState())
 }
 
 class MoviesViewModel(container: AppContainer) : LibraryViewModel() {
     override val state = build(
-        combine(container.libraryRepository.movies(), container.watchRepository.observeAll()) { movies, states ->
+        combine(container.libraryRepository.movies(), container.watchRepository.observeAll(), container.libraryRepository.movieSources()) { movies, states, sourceRows ->
             val byKey = states.associateBy { it.key }
+            val sourcesByMovie = sourceRows.groupBy({ it.titleId }, { it.accountEmail }).mapValues { it.value.toSet() }
             movies.map { row ->
                 val m = row.movie
                 val st = byKey["movie:${m.tmdbId}"]
@@ -150,10 +182,13 @@ class MoviesViewModel(container: AppContainer) : LibraryViewModel() {
                         watched = status == LibraryFilter.Watched,
                     ),
                     row.addedAt, m.year ?: 0, m.rating, m.genres.split(',').filter { it.isNotBlank() }, status, row.maxHeight >= 1600,
+                    sourcesByMovie[m.tmdbId].orEmpty(),
                 )
             }
         },
         container.libraryRepository.unmatched().map { list -> list.count { it.kind == MediaKind.MOVIE } },
+        container.accountRepository.observeAccounts(),
+        container.connectivity.online,
     )
 }
 
@@ -163,6 +198,7 @@ class ShowsViewModel(container: AppContainer) : LibraryViewModel() {
             val watchedByShow = states.filter { it.watched && it.showId != null }.groupBy { it.showId!! }
                 .mapValues { (_, list) -> list.mapTo(HashSet()) { it.season to it.episode } }
             val uhdShows = files.filter { it.height >= 1600 }.mapNotNullTo(HashSet()) { it.showId }
+            val sourcesByShow = files.filter { it.showId != null }.groupBy({ it.showId!! }, { it.accountEmail }).mapValues { it.value.toSet() }
             shows.map { row ->
                 val s = row.show
                 val watched = watchedByShow[s.tmdbId].orEmpty()
@@ -182,10 +218,13 @@ class ShowsViewModel(container: AppContainer) : LibraryViewModel() {
                         watched = status == LibraryFilter.Watched,
                     ),
                     row.addedAt, s.year ?: 0, s.rating, s.genres.split(',').filter { it.isNotBlank() }, status, s.tmdbId in uhdShows,
+                    sourcesByShow[s.tmdbId].orEmpty(),
                 )
             }
         },
         container.libraryRepository.unmatched().map { list -> list.count { it.kind == MediaKind.EPISODE } },
+        container.accountRepository.observeAccounts(),
+        container.connectivity.online,
     )
 }
 
@@ -218,7 +257,11 @@ private fun LibraryGridScreen(
     Column(Modifier.fillMaxSize()) {
         ScreenHeader(
             title = title,
-            subtitle = if (state.loading) null else "${state.total} title${if (state.total == 1) "" else "s"}",
+            subtitle = when {
+                state.loading -> null
+                state.source != null -> "${state.items.size} of ${state.total} titles · ${state.sources.first { it.id == state.source }.label}"
+                else -> "${state.total} title${if (state.total == 1) "" else "s"}"
+            },
         ) {
             VIconButton(Icons.Rounded.Search, "Search", { navigator.navigate(SearchRoute) })
             Box {
@@ -229,6 +272,20 @@ private fun LibraryGridScreen(
                             text = { Text(s.label, color = if (s == state.sort) VColors.Amber else VColors.Text) },
                             onClick = { vm.setSort(s); sortOpen = false },
                         )
+                    }
+                    // Source filter: only what's stored on one account, this device or one server.
+                    if (state.sources.isNotEmpty()) {
+                        HorizontalDivider(Modifier.padding(vertical = 4.dp), color = VColors.Outline)
+                        Text(
+                            "SOURCE", style = MaterialTheme.typography.labelSmall, color = VColors.TextMuted,
+                            modifier = Modifier.padding(start = 12.dp, top = 6.dp, bottom = 2.dp),
+                        )
+                        (listOf<LibrarySource?>(null) + state.sources).forEach { src ->
+                            DropdownMenuItem(
+                                text = { Text(src?.label ?: "All sources", color = if (src?.id == state.source) VColors.Amber else VColors.Text) },
+                                onClick = { vm.setSource(src?.id); sortOpen = false },
+                            )
+                        }
                     }
                 }
             }

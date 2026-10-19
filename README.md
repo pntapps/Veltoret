@@ -18,7 +18,8 @@ them with a full-featured player.
   folders, and titles in any script. When the first guess doesn't match, it tries the file's own
   title and trimmed variants before giving up. Anything it can't identify goes to **Fix match**.
 - **Home**: featured titles, Continue Watching, Next Up, Recently Added, Highly Rated and genre rows.
-- **Movies & TV Shows**: poster grids with watched / in-progress / 4K filters, genres and sorting.
+- **Movies & TV Shows**: poster grids with watched / in-progress / 4K filters, genres, sorting,
+  and a source filter (this device, a Google account or a network server).
 - **Detail pages**: overview, cast, quality badges (4K, HDR, HEVC, Atmos…), versions across
   accounts, season tabs, per-episode watched tracking, and **More like this**: TMDB's
   recommendations that are already in your library.

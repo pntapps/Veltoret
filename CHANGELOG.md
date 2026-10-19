@@ -11,6 +11,9 @@ Notable changes to Veltoret. Newest first. Detailed history is in the git log.
 - **Storage space in Files**: how much is used, how much is free and the total, with a small bar, for
   your Google storage (shared with Gmail and Photos), the device volume (internal storage, SD card or
   USB drive) and the shared folder on a network server.
+- **Filter Movies and TV Shows by source**: the sort menu (top right) has a Source section listing This
+  device, each Google account and each network server that holds titles; pick one to see only what's
+  stored there. On TV it's the "Source" chip. It appears when the library spans more than one source.
 
 ### Changed
 - **Smoother scrolling** on Home and in the Movies and TV Shows grids: loading posters no longer redraw

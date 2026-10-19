@@ -136,6 +136,9 @@ Each rule below exists because breaking it caused a real bug.
 - **TMDB matching is strict on purpose** (`TmdbRepository.pickBest`). A partial title match only counts if
   the names are close in length or the year matches, and a short year-less name only matches a title
   with a real vote count. Loosening this lets random clips ("vids.mp4") become featured junk titles.
+- **Source filter** (Movies / TV Shows): a title belongs to every source holding a copy (any episode for
+  shows; `MediaFileDao.observeMovieSources`, `episodeFiles`). The list is hidden offline and with a single
+  source, and a chosen source that disappears falls back to all sources rather than an empty grid.
 - **Device copies win**: Room queries order device files first (`accountEmail = 'device'`), then by quality.
 - **`FilenameParser` regexes run on Android's ICU engine.** Escape `}` and similar characters, and write
   non-ASCII as `\x{hhhh}`; `FilenameParserDeviceTest` exists because the JVM accepted a pattern that crashed

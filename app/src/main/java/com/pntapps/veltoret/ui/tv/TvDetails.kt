@@ -59,6 +59,12 @@ import com.pntapps.veltoret.ui.components.VImage
 import com.pntapps.veltoret.ui.details.EpisodeUi
 import com.pntapps.veltoret.ui.details.MovieDetailViewModel
 import com.pntapps.veltoret.ui.details.TrailerIcon
+import com.pntapps.veltoret.ui.navigation.CollectionRoute
+import com.pntapps.veltoret.data.plans.Plans
+import java.time.LocalDate
+import androidx.compose.material.icons.rounded.Bookmark
+import androidx.compose.material.icons.rounded.BookmarkBorder
+import androidx.compose.material.icons.rounded.Collections
 import com.pntapps.veltoret.ui.details.openTrailer
 import com.pntapps.veltoret.ui.details.ShowDetailViewModel
 import com.pntapps.veltoret.ui.home.PosterItem
@@ -187,6 +193,7 @@ private suspend fun focusOnArrival(lastOpened: Int?, requesterFor: (Int) -> Focu
 fun TvMovieDetailScreen(id: Int, navigator: Navigator) {
     val vm = appViewModel("tv-movie-$id") { MovieDetailViewModel(it, id) }
     val trailer by vm.trailer.collectAsStateWithLifecycle()
+    val saved by vm.plans.saved.collectAsStateWithLifecycle()
     val state by vm.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val online = rememberOnline()
@@ -244,7 +251,9 @@ fun TvMovieDetailScreen(id: Int, navigator: Navigator) {
                 if (watch?.watched == true) TvButton("Mark unwatched", { vm.setWatched(false) }, icon = Icons.Rounded.Undo)
                 else TvButton("Mark watched", { vm.setWatched(true) }, icon = Icons.Rounded.Check)
                 if (state.files.size > 1) TvButton("Versions (${state.files.size})", { versions = true }, icon = Icons.Rounded.Layers)
+                TvWatchlistButton(saved, vm.plans::toggleWatchlist)
                 trailer?.takeIf { online }?.let { key -> TvButton("Trailer", { context.openTrailer(key) }, icon = TrailerIcon) }
+                movie.collectionId?.let { cid -> TvButton("Collection", { navigator.navigate(CollectionRoute(cid)) }, icon = Icons.Rounded.Collections) }
             }
         }
         item("cast") { CastRow(state.cast) }
@@ -273,6 +282,12 @@ fun TvMovieDetailScreen(id: Int, navigator: Navigator) {
     }
 }
 
+/** One composable whose text and icon change, so focus stays on it when toggled. */
+@Composable
+private fun TvWatchlistButton(saved: Boolean, onToggle: () -> Unit) {
+    TvButton(if (saved) "On Watchlist" else "Watch later", onToggle, icon = if (saved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder)
+}
+
 private fun versionDetail(f: MediaFileEntity, online: Boolean): String = listOfNotNull(
     FilenameParser.qualityTags(f.name, f.height).take(3).joinToString(" · ").ifBlank { null },
     Format.bytes(f.sizeBytes),
@@ -292,6 +307,7 @@ private fun versionDetail(f: MediaFileEntity, online: Boolean): String = listOfN
 fun TvShowDetailScreen(id: Int, navigator: Navigator) {
     val vm = appViewModel("tv-show-$id") { ShowDetailViewModel(it, id) }
     val trailer by vm.trailer.collectAsStateWithLifecycle()
+    val saved by vm.plans.saved.collectAsStateWithLifecycle()
     val online = rememberOnline()
     val state by vm.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -319,7 +335,12 @@ fun TvShowDetailScreen(id: Int, navigator: Navigator) {
                 title = show.name,
                 tagline = show.tagline,
                 rating = show.rating,
-                meta = listOf(show.year?.toString(), show.certification, show.network, "${show.seasonCount} season${if (show.seasonCount == 1) "" else "s"}"),
+                meta = listOf(
+                    show.year?.toString(), show.certification, show.network, "${show.seasonCount} season${if (show.seasonCount == 1) "" else "s"}",
+                    Plans.airLabel(show.nextEpisodeAirDate, LocalDate.now())?.let { day ->
+                        "Next episode ${Format.episodeCode(show.nextEpisodeSeason, show.nextEpisodeNumber)} · $day"
+                    },
+                ),
                 pills = show.genres.split(',').filter { it.isNotBlank() }.take(3),
                 overview = show.overview,
             )
@@ -341,6 +362,7 @@ fun TvShowDetailScreen(id: Int, navigator: Navigator) {
                     { vm.setSeasonWatched(!seasonWatched) },
                     icon = if (seasonWatched) Icons.Rounded.Undo else Icons.Rounded.Check,
                 )
+                TvWatchlistButton(saved, vm.plans::toggleWatchlist)
                 trailer?.takeIf { online }?.let { key -> TvButton("Trailer", { context.openTrailer(key) }, icon = TrailerIcon) }
             }
         }

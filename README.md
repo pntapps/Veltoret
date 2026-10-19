@@ -19,7 +19,13 @@ them with a full-featured player.
   tags, daily shows (`Show.2024.03.15`), season folders in several languages, category and quality
   folders, and titles in any script. When the first guess doesn't match, it tries the file's own
   title and trimmed variants before giving up. Anything it can't identify goes to **Fix match**.
-- **Home**: featured titles, Continue Watching, Next Up, Recently Added, Highly Rated and genre rows.
+- **Home**: featured titles, Continue Watching, Next Up, Watchlist, Coming Up (next episodes and when they
+  air), Recently Added, Highly Rated, Collections and genre rows.
+- **Watchlist and reminders**: "Watch later" on any title; "Remind me" on a movie, show or episode at a
+  date and time, with a notification showing the artwork, Play and Snooze. New-episode alerts on air day
+  for shows on your Watchlist.
+- **Collections**: every movie of a collection ("2 of 4 in your library"), from the movie page or Home.
+- **Search** by title, actor, director, creator or collection, with the reason each result matched.
 - **Movies & TV Shows**: poster grids with watched / in-progress / 4K filters, genres, sorting,
   and a source filter (this device, a Google account or a network server).
 - **Detail pages**: overview, cast, quality badges (4K, HDR, HEVC, Atmos…), versions across

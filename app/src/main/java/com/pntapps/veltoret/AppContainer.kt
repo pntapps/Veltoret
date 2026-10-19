@@ -100,6 +100,10 @@ class AppContainer(context: Context) {
         database.accountDao(), database.mediaFileDao(), database.catalogDao(), driveRepository, localStorage, auth,
         smbServers, smbStorage,
     )
+    /** Watchlist and reminders. */
+    val plans = com.pntapps.veltoret.data.plans.PlansRepository(appContext, database.plansDao())
+    /** A title a notification asked to open (and maybe play); the app shell handles and clears it. */
+    val openRequests = kotlinx.coroutines.flow.MutableStateFlow<com.pntapps.veltoret.data.plans.OpenTarget?>(null)
     val playback = com.pntapps.veltoret.data.library.PlaybackResolver(database.mediaFileDao(), database.watchDao(), connectivity)
     val scanner = LibraryScanner(
         database.accountDao(), database.mediaFileDao(), database.catalogDao(), storage, tmdbRepository, settings, connectivity,

@@ -34,6 +34,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.pntapps.veltoret.AppContainer
+import com.pntapps.veltoret.data.db.SearchHit
 import com.pntapps.veltoret.data.tmdb.TmdbImages
 import com.pntapps.veltoret.ui.components.EmptyState
 import com.pntapps.veltoret.ui.components.PosterCard
@@ -64,19 +65,21 @@ class SearchViewModel(container: AppContainer) : ViewModel() {
     private val library = container.libraryRepository
 
     private val ids = query.debounce(200).mapLatest { q ->
-        if (q.isBlank()) emptyList<Int>() to emptyList() else library.searchIds(q.trim())
+        if (q.isBlank()) emptyList<SearchHit>() to emptyList() else library.search(q.trim())
     }
 
-    val state: StateFlow<SearchState> = combine(query, ids, library.movies(), library.shows()) { q, (movieIds, showIds), movies, shows ->
+    val state: StateFlow<SearchState> = combine(query, ids, library.movies(), library.shows()) { q, (movieHits, showHits), movies, shows ->
         val movieMap = movies.associateBy { it.movie.tmdbId }
         val showMap = shows.associateBy { it.show.tmdbId }
+        // The subtitle says why a title matched when it wasn't by name: "1994 · Tom Hanks".
+        fun subtitle(year: Int?, reason: String?) = listOfNotNull(year?.toString(), reason).joinToString(" · ").ifEmpty { null }
         SearchState(
             q,
-            movieIds.mapNotNull { movieMap[it] }.map {
-                PosterItem(it.movie.tmdbId, false, it.movie.title, it.movie.year?.toString(), TmdbImages.poster(it.movie.posterPath))
+            movieHits.mapNotNull { hit -> movieMap[hit.id]?.let { it to hit.reason } }.map { (it, reason) ->
+                PosterItem(it.movie.tmdbId, false, it.movie.title, subtitle(it.movie.year, reason), TmdbImages.poster(it.movie.posterPath))
             },
-            showIds.mapNotNull { showMap[it] }.map {
-                PosterItem(it.show.tmdbId, true, it.show.name, it.show.year?.toString(), TmdbImages.poster(it.show.posterPath))
+            showHits.mapNotNull { hit -> showMap[hit.id]?.let { it to hit.reason } }.map { (it, reason) ->
+                PosterItem(it.show.tmdbId, true, it.show.name, subtitle(it.show.year, reason), TmdbImages.poster(it.show.posterPath))
             },
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SearchState())
@@ -96,7 +99,7 @@ fun SearchScreen(navigator: Navigator) {
         VTextField(
             value = query,
             onValueChange = { vm.query.value = it },
-            label = "Titles, actors, collections",
+            label = "Titles, actors, directors, collections",
             leadingIcon = Icons.Rounded.Search,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             trailing = if (query.isNotEmpty()) {

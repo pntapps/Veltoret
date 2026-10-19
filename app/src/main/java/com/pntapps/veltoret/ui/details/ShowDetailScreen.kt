@@ -83,6 +83,10 @@ import com.pntapps.veltoret.ui.util.appViewModel
 import com.pntapps.veltoret.ui.util.gutter
 import com.pntapps.veltoret.ui.util.rememberOnline
 import kotlinx.coroutines.flow.MutableStateFlow
+import com.pntapps.veltoret.data.plans.Plans
+import java.time.LocalDate
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.material.icons.rounded.NotificationsActive
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -103,6 +107,10 @@ data class EpisodeUi(
     val progress: Float?,
     /** Offline and only stored on Drive. */
     val needsInternet: Boolean = false,
+    /** TMDB's air date ("yyyy-MM-dd"), for "Remind me" on the day it airs. */
+    val airDateIso: String? = null,
+    /** Airs today or later. */
+    val upcoming: Boolean = false,
 )
 
 data class SeasonUi(val number: Int, val label: String, val watched: Int, val available: Int)
@@ -178,10 +186,15 @@ class ShowDetailViewModel(private val container: AppContainer, private val id: I
                 watched = st?.watched == true,
                 progress = st?.takeIf { !it.watched && it.positionMs > 30_000 }?.progress,
                 needsInternet = file != null && !canPlayNow(file.accountEmail, online),
+                airDateIso = meta?.airDate,
+                upcoming = Plans.isUpcoming(meta?.airDate, LocalDate.now()),
             )
         }
         ShowDetailState(false, b.show, seasons, current, episodes, target, cast, b.files.map { it.driveId }, related)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ShowDetailState())
+
+    /** Watch later (with new-episode alerts) and reminders. */
+    val plans = TitlePlans(container, viewModelScope, Plans.TV, id)
 
     private val _trailer = MutableStateFlow<String?>(null)
     /** YouTube id of the show's latest trailer, once TMDB answers; null when there is none (or offline). */
@@ -223,6 +236,10 @@ fun ShowDetailScreen(id: Int, navigator: Navigator) {
     val vm = appViewModel("show-$id") { ShowDetailViewModel(it, id) }
     val state by vm.state.collectAsStateWithLifecycle()
     val trailer by vm.trailer.collectAsStateWithLifecycle()
+    val saved by vm.plans.saved.collectAsStateWithLifecycle()
+    val reminders by vm.plans.reminders.collectAsStateWithLifecycle()
+    // What "Remind me" is for: the whole show (null episode) or one episode.
+    var reminding by remember { mutableStateOf<Pair<String, EpisodeUi?>?>(null) }
     val online = rememberOnline()
     val context = LocalContext.current
     val widthClass = LocalWidthClass.current
@@ -263,23 +280,17 @@ fun ShowDetailScreen(id: Int, navigator: Navigator) {
                 if (target?.resuming == true && target.state != null) {
                     VProgress(target.state.progress, Modifier.padding(bottom = 12.dp))
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    val label = when {
-                        target == null -> "All caught up"
-                        target.resuming -> "Resume ${Format.episodeCode(target.file.season, target.file.episode)}"
-                        else -> "Play ${Format.episodeCode(target.file.season, target.file.episode)}"
-                    }
-                    VButton(
-                        label,
-                        { target?.let { context.playFile(it.file.driveId, it.file.accountEmail) } },
-                        icon = Icons.Rounded.PlayArrow,
-                        enabled = target != null,
-                        modifier = Modifier.weight(1f, fill = !wide),
-                    )
+                val showIcons: @Composable () -> Unit = {
                     trailer?.takeIf { online }?.let { TrailerButton(it, compact = !wide) }
+                    WatchlistButton(saved, vm.plans::toggleWatchlist)
                     Box {
                         VIconButton(Icons.Rounded.MoreVert, "More", { menuOpen = true }, size = 48.dp)
                         DropdownMenu(menuOpen, { menuOpen = false }, containerColor = VColors.SurfaceHigh) {
+                            DropdownMenuItem(
+                                text = { Text("Remind me…") },
+                                leadingIcon = { Icon(Icons.Rounded.NotificationsActive, null) },
+                                onClick = { menuOpen = false; reminding = show.name to null },
+                            )
                             DropdownMenuItem(
                                 text = { Text("Mark season watched") },
                                 leadingIcon = { Icon(Icons.Rounded.DoneAll, null) },
@@ -301,7 +312,39 @@ fun ShowDetailScreen(id: Int, navigator: Navigator) {
                         }
                     }
                 }
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    val label = when {
+                        target == null -> "All caught up"
+                        target.resuming -> "Resume ${Format.episodeCode(target.file.season, target.file.episode)}"
+                        else -> "Play ${Format.episodeCode(target.file.season, target.file.episode)}"
+                    }
+                    VButton(
+                        label,
+                        { target?.let { context.playFile(it.file.driveId, it.file.accountEmail) } },
+                        icon = Icons.Rounded.PlayArrow,
+                        enabled = target != null,
+                        modifier = Modifier.weight(1f, fill = !wide),
+                    )
+                    if (wide) showIcons()
+                }
+                // Phones: three icons beside Play cut its label ("Resume S1 · E10"), so they get their own row.
+                if (!wide) {
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) { showIcons() }
+                }
+                ReminderList(reminders, vm.plans::cancelReminder)
                 Overview(show.overview)
+                // "Next episode  S3 · E2 "Title" · Friday" while one is announced.
+                if (Plans.isUpcoming(show.nextEpisodeAirDate, LocalDate.now())) {
+                    CreditLine(
+                        "Next episode",
+                        listOfNotNull(
+                            Format.episodeCode(show.nextEpisodeSeason, show.nextEpisodeNumber).ifEmpty { null },
+                            show.nextEpisodeName?.let { "“$it”" },
+                            Plans.airLabel(show.nextEpisodeAirDate, LocalDate.now()),
+                        ).joinToString("  ·  "),
+                    )
+                }
                 CreditLine("Created by", show.creator)
                 CreditLine("First aired", Format.date(show.firstAirDate))
             }
@@ -333,6 +376,7 @@ fun ShowDetailScreen(id: Int, navigator: Navigator) {
                         wide = wide,
                         onPlay = { ep.file?.let { context.playFile(it.driveId, it.accountEmail, fromStart = ep.watched) } },
                         onToggleWatched = { vm.toggleEpisode(ep) },
+                        onRemind = { reminding = "${show.name} · ${Format.episodeCode(ep.season, ep.number)}" to ep },
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -343,22 +387,45 @@ fun ShowDetailScreen(id: Int, navigator: Navigator) {
         item("cast") { CastRow(state.cast) }
         item("related") { RelatedRow(state.related) { navigator.navigate(ShowRoute(it.id)) } }
     }
+    // Outside the list: a dialog inside a lazy item disappears when that item scrolls out of view.
+    reminding?.let { (label, ep) ->
+        // An episode that hasn't aired yet can be reminded about on its air day.
+        val airDay = ep?.takeIf { it.upcoming }?.airDateIso?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+        ReminderDialog(
+            label,
+            onDismiss = { reminding = null },
+            onPick = { at -> vm.plans.remind(label, at, ep?.season, ep?.number); reminding = null },
+            extra = listOfNotNull(airDay?.let { "When it airs (${Plans.airLabel(it.toString(), LocalDate.now())}, 8 PM)" to it.atTime(20, 0) }),
+        )
+    }
 }
 
 @Composable
-private fun EpisodeRow(ep: EpisodeUi, wide: Boolean, onPlay: () -> Unit, onToggleWatched: () -> Unit, modifier: Modifier = Modifier) {
+private fun EpisodeRow(
+    ep: EpisodeUi,
+    wide: Boolean,
+    onPlay: () -> Unit,
+    onToggleWatched: () -> Unit,
+    onRemind: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val available = ep.file != null && !ep.needsInternet
+    var menu by remember { mutableStateOf(false) }
+    Box(modifier) {
     Row(
-        modifier
+        Modifier
             .fillMaxWidth()
             .clip(CardShape)
-            .alpha(if (available) 1f else 0.45f)
-            .clickable(enabled = available, onClick = onPlay)
+            // Tapping an episode that can't play opens its menu (Remind me) instead of doing nothing.
+            .combinedClickable(onClick = { if (available) onPlay() else menu = true }, onLongClick = { menu = true })
             .padding(horizontal = 20.dp, vertical = 10.dp),
         verticalAlignment = Alignment.Top,
     ) {
+        // Unavailable episodes are dimmed; an upcoming one's bell stays bright.
+        val dim = if (available) 1f else 0.45f
         Box(
             Modifier
+                .alpha(dim)
                 .width(if (wide) 200.dp else 136.dp)
                 .aspectRatio(16f / 9f)
                 .clip(CardShape)
@@ -380,7 +447,7 @@ private fun EpisodeRow(ep: EpisodeUi, wide: Boolean, onPlay: () -> Unit, onToggl
             }
         }
         Spacer(Modifier.width(14.dp))
-        Column(Modifier.weight(1f)) {
+        Column(Modifier.weight(1f).alpha(dim)) {
             Text(
                 "${ep.number}. ${ep.name}",
                 style = MaterialTheme.typography.titleSmall,
@@ -420,6 +487,30 @@ private fun EpisodeRow(ep: EpisodeUi, wide: Boolean, onPlay: () -> Unit, onToggl
                     .padding(6.dp)
                     .size(24.dp),
             )
+        } else if (ep.upcoming) {
+            Icon(
+                Icons.Rounded.NotificationsActive, "Remind me",
+                tint = VColors.Amber,
+                modifier = Modifier
+                    .padding(start = 8.dp)
+                    .clip(RoundedCornerShape(50))
+                    .clickable(onClick = onRemind)
+                    .padding(6.dp)
+                    .size(24.dp),
+            )
         }
+    }
+    DropdownMenu(menu, { menu = false }, containerColor = VColors.SurfaceHigh) {
+        DropdownMenuItem(
+            text = { Text("Remind me…") },
+            leadingIcon = { Icon(Icons.Rounded.NotificationsActive, null) },
+            onClick = { menu = false; onRemind() },
+        )
+        if (available) DropdownMenuItem(
+            text = { Text(if (ep.watched) "Mark unwatched" else "Mark watched") },
+            leadingIcon = { Icon(if (ep.watched) Icons.Rounded.RadioButtonUnchecked else Icons.Rounded.CheckCircle, null) },
+            onClick = { menu = false; onToggleWatched() },
+        )
+    }
     }
 }

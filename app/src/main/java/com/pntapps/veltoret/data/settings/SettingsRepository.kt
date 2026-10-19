@@ -31,6 +31,8 @@ data class AppSettings(
     val subtitleScale: Float = 1f,
     val subtitleBackground: Boolean = false,
     val lastScanAt: Long = 0,
+    /** Notify on the day a show on the Watchlist airs a new episode. */
+    val newEpisodeAlerts: Boolean = true,
 ) {
     val tmdbKey: String get() = tmdbKeyOverride.ifBlank { BuildConfig.BUNDLED_TMDB_KEY }
 }
@@ -49,6 +51,7 @@ class SettingsRepository(private val context: Context) {
         val subScale = floatPreferencesKey("sub_scale")
         val subBackground = booleanPreferencesKey("sub_background")
         val lastScan = longPreferencesKey("last_scan")
+        val newEpisodeAlerts = booleanPreferencesKey("new_episode_alerts")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
@@ -64,6 +67,7 @@ class SettingsRepository(private val context: Context) {
             subtitleScale = p[Keys.subScale] ?: 1f,
             subtitleBackground = p[Keys.subBackground] ?: false,
             lastScanAt = p[Keys.lastScan] ?: 0L,
+            newEpisodeAlerts = p[Keys.newEpisodeAlerts] ?: true,
         )
     }
 
@@ -80,4 +84,5 @@ class SettingsRepository(private val context: Context) {
     suspend fun setSubtitleScale(value: Float) = context.dataStore.edit { it[Keys.subScale] = value }
     suspend fun setSubtitleBackground(value: Boolean) = context.dataStore.edit { it[Keys.subBackground] = value }
     suspend fun setLastScan(time: Long) = context.dataStore.edit { it[Keys.lastScan] = time }
+    suspend fun setNewEpisodeAlerts(value: Boolean) = context.dataStore.edit { it[Keys.newEpisodeAlerts] = value }
 }

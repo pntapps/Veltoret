@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import com.pntapps.veltoret.data.library.SyncWorker
+import com.pntapps.veltoret.data.plans.UpcomingWorker
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -27,7 +28,10 @@ class VeltoretApp : Application(), SingletonImageLoader.Factory {
             container.accountRepository.ensureServerAccounts()
             if (container.settings.settings.first().onboardingComplete) {
                 SyncWorker.schedulePeriodic(this@VeltoretApp)
+                UpcomingWorker.schedule(this@VeltoretApp)
             }
+            // Alarms don't survive the app being force-stopped either: set reminders again on every start.
+            container.plans.restore(this@VeltoretApp, container)
         }
         // Coming back online: catch up on Drive folders and TMDB matches that were skipped while offline.
         container.appScope.launch {

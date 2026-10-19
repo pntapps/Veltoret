@@ -65,6 +65,9 @@ import com.pntapps.veltoret.ui.util.WidthClass
 import com.pntapps.veltoret.ui.util.appViewModel
 import com.pntapps.veltoret.ui.util.gutter
 import kotlinx.coroutines.flow.MutableStateFlow
+import com.pntapps.veltoret.data.plans.Plans
+import com.pntapps.veltoret.ui.navigation.CollectionRoute
+import androidx.compose.material.icons.rounded.NotificationsActive
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -107,6 +110,9 @@ class MovieDetailViewModel(private val container: AppContainer, private val id: 
     /** YouTube id of the trailer, once TMDB answers; null when there is none (or offline). */
     val trailer: StateFlow<String?> = _trailer
 
+    /** Watch later and reminders. */
+    val plans = TitlePlans(container, viewModelScope, Plans.MOVIE, id)
+
     init {
         // Titles matched before "More like this" existed (or a month ago) get their list now rather than at the next scan.
         if (container.connectivity.isOnline) viewModelScope.launch {
@@ -127,6 +133,9 @@ fun MovieDetailScreen(id: Int, navigator: Navigator) {
     val vm = appViewModel("movie-$id") { MovieDetailViewModel(it, id) }
     val state by vm.state.collectAsStateWithLifecycle()
     val trailer by vm.trailer.collectAsStateWithLifecycle()
+    val saved by vm.plans.saved.collectAsStateWithLifecycle()
+    val reminders by vm.plans.reminders.collectAsStateWithLifecycle()
+    var reminding by remember { mutableStateOf(false) }
     val online = rememberOnline()
     val context = LocalContext.current
     val wide = LocalWidthClass.current != WidthClass.Compact
@@ -168,6 +177,31 @@ fun MovieDetailScreen(id: Int, navigator: Navigator) {
                     Text(Format.remaining(watch.positionMs, watch.durationMs), style = MaterialTheme.typography.bodySmall, color = VColors.TextMuted)
                     Spacer(Modifier.height(12.dp))
                 }
+                // One row on landscape tablets; elsewhere the icon buttons get their own row so Play keeps its label
+                // (five buttons in one row squeezed it to "Pla").
+                val oneRow = LocalWidthClass.current == WidthClass.Expanded
+                val icons: @Composable () -> Unit = {
+                    WatchlistButton(saved, vm.plans::toggleWatchlist)
+                    trailer?.takeIf { online }?.let { TrailerButton(it, compact = true) }
+                    Box {
+                        VIconButton(Icons.Rounded.MoreVert, "More", { menuOpen = true }, size = 48.dp)
+                        DropdownMenu(menuOpen, { menuOpen = false }, containerColor = VColors.SurfaceHigh) {
+                            DropdownMenuItem(
+                                text = { Text("Fix match") },
+                                leadingIcon = { Icon(Icons.Rounded.Edit, null) },
+                                onClick = {
+                                    menuOpen = false
+                                    navigator.navigate(FixMatchRoute(state.files.map { it.driveId }, MediaKind.MOVIE.name, movie.title))
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Remind me…") },
+                                leadingIcon = { Icon(Icons.Rounded.NotificationsActive, null) },
+                                onClick = { menuOpen = false; reminding = true },
+                            )
+                        }
+                    }
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                     VButton(
                         text = when {
@@ -186,25 +220,16 @@ fun MovieDetailScreen(id: Int, navigator: Navigator) {
                         icon = Icons.Rounded.Check,
                         style = if (watch?.watched == true) ButtonStyle.Secondary else ButtonStyle.Ghost,
                     )
-                    // Play, Mark watched and More already fill the row at every width: a labelled button squeezed Play to "Pla".
-                    trailer?.takeIf { online }?.let { TrailerButton(it, compact = true) }
-                    Box {
-                        VIconButton(Icons.Rounded.MoreVert, "More", { menuOpen = true }, size = 48.dp)
-                        DropdownMenu(menuOpen, { menuOpen = false }, containerColor = VColors.SurfaceHigh) {
-                            DropdownMenuItem(
-                                text = { Text("Fix match") },
-                                leadingIcon = { Icon(Icons.Rounded.Edit, null) },
-                                onClick = {
-                                    menuOpen = false
-                                    navigator.navigate(FixMatchRoute(state.files.map { it.driveId }, MediaKind.MOVIE.name, movie.title))
-                                },
-                            )
-                        }
-                    }
+                    if (oneRow) icons()
                 }
+                if (!oneRow) {
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) { icons() }
+                }
+                ReminderList(reminders, vm.plans::cancelReminder)
                 Overview(movie.overview)
                 CreditLine("Director", movie.director)
-                CreditLine("Collection", movie.collectionName)
+                CreditLine("Collection", movie.collectionName, onClick = movie.collectionId?.let { cid -> { navigator.navigate(CollectionRoute(cid)) } })
                 CreditLine("Released", Format.date(movie.releaseDate))
             }
         }
@@ -213,6 +238,7 @@ fun MovieDetailScreen(id: Int, navigator: Navigator) {
             VersionsSection(state.files) { f -> context.playFile(f.driveId, f.accountEmail) }
         }
         item("related") { RelatedRow(state.related) { navigator.navigate(MovieRoute(it.id)) } }
+
         item("attribution") {
             Text(
                 "Metadata and artwork from TMDB",
@@ -221,5 +247,9 @@ fun MovieDetailScreen(id: Int, navigator: Navigator) {
                 modifier = Modifier.padding(start = gutter(), top = 32.dp),
             )
         }
+    }
+    // Outside the list: a dialog inside a lazy item disappears when that item scrolls out of view.
+    if (reminding) {
+        ReminderDialog(movie.title, { reminding = false }, { at -> vm.plans.remind(movie.title, at); reminding = false })
     }
 }

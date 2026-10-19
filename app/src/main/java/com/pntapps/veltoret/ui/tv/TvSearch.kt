@@ -83,7 +83,7 @@ fun TvSearchScreen(navigator: Navigator) {
                             vm.query.value = it
                             lastOpened = null
                         },
-                        label = "Titles, actors, collections",
+                        label = "Titles, actors, directors, collections",
                         leadingIcon = Icons.Rounded.Search,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                         // "Search" on the keyboard closes it and jumps down to the results.
@@ -117,7 +117,7 @@ fun TvSearchScreen(navigator: Navigator) {
                             Icon(Icons.Rounded.Search, null, tint = if (focused) VColors.Amber else VColors.TextMuted)
                             Spacer(Modifier.width(14.dp))
                             Text(
-                                query.ifBlank { "Titles, actors, collections" },
+                                query.ifBlank { "Titles, actors, directors, collections" },
                                 style = MaterialTheme.typography.titleMedium,
                                 color = if (query.isBlank()) VColors.TextMuted else VColors.Text,
                                 maxLines = 1,

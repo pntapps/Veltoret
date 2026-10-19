@@ -8,6 +8,7 @@ import com.pntapps.veltoret.data.db.MediaFileDao
 import com.pntapps.veltoret.data.db.MediaFileEntity
 import com.pntapps.veltoret.data.db.MovieEntity
 import com.pntapps.veltoret.data.db.MovieRow
+import com.pntapps.veltoret.data.db.SearchHit
 import com.pntapps.veltoret.data.db.SeasonEntity
 import com.pntapps.veltoret.data.db.ShowEntity
 import com.pntapps.veltoret.data.db.ShowRow
@@ -78,8 +79,9 @@ class LibraryRepository(
     suspend fun episode(showId: Int, season: Int, episode: Int): EpisodeEntity? = catalog.episode(showId, season, episode)
     suspend fun subtitlesBeside(file: MediaFileEntity): List<SubtitleFileEntity> = files.subtitlesIn(file.parentId)
 
-    suspend fun searchIds(query: String): Pair<List<Int>, List<Int>> =
-        catalog.searchMovieIds(query) to catalog.searchShowIds(query)
+    /** Movie and show matches, each with why it matched when it wasn't the title. */
+    suspend fun search(query: String): Pair<List<SearchHit>, List<SearchHit>> =
+        catalog.searchMovies(query) to catalog.searchShows(query)
 
     /** The episode file that follows [file], preferring a copy from the same account (device copies only when offline). */
     suspend fun nextEpisodeFile(file: MediaFileEntity): MediaFileEntity? {

@@ -21,6 +21,7 @@ import kotlinx.serialization.Serializable
 @Serializable data object ArchivesRoute : NavKey
 @Serializable data class MovieRoute(val id: Int) : NavKey
 @Serializable data class ShowRoute(val id: Int) : NavKey
+@Serializable data class CollectionRoute(val id: Int) : NavKey
 @Serializable data class FixMatchRoute(val fileIds: List<String>, val kind: String, val query: String) : NavKey
 
 data class TopLevelDestination(val route: NavKey, val label: String, val icon: ImageVector)

@@ -24,6 +24,8 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.CreateNewFolder
 import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.NotificationsActive
+import com.pntapps.veltoret.data.plans.Plans
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.PrivacyTip
 import androidx.compose.material.icons.rounded.LiveTv
@@ -184,6 +186,10 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     fun setSubLang(v: String) = viewModelScope.launch { s.setSubtitleLanguage(v) }
     fun setSubScale(v: Float) = viewModelScope.launch { s.setSubtitleScale(v) }
     fun setSubBackground(v: Boolean) = viewModelScope.launch { s.setSubtitleBackground(v) }
+    fun setNewEpisodeAlerts(v: Boolean) = viewModelScope.launch { s.setNewEpisodeAlerts(v) }
+
+    val reminders = container.plans.observeReminders().stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    fun cancelReminder(id: Long) = viewModelScope.launch { container.plans.cancelReminder(id) }
 }
 
 @Composable
@@ -196,6 +202,7 @@ fun SettingsScreen(navigator: Navigator) {
     val unmatched by vm.unmatched.collectAsStateWithLifecycle()
     val archives by vm.archives.collectAsStateWithLifecycle()
     val folderCounts by vm.folderCounts.collectAsStateWithLifecycle()
+    val reminders by vm.reminders.collectAsStateWithLifecycle()
     val askNotifications = rememberNotificationPermission()
     val snackbar = remember { SnackbarHostState() }
     var pickerFor by remember { mutableStateOf<String?>(null) }
@@ -330,6 +337,49 @@ fun SettingsScreen(navigator: Navigator) {
                     )
                     Divider()
                     SwitchRow("Background box", "Dark box behind subtitle text", settings.subtitleBackground, vm::setSubBackground)
+                }
+            }
+
+            item { GroupTitle("Reminders & alerts") }
+            item {
+                Group {
+                    SwitchRow(
+                        "New episode alerts",
+                        "A notification on the day a show on your Watchlist airs a new episode",
+                        settings.newEpisodeAlerts,
+                        { on -> if (on) askNotifications(); vm.setNewEpisodeAlerts(on) },
+                    )
+                    if (reminders.isEmpty()) {
+                        Divider()
+                        Text(
+                            "No reminders. Use \"Remind me\" on a movie, show or episode.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = VColors.TextMuted,
+                            modifier = Modifier.padding(16.dp),
+                        )
+                    }
+                    if (reminders.isNotEmpty() && !com.pntapps.veltoret.data.plans.PlanNotifications.canPost(androidx.compose.ui.platform.LocalContext.current)) {
+                        Divider()
+                        Text(
+                            "Notifications are off for Veltoret, so reminders can't appear. Turn them on in Android's settings for the app.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = VColors.Danger,
+                            modifier = Modifier.padding(16.dp),
+                        )
+                    }
+                    val now = java.time.LocalDateTime.now()
+                    reminders.forEach { r ->
+                        Divider()
+                        Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Rounded.NotificationsActive, null, tint = VColors.Amber)
+                            Spacer(Modifier.width(14.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(r.title, style = MaterialTheme.typography.titleSmall, maxLines = 1)
+                                Text(Plans.reminderLabel(r.at, now), style = MaterialTheme.typography.bodySmall, color = VColors.TextMuted)
+                            }
+                            IconButton({ vm.cancelReminder(r.id) }) { Icon(Icons.Rounded.Close, "Cancel reminder", tint = VColors.TextMuted) }
+                        }
+                    }
                 }
             }
 

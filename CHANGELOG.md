@@ -5,6 +5,20 @@ Notable changes to Veltoret. Newest first. Detailed history is in the git log.
 ## Unreleased
 
 ### Added
+- **Watchlist**: "Watch later" (the bookmark button) on any movie or show page, phone, tablet and TV, and a
+  Watchlist row on Home. Movies leave the row once watched; shows stay for their new episodes.
+- **Reminders**: "Remind me…" on a movie, a show or any episode (hold an episode, or tap the bell on one
+  that hasn't aired). Pick tonight, tomorrow, Saturday, the air day, or any date and time. The notification
+  shows the title's artwork with **Play** and **Snooze 1 hour**; reminders survive restarts and are listed
+  (and can be cancelled) in Settings → Reminders & alerts. Phone and tablet.
+- **Upcoming episodes**: show pages say when the next episode airs ("Next episode S3 · E2 · Friday"),
+  and a **Coming Up** row on Home lists the next episodes of shows you're watching or saved. On the day a
+  show on your Watchlist airs a new episode you get a notification (switch it off in Settings).
+- **Collections**: "Collection" on a movie page opens the whole collection, e.g. "Anaconda Collection ·
+  1 of 4 in your library", with the movies you don't have shown dimmed. Collections you own two or more
+  movies of get a row on Home. On TV too.
+- **Smarter search**: also finds directors and show creators, and says why a title matched
+  ("1994 · Tom Hanks", "Directed by Christopher Nolan").
 - **Trailers**: movie and show pages have a Trailer button (an icon on movie pages) that plays the
   official trailer from TMDB in the YouTube app, or the browser without it. Movies get their original
   trailer, shows their latest. It's hidden offline and when TMDB lists no trailer. On TV too.

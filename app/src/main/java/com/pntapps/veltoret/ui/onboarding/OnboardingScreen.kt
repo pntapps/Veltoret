@@ -190,6 +190,7 @@ class OnboardingViewModel(private val container: AppContainer) : ViewModel() {
         // App scope: the first scan keeps going even if the user leaves onboarding early.
         container.appScope.launch { container.scanner.scanAll() }
         SyncWorker.schedulePeriodic(container.appContext)
+        com.pntapps.veltoret.data.plans.UpcomingWorker.schedule(container.appContext)
     }
 
     fun finish() = viewModelScope.launch { container.settings.setOnboardingComplete(true) }

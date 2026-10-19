@@ -51,7 +51,9 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.pntapps.veltoret.ui.navigation.FilesRoute
+import com.pntapps.veltoret.ui.navigation.CollectionRoute
 import com.pntapps.veltoret.ui.navigation.FixMatchRoute
+import com.pntapps.veltoret.ui.navigation.HandleOpenRequests
 import com.pntapps.veltoret.ui.navigation.HomeRoute
 import com.pntapps.veltoret.ui.navigation.MovieRoute
 import com.pntapps.veltoret.ui.navigation.MoviesRoute
@@ -91,6 +93,7 @@ fun TvApp() {
     var railFocused by remember { mutableStateOf(false) }
     val railRequester = remember { FocusRequester() }
     val online = rememberOnline()
+    HandleOpenRequests(navigator)
 
     // Back: content → rail → Home → leave the app (the handler steps aside on Home's rail).
     BackHandler(enabled = top in TvTabRoutes && !(top == HomeRoute && railFocused)) {
@@ -131,6 +134,7 @@ fun TvApp() {
                     entry<FixMatchRoute> { TvFixMatchScreen(it, navigator) }
                     entry<MovieRoute> { TvMovieDetailScreen(it.id, navigator) }
                     entry<ShowRoute> { TvShowDetailScreen(it.id, navigator) }
+                    entry<CollectionRoute> { TvCollectionScreen(it.id, navigator) }
                 },
             )
         }

@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import androidx.room.Update
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 
@@ -258,18 +259,80 @@ interface CatalogDao {
         pruneMovies(); pruneShows(); pruneSeasons(); pruneEpisodes(); pruneCredits(); pruneRecommendations()
     }
 
+    /** Title, original title, director, collection or cast; title matches first. */
     @Query(
-        """SELECT DISTINCT m.tmdbId FROM movies m LEFT JOIN credits c ON c.mediaType = 'movie' AND c.mediaId = m.tmdbId
-           WHERE m.title LIKE '%' || :q || '%' OR m.originalTitle LIKE '%' || :q || '%' OR c.name LIKE '%' || :q || '%'
-           OR m.collectionName LIKE '%' || :q || '%' LIMIT 60"""
+        """SELECT id, reason FROM (
+             SELECT m.tmdbId AS id, m.year AS year,
+               CASE
+                 WHEN m.title LIKE '%' || :q || '%' OR m.originalTitle LIKE '%' || :q || '%' THEN NULL
+                 WHEN m.director LIKE '%' || :q || '%' THEN 'Directed by ' || m.director
+                 WHEN m.collectionName LIKE '%' || :q || '%' THEN m.collectionName
+                 ELSE (SELECT c.name FROM credits c WHERE c.mediaType = 'movie' AND c.mediaId = m.tmdbId
+                       AND c.name LIKE '%' || :q || '%' ORDER BY c.ord LIMIT 1)
+               END AS reason
+             FROM movies m
+             WHERE m.title LIKE '%' || :q || '%' OR m.originalTitle LIKE '%' || :q || '%'
+               OR m.director LIKE '%' || :q || '%' OR m.collectionName LIKE '%' || :q || '%'
+               OR EXISTS (SELECT 1 FROM credits c WHERE c.mediaType = 'movie' AND c.mediaId = m.tmdbId AND c.name LIKE '%' || :q || '%')
+           ) ORDER BY reason IS NOT NULL, year DESC LIMIT 60"""
     )
-    suspend fun searchMovieIds(q: String): List<Int>
+    suspend fun searchMovies(q: String): List<SearchHit>
 
+    /** Name, creator or cast; name matches first. */
     @Query(
-        """SELECT DISTINCT s.tmdbId FROM shows s LEFT JOIN credits c ON c.mediaType = 'tv' AND c.mediaId = s.tmdbId
-           WHERE s.name LIKE '%' || :q || '%' OR c.name LIKE '%' || :q || '%' LIMIT 60"""
+        """SELECT id, reason FROM (
+             SELECT s.tmdbId AS id, s.year AS year,
+               CASE
+                 WHEN s.name LIKE '%' || :q || '%' THEN NULL
+                 WHEN s.creator LIKE '%' || :q || '%' THEN 'Created by ' || s.creator
+                 ELSE (SELECT c.name FROM credits c WHERE c.mediaType = 'tv' AND c.mediaId = s.tmdbId
+                       AND c.name LIKE '%' || :q || '%' ORDER BY c.ord LIMIT 1)
+               END AS reason
+             FROM shows s
+             WHERE s.name LIKE '%' || :q || '%' OR s.creator LIKE '%' || :q || '%'
+               OR EXISTS (SELECT 1 FROM credits c WHERE c.mediaType = 'tv' AND c.mediaId = s.tmdbId AND c.name LIKE '%' || :q || '%')
+           ) ORDER BY reason IS NOT NULL, year DESC LIMIT 60"""
     )
-    suspend fun searchShowIds(q: String): List<Int>
+    suspend fun searchShows(q: String): List<SearchHit>
+}
+
+@Dao
+interface PlansDao {
+    @Query("SELECT * FROM watchlist ORDER BY addedAt DESC")
+    fun observeWatchlist(): Flow<List<WatchlistEntity>>
+
+    @Query("SELECT * FROM watchlist")
+    suspend fun watchlist(): List<WatchlistEntity>
+
+    @Query("SELECT EXISTS(SELECT 1 FROM watchlist WHERE mediaType = :type AND mediaId = :id)")
+    fun observeInWatchlist(type: String, id: Int): Flow<Boolean>
+
+    @Query("SELECT EXISTS(SELECT 1 FROM watchlist WHERE mediaType = :type AND mediaId = :id)")
+    suspend fun isInWatchlist(type: String, id: Int): Boolean
+
+    @Upsert suspend fun addToWatchlist(item: WatchlistEntity)
+
+    @Query("DELETE FROM watchlist WHERE mediaType = :type AND mediaId = :id")
+    suspend fun removeFromWatchlist(type: String, id: Int)
+
+    @Query("SELECT * FROM reminders ORDER BY at")
+    fun observeReminders(): Flow<List<ReminderEntity>>
+
+    @Query("SELECT * FROM reminders ORDER BY at")
+    suspend fun reminders(): List<ReminderEntity>
+
+    @Query("SELECT * FROM reminders WHERE mediaType = :type AND mediaId = :id ORDER BY at")
+    fun observeRemindersFor(type: String, id: Int): Flow<List<ReminderEntity>>
+
+    @Query("SELECT * FROM reminders WHERE id = :id")
+    suspend fun reminder(id: Long): ReminderEntity?
+
+    @Insert suspend fun insertReminder(reminder: ReminderEntity): Long
+    @Update suspend fun updateReminder(reminder: ReminderEntity)
+
+    /** Returns how many rows went (0 when another caller deleted it first). */
+    @Query("DELETE FROM reminders WHERE id = :id")
+    suspend fun deleteReminder(id: Long): Int
 }
 
 @Dao
@@ -285,6 +348,9 @@ interface WatchDao {
 
     @Query("SELECT * FROM watch_state WHERE showId = :showId")
     suspend fun forShow(showId: Int): List<WatchStateEntity>
+
+    @Query("SELECT DISTINCT showId FROM watch_state WHERE showId IS NOT NULL")
+    suspend fun watchedShowIds(): List<Int>
 
     @Query("SELECT * FROM watch_state WHERE showId = :showId")
     fun observeForShow(showId: Int): Flow<List<WatchStateEntity>>

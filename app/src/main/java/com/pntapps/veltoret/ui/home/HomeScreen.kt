@@ -102,7 +102,7 @@ fun HomeScreen(navigator: Navigator) {
         WidthClass.Expanded -> 360.dp
     }
 
-    fun open(item: PosterItem) = navigator.navigate(if (item.isShow) ShowRoute(item.id) else MovieRoute(item.id))
+    fun open(item: PosterItem) = navigator.navigate(item.route())
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 32.dp)) {
         item("header") {
@@ -229,6 +229,12 @@ fun HomeScreen(navigator: Navigator) {
                 PlayRow("Next Up", state.nextUp, wideWidth) { context.playFile(it.fileId) }
             }
         }
+        if (state.watchlist.isNotEmpty()) {
+            item("watchlist") { PosterRow("Watchlist", state.watchlist, posterWidth, ::open) }
+        }
+        if (state.comingUp.isNotEmpty()) {
+            item("coming-up") { PosterRow("Coming Up", state.comingUp, posterWidth, ::open) }
+        }
         if (state.recentMovies.isNotEmpty()) {
             item("rm") {
                 PosterRow("Recently Added Movies", state.recentMovies, posterWidth, ::open, "See all") { navigator.selectTab(MoviesRoute) }
@@ -241,6 +247,9 @@ fun HomeScreen(navigator: Navigator) {
         }
         if (state.topRated.isNotEmpty()) {
             item("top") { PosterRow("Highly Rated", state.topRated, posterWidth, ::open) }
+        }
+        if (state.collections.isNotEmpty()) {
+            item("collections") { PosterRow("Collections", state.collections, posterWidth, ::open) }
         }
         state.genreRows.forEach { (genre, items) ->
             item("genre-$genre") { PosterRow(genre, items, posterWidth, ::open) }
@@ -423,6 +432,7 @@ fun PosterRow(
                     onClick = { onOpen(item) },
                     progress = item.progress,
                     watched = item.watched,
+                    badge = item.badge,
                     modifier = Modifier.width(posterWidth),
                 )
             }

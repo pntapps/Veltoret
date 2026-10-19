@@ -43,7 +43,7 @@ export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"
 
 - **Unit tests** (`app/src/test`): `FilenameParserTest`, `FilenameParserCorpusTest` (one line per naming
   style; add a line for every name that parses wrong), `PlayTargetsTest`, `DriveStreamingUploadTest`, `RelatedTitlesTest`, `TrailerPickTest`, `SmbPathTest`, `SmbDiscoveryTest`,
-  `PairingCryptoTest`. Run
+  `PairingCryptoTest`, `PlansTest`. Run
   them after any change to parsing, play targets or uploads, and add cases for new behavior.
 - **Device tests** (`app/src/androidTest`): **do not run `connectedAndroidTest`**. It uninstalls the app
   afterwards, which wipes the tester's library, accounts and folder permissions, and it runs on every
@@ -76,6 +76,7 @@ app/src/main/java/com/pntapps/veltoret/
 │   ├── smb/             Network shares: SmbStorage (smbj), SmbServerStore (encrypted passwords), SmbPath, SmbDiscovery
 │   ├── pairing/         "Use your phone" on TV: PhoneSetupServer (QR page + Send to TV), SendToTv, PairingCrypto
 │   ├── library/         FilenameParser, LibraryScanner, repositories, PlayTargets, SyncWorker (+ scan notification)
+│   ├── plans/           Watchlist + reminders (PlansRepository, ReminderReceiver), UpcomingWorker, PlanNotifications
 │   ├── tmdb/            TMDB API, models, matching (TmdbRepository.pickBest) and caching
 │   ├── settings/        DataStore preferences
 │   └── demo/            Debug-only demo library
@@ -173,6 +174,26 @@ Each rule below exists because breaking it caused a real bug.
   `pickTrailer` (covered by `TrailerPickTest`): YouTube trailers before teasers, official first, movies the
   earliest, shows the newest. The movie page uses the icon-only button at every width: a labelled one
   squeezed Play to "Pla".
+- **Watchlist, reminders and upcoming episodes (`data/plans`).** Reminders are **inexact** alarms
+  (`setWindow`, 10 minutes) so no exact-alarm permission is needed; alarms vanish on reboot and force-stop,
+  so `RescheduleReceiver` (boot / package replaced) and every app start call `PlansRepository.restore`
+  (overdue < 12 h fire at once, older ones are dropped: `Plans.due`). The alarm, app start and boot can find
+  the same due row at once, so `PlansRepository.fire` posts only if its delete removed the row (it showed
+  twice otherwise); with notifications off the row stays, and Settings warns. Snooze re-creates the reminder
+  from the intent extras without re-adding the Watchlist. Each `DeepLinks.pending` intent has its own data
+  URI (intents differing only in extras are one PendingIntent: Play opened another reminder's title), and
+  `DeepLinks.consume` ignores Recents relaunches and strips the extras (they replayed the title) and
+  dismisses the notification. Notifications open the app through `DeepLinks` →
+  `AppContainer.openRequests` → `HandleOpenRequests` (both shells), one long-lived collector: a
+  `LaunchedEffect` keyed on the request was cancelled when it cleared the request, so Play never started.
+  `UpcomingWorker` runs daily ~10 AM (and once at start) to refresh followed, still-airing shows'
+  `nextEpisode*` columns (scans refresh shows only weekly) and posts air-day alerts for Watchlist shows,
+  once per episode (`alerted_episodes` prefs). TVs never post them (Google TV hides app notifications).
+- **Dialogs on scrolling pages go outside the `LazyColumn`.** A dialog emitted from a lazy item disappears
+  when that item scrolls out of view (the reminder dialog did).
+- **Detail page buttons**: the icon buttons (Watchlist, Trailer, More) get their own row below Play where
+  they don't fit beside it: movie pages except on landscape tablets, show pages on phones. One row squeezed
+  Play's label ("Pla").
 - **Database changes need a migration.** Bump the version in `VeltoretDatabase`, add an `AutoMigration` or a
   manual `Migration`, and commit the new schema JSON in `app/schemas`. Never use destructive fallback;
   users would lose their libraries and watch history.

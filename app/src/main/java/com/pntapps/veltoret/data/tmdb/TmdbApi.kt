@@ -43,6 +43,9 @@ interface TmdbApi {
     @GET("tv/{id}/recommendations")
     suspend fun tvRecommendations(@Path("id") id: Int, @Query("page") page: Int = 1): TmdbPage<TmdbTvSummary>
 
+    @GET("collection/{id}")
+    suspend fun collection(@Path("id") id: Int): TmdbCollection
+
     @GET("movie/{id}/videos")
     suspend fun movieVideos(@Path("id") id: Int): TmdbVideos
 

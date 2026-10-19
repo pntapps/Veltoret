@@ -95,6 +95,10 @@ class TmdbRepository(private val api: TmdbApi, private val catalog: CatalogDao) 
                     episodeRuntimeMin = d.episodeRunTime.firstOrNull(),
                     creator = d.createdBy.joinToString(", ") { it.name }.ifBlank { null },
                     updatedAt = now,
+                    nextEpisodeSeason = d.nextEpisode?.seasonNumber,
+                    nextEpisodeNumber = d.nextEpisode?.episodeNumber,
+                    nextEpisodeName = d.nextEpisode?.name?.takeIf { it.isNotBlank() },
+                    nextEpisodeAirDate = d.nextEpisode?.airDate?.takeIf { it.isNotBlank() },
                 )
             )
             catalog.upsertSeasons(
@@ -178,6 +182,13 @@ class TmdbRepository(private val api: TmdbApi, private val catalog: CatalogDao) 
         val videos = if (type == "movie") api.movieVideos(id).results else api.tvVideos(id).results
         return pickTrailer(videos, newest = type == "tv").also { trailers[key] = it.orEmpty() }
     }
+
+    /** A movie collection with all its parts, oldest first. Fetched when its page opens; kept for the session. */
+    suspend fun collection(id: Int): TmdbCollection =
+        collections[id] ?: api.collection(id).let { c -> c.copy(parts = c.parts.sortedBy { it.releaseDate.orEmpty().ifEmpty { "9999" } }) }
+            .also { collections[id] = it }
+
+    private val collections = java.util.concurrent.ConcurrentHashMap<Int, TmdbCollection>()
 
     /** "movie:603" → YouTube id, or "" when the title has no trailer. */
     private val trailers = java.util.concurrent.ConcurrentHashMap<String, String>()

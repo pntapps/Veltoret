@@ -50,6 +50,7 @@ import com.pntapps.veltoret.ui.home.HomeViewModel
 import com.pntapps.veltoret.ui.home.PlayItem
 import com.pntapps.veltoret.ui.home.PosterItem
 import com.pntapps.veltoret.ui.home.heroKey
+import com.pntapps.veltoret.ui.home.route
 import com.pntapps.veltoret.ui.navigation.MovieRoute
 import com.pntapps.veltoret.ui.navigation.Navigator
 import com.pntapps.veltoret.ui.navigation.SettingsRoute
@@ -79,9 +80,12 @@ fun TvHomeScreen(navigator: Navigator) {
     val rows = buildList {
         if (state.continueWatching.isNotEmpty()) add(HomeRow.Wide("Continue Watching", state.continueWatching))
         if (state.nextUp.isNotEmpty()) add(HomeRow.Wide("Next Up", state.nextUp))
+        if (state.watchlist.isNotEmpty()) add(HomeRow.Posters("Watchlist", state.watchlist))
+        if (state.comingUp.isNotEmpty()) add(HomeRow.Posters("Coming Up", state.comingUp))
         if (state.recentMovies.isNotEmpty()) add(HomeRow.Posters("Recently Added Movies", state.recentMovies))
         if (state.recentShows.isNotEmpty()) add(HomeRow.Posters("Recently Updated Shows", state.recentShows))
         if (state.topRated.isNotEmpty()) add(HomeRow.Posters("Highly Rated", state.topRated))
+        if (state.collections.isNotEmpty()) add(HomeRow.Posters("Collections", state.collections))
         state.genreRows.forEach { (genre, items) -> add(HomeRow.Posters(genre, items)) }
     }
 
@@ -151,8 +155,8 @@ fun TvHomeScreen(navigator: Navigator) {
                                             }
                                         }
                                         is HomeRow.Posters -> LazyRow(contentPadding = TvRowPadding, horizontalArrangement = TvRowArrangement) {
-                                            items(row.items, key = { "${it.isShow}-${it.id}" }) { item ->
-                                                val key = "${row.title}:${item.isShow}-${item.id}"
+                                            items(row.items, key = { "${it.isShow}-${it.collection}-${it.id}" }) { item ->
+                                                val key = "${row.title}:${item.isShow}-${item.collection}-${item.id}"
                                                 TvPosterCard(
                                                     title = item.title,
                                                     subtitle = item.subtitle,
@@ -163,11 +167,12 @@ fun TvHomeScreen(navigator: Navigator) {
                                                     focusRequester = requesterFor(key),
                                                     onFocused = {
                                                         lastFocused = key
-                                                        spotlight = Spotlight(heroKey(item.isShow, item.id))
+                                                        // A collection has no header of its own: keep showing the last title.
+                                                        if (!item.collection) spotlight = Spotlight(heroKey(item.isShow, item.id), item.badge?.let { "${item.subtitle.orEmpty()} · $it" })
                                                     },
-                                                    onClick = { navigator.navigate(if (item.isShow) ShowRoute(item.id) else MovieRoute(item.id)) },
+                                                    onClick = { navigator.navigate(item.route()) },
                                                     onLongClick = {
-                                                        scope.launch { vm.playTarget(item.isShow, item.id)?.let { context.playFile(it) } }
+                                                        if (!item.collection) scope.launch { vm.playTarget(item.isShow, item.id)?.let { context.playFile(it) } }
                                                     },
                                                 )
                                             }

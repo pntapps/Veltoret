@@ -185,12 +185,16 @@ fun Overview(text: String) {
 }
 
 @Composable
-fun CreditLine(label: String, value: String?) {
+fun CreditLine(label: String, value: String?, onClick: (() -> Unit)? = null) {
     if (value.isNullOrBlank()) return
     Spacer(Modifier.height(10.dp))
     Row {
         Text(label, style = MaterialTheme.typography.labelLarge, color = VColors.TextMuted, modifier = Modifier.width(96.dp))
-        Text(value, style = MaterialTheme.typography.bodyMedium)
+        // Tappable lines (a collection) read as links: amber with an arrow.
+        if (onClick != null) Text(
+            "$value  ›", style = MaterialTheme.typography.bodyMedium, color = VColors.Amber,
+            modifier = Modifier.clip(RoundedCornerShape(4.dp)).clickable(onClick = onClick),
+        ) else Text(value, style = MaterialTheme.typography.bodyMedium)
     }
 }
 

@@ -1,5 +1,6 @@
 package com.pntapps.veltoret
 
+import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -16,6 +17,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.pntapps.veltoret.data.plans.DeepLinks
 import com.pntapps.veltoret.data.settings.AppSettings
 import com.pntapps.veltoret.ui.AppShell
 import com.pntapps.veltoret.ui.tv.TvApp
@@ -29,6 +31,11 @@ import com.pntapps.veltoret.ui.util.container
 import com.pntapps.veltoret.ui.util.widthClassFor
 
 class MainActivity : ComponentActivity() {
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        DeepLinks.consume(this, intent)?.let { container.openRequests.value = it }
+    }
 
     @Volatile
     private var settingsLoaded = false
@@ -48,6 +55,8 @@ class MainActivity : ComponentActivity() {
             intent.getStringExtra("preview_onboarding")?.let { name -> OnboardingStep.entries.firstOrNull { it.name == name } }
         } else null
         val tv = isTv()
+        // Opened from a reminder or new-episode notification (not again after a rotation).
+        if (savedInstanceState == null) DeepLinks.consume(this, intent)?.let { container.openRequests.value = it }
         setContent {
             val settings: AppSettings? by settingsFlow.collectAsStateWithLifecycle(initialValue = null)
             SideEffect { if (settings != null) settingsLoaded = true }

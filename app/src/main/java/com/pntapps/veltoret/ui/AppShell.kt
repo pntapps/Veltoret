@@ -62,7 +62,10 @@ import com.pntapps.veltoret.ui.library.ShowsScreen
 import com.pntapps.veltoret.ui.files.ArchivesScreen
 import com.pntapps.veltoret.ui.navigation.ArchivesRoute
 import com.pntapps.veltoret.ui.navigation.FilesRoute
+import com.pntapps.veltoret.ui.navigation.CollectionRoute
+import com.pntapps.veltoret.ui.details.CollectionScreen
 import com.pntapps.veltoret.ui.navigation.FixMatchRoute
+import com.pntapps.veltoret.ui.navigation.HandleOpenRequests
 import com.pntapps.veltoret.ui.navigation.HomeRoute
 import com.pntapps.veltoret.ui.navigation.MovieRoute
 import com.pntapps.veltoret.ui.navigation.MoviesRoute
@@ -86,6 +89,7 @@ fun AppShell() {
     val useRail = LocalWidthClass.current != WidthClass.Compact
     val current = navigator.currentTopLevel
     val online = rememberOnline()
+    HandleOpenRequests(navigator)
 
     val content: @Composable BoxScope.() -> Unit = {
         NavDisplay(
@@ -115,6 +119,7 @@ fun AppShell() {
                 entry<ArchivesRoute> { ArchivesScreen(navigator) }
                 entry<MovieRoute> { MovieDetailScreen(it.id, navigator) }
                 entry<ShowRoute> { ShowDetailScreen(it.id, navigator) }
+                entry<CollectionRoute> { CollectionScreen(it.id, navigator) }
                 entry<FixMatchRoute> { FixMatchScreen(it, navigator) }
             },
         )

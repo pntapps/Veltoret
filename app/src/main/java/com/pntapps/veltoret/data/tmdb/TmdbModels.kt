@@ -155,6 +155,26 @@ data class TmdbTvDetail(
     val seasons: List<TmdbSeasonSummary> = emptyList(),
     val credits: TmdbCredits? = null,
     @SerialName("content_ratings") val contentRatings: TmdbContentRatings? = null,
+    @SerialName("next_episode_to_air") val nextEpisode: TmdbNextEpisode? = null,
+)
+
+@Serializable
+data class TmdbNextEpisode(
+    @SerialName("season_number") val seasonNumber: Int,
+    @SerialName("episode_number") val episodeNumber: Int,
+    val name: String = "",
+    @SerialName("air_date") val airDate: String? = null,
+)
+
+/** A movie collection ("The Matrix Collection") and every movie in it. */
+@Serializable
+data class TmdbCollection(
+    val id: Int,
+    val name: String = "",
+    val overview: String? = null,
+    @SerialName("poster_path") val posterPath: String? = null,
+    @SerialName("backdrop_path") val backdropPath: String? = null,
+    val parts: List<TmdbMovieSummary> = emptyList(),
 )
 
 @Serializable

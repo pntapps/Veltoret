@@ -9,6 +9,9 @@ import com.pntapps.veltoret.data.db.MediaFileEntity
 import com.pntapps.veltoret.data.db.MovieRow
 import com.pntapps.veltoret.data.db.ShowRow
 import com.pntapps.veltoret.data.db.WatchStateEntity
+import com.pntapps.veltoret.data.db.WatchlistEntity
+import com.pntapps.veltoret.data.plans.Plans
+import java.time.LocalDate
 import com.pntapps.veltoret.data.db.progress
 import com.pntapps.veltoret.data.library.PlayTargets
 import com.pntapps.veltoret.data.library.ScanState
@@ -28,7 +31,18 @@ data class PosterItem(
     val posterUrl: String?,
     val progress: Float? = null,
     val watched: Boolean = false,
+    /** Small label on the poster ("Today", "2 movies"). */
+    val badge: String? = null,
+    /** [id] is a TMDB collection, not a movie: opens the collection page. */
+    val collection: Boolean = false,
 )
+
+/** Where a poster leads: its collection, show or movie page. */
+fun PosterItem.route(): androidx.navigation3.runtime.NavKey = when {
+    collection -> com.pntapps.veltoret.ui.navigation.CollectionRoute(id)
+    isShow -> com.pntapps.veltoret.ui.navigation.ShowRoute(id)
+    else -> com.pntapps.veltoret.ui.navigation.MovieRoute(id)
+}
 
 data class FeaturedItem(
     val id: Int,
@@ -73,6 +87,12 @@ data class HomeUiState(
     val recentShows: List<PosterItem> = emptyList(),
     val topRated: List<PosterItem> = emptyList(),
     val genreRows: List<Pair<String, List<PosterItem>>> = emptyList(),
+    /** "Watch later": saved movies (until watched) and shows. */
+    val watchlist: List<PosterItem> = emptyList(),
+    /** Followed shows (on the Watchlist or started) with an episode airing today or later, soonest first. */
+    val comingUp: List<PosterItem> = emptyList(),
+    /** Collections with at least two movies in the library. */
+    val collections: List<PosterItem> = emptyList(),
     val unmatchedCount: Int = 0,
     val archiveCount: Int = 0,
     val scan: ScanState = ScanState(),
@@ -87,6 +107,7 @@ private data class LibrarySnapshot(
     val states: List<WatchStateEntity>,
     val episodeFiles: List<MediaFileEntity>,
     val episodes: List<EpisodeEntity>,
+    val watchlist: List<WatchlistEntity> = emptyList(),
 )
 
 class HomeViewModel(private val container: AppContainer) : ViewModel() {
@@ -101,7 +122,7 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         library.allEpisodes(),
     ) { movies, shows, states, episodeFiles, episodes ->
         LibrarySnapshot(movies, shows, states, episodeFiles, episodes)
-    }
+    }.combine(container.plans.observeWatchlist()) { snap, watchlist -> snap.copy(watchlist = watchlist) }
 
     val state: StateFlow<HomeUiState> = combine(
         snapshot,
@@ -229,8 +250,47 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
             .take(5)
             .map { (genre, items) -> genre to items.sortedByDescending { it.first }.map { it.second }.take(20) }
 
+        val today = LocalDate.now()
+        val watchlist = s.watchlist.mapNotNull { w ->
+            when (w.mediaType) {
+                Plans.MOVIE -> moviesById[w.mediaId]?.takeIf { statesByKey["movie:${w.mediaId}"]?.watched != true }?.let(::moviePoster)
+                else -> showsById[w.mediaId]?.let(::showPoster)
+            }
+        }
+
+        val followedShows = s.watchlist.filter { it.mediaType == Plans.TV }.map { it.mediaId }.toSet() +
+            s.states.mapNotNull { it.showId }
+        val comingUp = s.shows
+            .filter { it.show.tmdbId in followedShows && Plans.isUpcoming(it.show.nextEpisodeAirDate, today) }
+            .sortedBy { it.show.nextEpisodeAirDate }
+            .map { row ->
+                val sh = row.show
+                showPoster(row).copy(
+                    subtitle = Format.episodeCode(sh.nextEpisodeSeason, sh.nextEpisodeNumber).ifEmpty { null },
+                    badge = Plans.airLabel(sh.nextEpisodeAirDate, today),
+                )
+            }
+
+        val collections = s.movies.filter { it.movie.collectionId != null }
+            .groupBy { it.movie.collectionId!! }
+            .filterValues { it.size >= 2 }
+            .map { (id, rows) ->
+                // The newest movie's poster stands for the collection.
+                val newest = rows.maxBy { it.movie.releaseDate.orEmpty() }
+                PosterItem(
+                    id = id, isShow = false, title = newest.movie.collectionName ?: newest.movie.title,
+                    subtitle = "${rows.size} movies", posterUrl = TmdbImages.poster(newest.movie.posterPath),
+                    collection = true,
+                ) to rows.maxOf { it.addedAt }
+            }
+            .sortedByDescending { it.second }
+            .map { it.first }
+
         return HomeUiState(
             loading = false,
+            watchlist = watchlist,
+            comingUp = comingUp,
+            collections = collections,
             hasFolders = folders.isNotEmpty(),
             featured = featured,
             continueWatching = continueWatching,

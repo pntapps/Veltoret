@@ -124,6 +124,11 @@ data class ShowEntity(
     val episodeRuntimeMin: Int?,
     val creator: String?,
     val updatedAt: Long,
+    /** The next episode TMDB says will air (season, number, name, "yyyy-MM-dd"); null when none is announced. */
+    val nextEpisodeSeason: Int? = null,
+    val nextEpisodeNumber: Int? = null,
+    val nextEpisodeName: String? = null,
+    val nextEpisodeAirDate: String? = null,
 )
 
 @Entity(tableName = "seasons", primaryKeys = ["showId", "seasonNumber"])
@@ -176,6 +181,31 @@ data class RecommendationEntity(
     val fetchedAt: Long,
 )
 
+/** "Watch later": a movie ([mediaType] "movie") or show ("tv") the user saved. Shows also get new-episode alerts. */
+@Entity(tableName = "watchlist", primaryKeys = ["mediaType", "mediaId"])
+data class WatchlistEntity(
+    val mediaType: String,
+    val mediaId: Int,
+    val addedAt: Long,
+)
+
+/**
+ * "Remind me": a notification at [at] (epoch ms) for a movie, a show, or one episode ([season] and
+ * [episode] set). [title] is kept so the reminder still reads well if the title leaves the library.
+ */
+@Entity(tableName = "reminders", indices = [Index(value = ["mediaType", "mediaId"])])
+data class ReminderEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /** "movie" or "tv". */
+    val mediaType: String,
+    val mediaId: Int,
+    val season: Int? = null,
+    val episode: Int? = null,
+    val title: String,
+    val at: Long,
+    val createdAt: Long,
+)
+
 /**
  * Watch progress, keyed by *what* was watched rather than which file, so several versions of the
  * same movie (1080p / 4K, or copies in two accounts) share one progress record.
@@ -220,6 +250,9 @@ data class MovieRow(
     /** Copies stored on this device (playable offline). */
     val deviceFiles: Int,
 )
+
+/** A search result and why it matched when it wasn't the title ("Tom Hanks", "Directed by …"). */
+data class SearchHit(val id: Int, val reason: String?)
 
 /** One source (account email, "device" or "smb://host") that holds a copy of a movie or an episode of a show. */
 data class TitleSource(

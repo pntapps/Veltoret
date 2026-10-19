@@ -69,6 +69,12 @@ class PlaybackResolver(
     suspend fun showPlayTarget(showId: Int): EpisodeTarget? =
         showTarget(showId) ?: PlayTargets.nextEpisode(playable(files.forShow(showId)), emptyList())
 
+    /** Best copy of one episode (device first, then highest resolution). */
+    suspend fun episodeFile(showId: Int, season: Int, episode: Int): MediaFileEntity? =
+        playable(files.forShow(showId)).filter { it.season == season && it.episode == episode }
+            .sortedWith(compareByDescending<MediaFileEntity> { com.pntapps.veltoret.data.storage.LocalStorage.isLocal(it.accountEmail) }.thenByDescending { it.height })
+            .firstOrNull()
+
     /** Offline, only device copies can play. */
     private fun playable(list: List<MediaFileEntity>) =
         if (connectivity.isOnline) list else list.filter { com.pntapps.veltoret.data.storage.LocalStorage.isLocal(it.accountEmail) }

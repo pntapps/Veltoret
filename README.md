@@ -24,7 +24,7 @@ them with a full-featured player.
   and a source filter (this device, a Google account or a network server).
 - **Detail pages**: overview, cast, quality badges (4K, HDR, HEVC, Atmos…), versions across
   accounts, season tabs, per-episode watched tracking, and **More like this**: TMDB's
-  recommendations that are already in your library.
+  recommendations that are already in your library. **Trailers** open in YouTube.
 - **Player** (Media3):
   - MKV, MP4, WebM, AVI, TS and more, including MKVs that store their track list at the end of the
     file (a patched Media3 MKV extractor; plain Media3 plays these silently).

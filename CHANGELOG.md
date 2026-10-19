@@ -5,6 +5,9 @@ Notable changes to Veltoret. Newest first. Detailed history is in the git log.
 ## Unreleased
 
 ### Added
+- **Trailers**: movie and show pages have a Trailer button (an icon on movie pages) that plays the
+  official trailer from TMDB in the YouTube app, or the browser without it. Movies get their original
+  trailer, shows their latest. It's hidden offline and when TMDB lists no trailer. On TV too.
 - **About**: Settings now says Veltoret is developed by PNT Apps and links to the website
   (pntapps.com), About us and the privacy policy. On TV the addresses are shown to type on a phone.
 - **TMDB attribution** now shows TMDB's logo with the notice their API terms require ("uses TMDB and

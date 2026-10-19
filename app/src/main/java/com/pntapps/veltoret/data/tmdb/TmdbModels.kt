@@ -12,6 +12,20 @@ data class TmdbPage<T>(
 )
 
 @Serializable
+data class TmdbVideos(val results: List<TmdbVideo> = emptyList())
+
+/** A trailer, teaser or clip TMDB links to; [key] is the YouTube video id when [site] is "YouTube". */
+@Serializable
+data class TmdbVideo(
+    val key: String = "",
+    val site: String = "",
+    val type: String = "",
+    val name: String = "",
+    val official: Boolean = false,
+    @SerialName("published_at") val publishedAt: String? = null,
+)
+
+@Serializable
 data class TmdbMovieSummary(
     val id: Int,
     val title: String = "",

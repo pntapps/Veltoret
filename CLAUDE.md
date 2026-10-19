@@ -42,7 +42,7 @@ export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"
 ```
 
 - **Unit tests** (`app/src/test`): `FilenameParserTest`, `FilenameParserCorpusTest` (one line per naming
-  style; add a line for every name that parses wrong), `PlayTargetsTest`, `DriveStreamingUploadTest`, `RelatedTitlesTest`, `SmbPathTest`, `SmbDiscoveryTest`,
+  style; add a line for every name that parses wrong), `PlayTargetsTest`, `DriveStreamingUploadTest`, `RelatedTitlesTest`, `TrailerPickTest`, `SmbPathTest`, `SmbDiscoveryTest`,
   `PairingCryptoTest`. Run
   them after any change to parsing, play targets or uploads, and add cases for new behavior.
 - **Device tests** (`app/src/androidTest`): **do not run `connectedAndroidTest`**. It uninstalls the app
@@ -168,6 +168,11 @@ Each rule below exists because breaking it caused a real bug.
   `movies()` / `shows()`, so offline it lists device copies only). TMDB's ids are stored per title in
   `recommendations` (kept for titles not owned yet), refreshed monthly by full scans and on opening a page;
   `catalog.prune()` removes rows for titles that left the library. Same type only: movies → movies, shows → shows.
+- **Trailers** come from TMDB's `/videos` when a detail page opens (`TmdbRepository.trailer`, cached in memory,
+  never stored, so no migration) and open in YouTube (`openTrailer`), never in Veltoret's player.
+  `pickTrailer` (covered by `TrailerPickTest`): YouTube trailers before teasers, official first, movies the
+  earliest, shows the newest. The movie page uses the icon-only button at every width: a labelled one
+  squeezed Play to "Pla".
 - **Database changes need a migration.** Bump the version in `VeltoretDatabase`, add an `AutoMigration` or a
   manual `Migration`, and commit the new schema JSON in `app/schemas`. Never use destructive fallback;
   users would lose their libraries and watch history.

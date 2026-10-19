@@ -81,6 +81,7 @@ import com.pntapps.veltoret.ui.util.LocalWidthClass
 import com.pntapps.veltoret.ui.util.WidthClass
 import com.pntapps.veltoret.ui.util.appViewModel
 import com.pntapps.veltoret.ui.util.gutter
+import com.pntapps.veltoret.ui.util.rememberOnline
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -182,10 +183,17 @@ class ShowDetailViewModel(private val container: AppContainer, private val id: I
         ShowDetailState(false, b.show, seasons, current, episodes, target, cast, b.files.map { it.driveId }, related)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ShowDetailState())
 
+    private val _trailer = MutableStateFlow<String?>(null)
+    /** YouTube id of the show's latest trailer, once TMDB answers; null when there is none (or offline). */
+    val trailer: StateFlow<String?> = _trailer
+
     init {
         // Shows matched before "More like this" existed (or a month ago) get their list now rather than at the next scan.
         if (container.connectivity.isOnline) viewModelScope.launch {
             runCatching { container.tmdbRepository.ensureRecommendations("tv", id) }
+        }
+        if (container.connectivity.isOnline) viewModelScope.launch {
+            _trailer.value = runCatching { container.tmdbRepository.trailer("tv", id) }.getOrNull()
         }
     }
 
@@ -214,6 +222,8 @@ class ShowDetailViewModel(private val container: AppContainer, private val id: I
 fun ShowDetailScreen(id: Int, navigator: Navigator) {
     val vm = appViewModel("show-$id") { ShowDetailViewModel(it, id) }
     val state by vm.state.collectAsStateWithLifecycle()
+    val trailer by vm.trailer.collectAsStateWithLifecycle()
+    val online = rememberOnline()
     val context = LocalContext.current
     val widthClass = LocalWidthClass.current
     val wide = widthClass != WidthClass.Compact
@@ -266,6 +276,7 @@ fun ShowDetailScreen(id: Int, navigator: Navigator) {
                         enabled = target != null,
                         modifier = Modifier.weight(1f, fill = !wide),
                     )
+                    trailer?.takeIf { online }?.let { TrailerButton(it, compact = !wide) }
                     Box {
                         VIconButton(Icons.Rounded.MoreVert, "More", { menuOpen = true }, size = 48.dp)
                         DropdownMenu(menuOpen, { menuOpen = false }, containerColor = VColors.SurfaceHigh) {

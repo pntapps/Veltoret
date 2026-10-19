@@ -58,6 +58,8 @@ import com.pntapps.veltoret.ui.components.RatingText
 import com.pntapps.veltoret.ui.components.VImage
 import com.pntapps.veltoret.ui.details.EpisodeUi
 import com.pntapps.veltoret.ui.details.MovieDetailViewModel
+import com.pntapps.veltoret.ui.details.TrailerIcon
+import com.pntapps.veltoret.ui.details.openTrailer
 import com.pntapps.veltoret.ui.details.ShowDetailViewModel
 import com.pntapps.veltoret.ui.home.PosterItem
 import com.pntapps.veltoret.ui.navigation.MovieRoute
@@ -184,6 +186,7 @@ private suspend fun focusOnArrival(lastOpened: Int?, requesterFor: (Int) -> Focu
 @Composable
 fun TvMovieDetailScreen(id: Int, navigator: Navigator) {
     val vm = appViewModel("tv-movie-$id") { MovieDetailViewModel(it, id) }
+    val trailer by vm.trailer.collectAsStateWithLifecycle()
     val state by vm.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val online = rememberOnline()
@@ -241,6 +244,7 @@ fun TvMovieDetailScreen(id: Int, navigator: Navigator) {
                 if (watch?.watched == true) TvButton("Mark unwatched", { vm.setWatched(false) }, icon = Icons.Rounded.Undo)
                 else TvButton("Mark watched", { vm.setWatched(true) }, icon = Icons.Rounded.Check)
                 if (state.files.size > 1) TvButton("Versions (${state.files.size})", { versions = true }, icon = Icons.Rounded.Layers)
+                trailer?.takeIf { online }?.let { key -> TvButton("Trailer", { context.openTrailer(key) }, icon = TrailerIcon) }
             }
         }
         item("cast") { CastRow(state.cast) }
@@ -287,6 +291,8 @@ private fun versionDetail(f: MediaFileEntity, online: Boolean): String = listOfN
 @Composable
 fun TvShowDetailScreen(id: Int, navigator: Navigator) {
     val vm = appViewModel("tv-show-$id") { ShowDetailViewModel(it, id) }
+    val trailer by vm.trailer.collectAsStateWithLifecycle()
+    val online = rememberOnline()
     val state by vm.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val primary = remember { FocusRequester() }
@@ -335,6 +341,7 @@ fun TvShowDetailScreen(id: Int, navigator: Navigator) {
                     { vm.setSeasonWatched(!seasonWatched) },
                     icon = if (seasonWatched) Icons.Rounded.Undo else Icons.Rounded.Check,
                 )
+                trailer?.takeIf { online }?.let { key -> TvButton("Trailer", { context.openTrailer(key) }, icon = TrailerIcon) }
             }
         }
         if (state.seasons.size > 1) {

@@ -168,6 +168,20 @@ class TmdbRepository(private val api: TmdbApi, private val catalog: CatalogDao) 
         )
     }
 
+    /**
+     * The YouTube id of the title's trailer ([type] "movie" or "tv"), or null when TMDB lists none.
+     * Fetched when a detail page opens and kept for the session; nothing is stored in the database.
+     */
+    suspend fun trailer(type: String, id: Int): String? {
+        val key = "$type:$id"
+        trailers[key]?.let { return it.ifEmpty { null } }
+        val videos = if (type == "movie") api.movieVideos(id).results else api.tvVideos(id).results
+        return pickTrailer(videos, newest = type == "tv").also { trailers[key] = it.orEmpty() }
+    }
+
+    /** "movie:603" → YouTube id, or "" when the title has no trailer. */
+    private val trailers = java.util.concurrent.ConcurrentHashMap<String, String>()
+
     private fun List<TmdbCast>.toCredits(type: String, id: Int) = take(30).distinctBy { it.id }.map {
         CreditEntity(type, id, it.id, it.name, it.character, it.profilePath, it.order)
     }
@@ -219,5 +233,27 @@ class TmdbRepository(private val api: TmdbApi, private val catalog: CatalogDao) 
         private const val DAY = 24L * 60 * 60 * 1000
         private const val RECOMMENDATION_PAGES = 2
         fun yearOf(date: String?): Int? = date?.take(4)?.toIntOrNull()
+
+        /**
+         * YouTube trailers first, then teasers (no clips or featurettes); official uploads first. Movies take
+         * the earliest (the original trailer, not a re-release); shows take the newest (the latest season's).
+         */
+        fun pickTrailer(videos: List<TmdbVideo>, newest: Boolean): String? = videos
+            .filter { it.site.equals("YouTube", ignoreCase = true) && it.key.isNotBlank() && it.type in TRAILER_TYPES }
+            .sortedWith(
+                compareBy<TmdbVideo>({ TRAILER_TYPES.indexOf(it.type) }, { !it.official }).thenComparator { a, b ->
+                    // ISO dates sort as text; undated videos go last either way.
+                    val x = a.publishedAt.orEmpty()
+                    val y = b.publishedAt.orEmpty()
+                    when {
+                        x.isEmpty() || y.isEmpty() -> y.length.compareTo(x.length).coerceIn(-1, 1)
+                        newest -> y.compareTo(x)
+                        else -> x.compareTo(y)
+                    }
+                }
+            )
+            .firstOrNull()?.key
+
+        private val TRAILER_TYPES = listOf("Trailer", "Teaser")
     }
 }

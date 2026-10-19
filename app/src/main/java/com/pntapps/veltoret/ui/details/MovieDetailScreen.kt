@@ -64,6 +64,7 @@ import com.pntapps.veltoret.ui.util.LocalWidthClass
 import com.pntapps.veltoret.ui.util.WidthClass
 import com.pntapps.veltoret.ui.util.appViewModel
 import com.pntapps.veltoret.ui.util.gutter
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -102,10 +103,17 @@ class MovieDetailViewModel(private val container: AppContainer, private val id: 
     ) { movie, files, cast, watch, related -> MovieDetailState(false, movie, files, cast, watch, related) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MovieDetailState())
 
+    private val _trailer = MutableStateFlow<String?>(null)
+    /** YouTube id of the trailer, once TMDB answers; null when there is none (or offline). */
+    val trailer: StateFlow<String?> = _trailer
+
     init {
         // Titles matched before "More like this" existed (or a month ago) get their list now rather than at the next scan.
         if (container.connectivity.isOnline) viewModelScope.launch {
             runCatching { container.tmdbRepository.ensureRecommendations("movie", id) }
+        }
+        if (container.connectivity.isOnline) viewModelScope.launch {
+            _trailer.value = runCatching { container.tmdbRepository.trailer("movie", id) }.getOrNull()
         }
     }
 
@@ -118,6 +126,8 @@ class MovieDetailViewModel(private val container: AppContainer, private val id: 
 fun MovieDetailScreen(id: Int, navigator: Navigator) {
     val vm = appViewModel("movie-$id") { MovieDetailViewModel(it, id) }
     val state by vm.state.collectAsStateWithLifecycle()
+    val trailer by vm.trailer.collectAsStateWithLifecycle()
+    val online = rememberOnline()
     val context = LocalContext.current
     val wide = LocalWidthClass.current != WidthClass.Compact
     var menuOpen by remember { mutableStateOf(false) }
@@ -167,7 +177,7 @@ fun MovieDetailScreen(id: Int, navigator: Navigator) {
                         },
                         onClick = { best?.let { context.playFile(it.driveId, it.accountEmail, fromStart = watch?.watched == true) } },
                         icon = if (watch?.watched == true) Icons.Rounded.Replay else Icons.Rounded.PlayArrow,
-                        enabled = best != null && canPlayNow(best.accountEmail, rememberOnline()),
+                        enabled = best != null && canPlayNow(best.accountEmail, online),
                         modifier = Modifier.weight(1f, fill = !wide),
                     )
                     VButton(
@@ -176,6 +186,8 @@ fun MovieDetailScreen(id: Int, navigator: Navigator) {
                         icon = Icons.Rounded.Check,
                         style = if (watch?.watched == true) ButtonStyle.Secondary else ButtonStyle.Ghost,
                     )
+                    // Play, Mark watched and More already fill the row at every width: a labelled button squeezed Play to "Pla".
+                    trailer?.takeIf { online }?.let { TrailerButton(it, compact = true) }
                     Box {
                         VIconButton(Icons.Rounded.MoreVert, "More", { menuOpen = true }, size = 48.dp)
                         DropdownMenu(menuOpen, { menuOpen = false }, containerColor = VColors.SurfaceHigh) {

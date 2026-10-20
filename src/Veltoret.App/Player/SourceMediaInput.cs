@@ -15,6 +15,11 @@ internal sealed class SourceMediaInput : MediaInput
     private readonly Stream _stream;
     private readonly byte[] _buffer = new byte[ChunkSize];
 
+    private volatile bool _aborted;
+
+    /// <summary>The player is stopping: reads end at once (no retries), so libVLC can let go quickly.</summary>
+    public void Abort() => _aborted = true;
+
     /// <summary>The last exception a read, seek or open threw.</summary>
     public Exception? LastError { get; private set; }
 
@@ -46,6 +51,7 @@ internal sealed class SourceMediaInput : MediaInput
         var want = (int)Math.Min(len, (uint)_buffer.Length);
         for (var attempt = 0; ; attempt++)
         {
+            if (_aborted) return -1;
             long position = 0;
             try
             {
@@ -54,7 +60,7 @@ internal sealed class SourceMediaInput : MediaInput
                 if (n > 0) Marshal.Copy(_buffer, 0, buf, n);
                 return n;
             }
-            catch (Exception e) when (attempt < 3 && e is IOException or TimeoutException or System.Net.Http.HttpRequestException)
+            catch (Exception e) when (attempt < 3 && !_aborted && e is IOException or TimeoutException or System.Net.Http.HttpRequestException)
             {
                 LastError = e;
                 Thread.Sleep(400 * (attempt + 1));
@@ -74,6 +80,7 @@ internal sealed class SourceMediaInput : MediaInput
 
     public override bool Seek(ulong offset)
     {
+        if (_aborted) return false;
         try
         {
             _stream.Seek((long)offset, SeekOrigin.Begin);

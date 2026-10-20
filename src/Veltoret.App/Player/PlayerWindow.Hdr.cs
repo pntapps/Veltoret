@@ -24,36 +24,51 @@ public partial class PlayerWindow
         return HdrDisplay.ForWindow(hwnd);
     }
 
-    /// <summary>Before a video starts: read its HDR format and, if it is HDR, turn on HDR on the display.</summary>
+    /// <summary>
+    /// Before a video starts: if the display could switch to HDR for it, read its HDR format first and switch.
+    /// Otherwise nothing waits: a local file's header is read alongside (for Video info), a stream's name is used.
+    /// </summary>
     private async Task PrepareHdr(CancellationToken ct)
     {
-        _hdrFormat = HdrFormat.Unknown;
+        _hdrFormat = HdrProbe.FromFileName(VideoFileName());
         var display = DisplayHdr();
-        if (display is not { Supported: true } d)
+        UpdateHdrChip(display);
+        if (display is not { Supported: true } d) return;
+        if (_settings.AutoHdr && !d.Enabled)
         {
-            UpdateHdrChip(null);
-            return;
+            _hdrFormat = await ProbeHdr(ct);
+            ct.ThrowIfCancellationRequested();
+            if (HdrProbe.IsHdr(_hdrFormat) && await SetDisplayHdr(d.Target, true))
+            {
+                Notice($"HDR turned on · {HdrProbe.Label(_hdrFormat)}");
+                UpdateHdrChip(d with { Enabled = true });
+            }
         }
-        _hdrFormat = await ProbeHdr(ct);
-        ct.ThrowIfCancellationRequested();
-        if (_settings.AutoHdr && HdrProbe.IsHdr(_hdrFormat) && !d.Enabled && await SetDisplayHdr(d.Target, true))
+        else if (_account != null && Accounts.IsLocal(_account))
         {
-            Notice($"HDR on · {HdrProbe.Label(_hdrFormat)}");
+            var id = _fileId;
+            _ = ProbeHdr(ct).ContinueWith(t =>
+            {
+                if (t.IsCompletedSuccessfully && _fileId == id) _hdrFormat = t.Result;
+            }, TaskScheduler.FromCurrentSynchronizationContext());
         }
-        UpdateHdrChip(DisplayHdr());
     }
+
+    private string? VideoFileName() =>
+        _file?.Name ?? (_account != null && Accounts.IsLocal(_account) ? Path.GetFileName(_fileId) : _title);
 
     /// <summary>The container header (a few KB; local files, or the start of the stream) and the file name.</summary>
     private async Task<HdrFormat> ProbeHdr(CancellationToken ct)
     {
         var account = _account;
         var id = _fileId;
-        var name = _file?.Name ?? (account != null && Accounts.IsLocal(account) ? Path.GetFileName(id) : _title);
+        var name = VideoFileName();
         if (account == null) return HdrProbe.FromFileName(name);
         try
         {
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            timeout.CancelAfter(TimeSpan.FromSeconds(4));
+            // A slow server shouldn't hold up the start for long: the name is the fallback.
+            timeout.CancelAfter(TimeSpan.FromSeconds(Accounts.IsLocal(account) ? 2 : 2.5));
             return await Task.Run(async () =>
             {
                 await using var stream = Accounts.IsLocal(account)
@@ -88,25 +103,27 @@ public partial class PlayerWindow
         _hdrBusy = true;
         try
         {
-            if (!await SetDisplayHdr(d.Target, !d.Enabled))
+            var on = !d.Enabled;
+            if (!await SetDisplayHdr(d.Target, on))
             {
                 Notice("Windows didn't allow HDR on this display");
                 return;
             }
-            Notice(d.Enabled ? "HDR off" : "HDR on");
-            UpdateHdrChip(DisplayHdr());
+            Notice(on ? "HDR turned on" : "HDR turned off");
+            // Show what was asked for: a slow PC may report the new mode a moment later.
+            UpdateHdrChip(d with { Enabled = on });
             if (_media != null) RebuildMedia(play: _playWhenReady);
         }
         finally { _hdrBusy = false; }
     }
 
+    /// <summary>The chip is a toggle: amber while HDR is on, plain while it's off; it always reads "HDR".</summary>
     private void UpdateHdrChip(HdrDisplay.State? state)
     {
         HdrChip.Visibility = state is { Supported: true } ? Visibility.Visible : Visibility.Collapsed;
         var on = state is { Enabled: true };
-        HdrChipText.Text = on ? "HDR on" : "HDR off";
-        HdrChipIcon.Fill = (System.Windows.Media.Brush)Overlay.FindResource(on ? "P.Amber" : "P.Text");
-        var name = on ? "HDR is on. Turn off HDR" : "HDR is off. Turn on HDR";
+        HdrChip.Style = (Style)Overlay.FindResource(on ? "P.ChipAccent" : "P.Chip");
+        var name = on ? "HDR is on. Tap to turn it off" : "HDR is off. Tap to turn it on";
         HdrChip.ToolTip = name;
         AutomationNameSet(HdrChip, name);
     }
@@ -117,6 +134,7 @@ public partial class PlayerWindow
         if (_hdrBefore is not { } b) return;
         _hdrBefore = null;
         if (HdrDisplay.ForWindow(new WindowInteropHelper(this).Handle) is { } now && now.Enabled == b.Enabled) return;
-        HdrDisplay.Set(b.Target, b.Enabled);
+        // The mode change takes a moment: don't hold up closing the window for it.
+        Task.Run(() => HdrDisplay.Set(b.Target, b.Enabled));
     }
 }

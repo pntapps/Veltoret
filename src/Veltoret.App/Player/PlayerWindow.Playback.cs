@@ -66,7 +66,18 @@ public partial class PlayerWindow
 
     private bool IsActuallyPlaying => _mp.IsPlaying;
 
-    private bool IsLoading => _error == null && !_ended && _media != null && _buffering;
+    /// <summary>
+    /// From the moment a video is asked for (connecting to the server, reading its header) until libVLC has it:
+    /// the spinner shows during that time too, not only once libVLC buffers.
+    /// </summary>
+    private bool _opening;
+
+    /// <summary>libVLC is stopping a video. Its getters wait on the same lock, so the UI uses cached values meanwhile.</summary>
+    private int _stopping;
+    private long _cachedTime;
+    private long _cachedLength;
+
+    private bool IsLoading => _error == null && !_ended && (_opening || _media != null && _buffering);
 
     /// <summary>0 = just started (or not loading), 1 after 5 s, 2 after 15 s; only while it should play.</summary>
     private int LoadingStage
@@ -171,7 +182,7 @@ public partial class PlayerWindow
     /// <summary>Called every 100 ms: buffering fallback, tracks once known, slave subtitle ids.</summary>
     private void PollPlayer()
     {
-        if (_media == null) return;
+        if (_media == null || _stopping > 0) return;
         var time = _mp.Time;
         // Some inputs don't report buffering at 100 %; time moving means it plays.
         if (_buffering && _mp.State == VLCState.Playing && time > 0 && _lastPolledTime >= 0 && time != _lastPolledTime) _buffering = false;
@@ -219,6 +230,7 @@ public partial class PlayerWindow
             _fileId = found?.DriveId ?? requestedId;
             _account = found?.AccountEmail ?? accountHint;
             ResetVideoState();
+            BeginOpening();
             _restore = PlayerPrefs.Shared.TrackMemory(_fileId);
             _subtitleOffsetMs = _restore?.SubtitleOffsetMs ?? 0;
             await StopCurrentMedia();
@@ -295,6 +307,18 @@ public partial class PlayerWindow
             App.Log(e);
             if (!ct.IsCancellationRequested) ShowError(Describe(e));
         }
+        finally
+        {
+            if (!ct.IsCancellationRequested) _opening = false;
+        }
+    }
+
+    private void BeginOpening()
+    {
+        _opening = true;
+        _loadingStarted = DateTime.UtcNow;
+        _playWhenReady = !_castActive;
+        UpdateUi();
     }
 
     private static string? SafeRootName(string account)
@@ -392,6 +416,7 @@ public partial class PlayerWindow
 
         _media = media;
         _input = input;
+        _opening = false;
         _playWhenReady = !_castActive;
         _buffering = true;
         _loadingStarted = DateTime.UtcNow;
@@ -417,13 +442,21 @@ public partial class PlayerWindow
         _input = null;
         if (media == null) return;
         var mp = _mp;
-        await Task.Run(() =>
+        CacheTimes();
+        // A read stuck on a slow server would keep libVLC (and anything asking it for the time) waiting.
+        input?.Abort();
+        _stopping++;
+        try
         {
-            try { mp.Stop(); }
-            catch (Exception) { }
-            media.Dispose();
-            input?.Dispose();
-        });
+            await Task.Run(() =>
+            {
+                try { mp.Stop(); }
+                catch (Exception) { }
+                media.Dispose();
+                input?.Dispose();
+            });
+        }
+        finally { _stopping--; }
     }
 
     private void ReleasePlayer()
@@ -434,6 +467,7 @@ public partial class PlayerWindow
         var vlc = _vlc;
         _media = null;
         _input = null;
+        input?.Abort();
         try { Video.MediaPlayer = null; }
         catch (Exception) { }
         Task.Run(() =>
@@ -601,7 +635,7 @@ public partial class PlayerWindow
     /// <summary>Saves progress (fire-and-forget, so closing the window doesn't cancel it).</summary>
     internal Task SaveProgress()
     {
-        if (_castActive || _media == null || string.IsNullOrEmpty(_fileId)) return Task.CompletedTask;
+        if (_castActive || _media == null || _stopping > 0 || string.IsNullOrEmpty(_fileId)) return Task.CompletedTask;
         var duration = _mp.Length > 0 ? _mp.Length : _file?.DurationMs ?? 0;
         if (duration <= 0) return Task.CompletedTask;
         var position = _mp.Time;
@@ -706,6 +740,7 @@ public partial class PlayerWindow
     private async void RebuildMedia(bool play)
     {
         if (_account == null) return;
+        BeginOpening();
         var position = Position;
         var speed = _speed;
         // Keep the current track choices as this video's restore point.
@@ -736,6 +771,10 @@ public partial class PlayerWindow
         {
             App.Log(e);
             ShowError(Describe(e));
+        }
+        finally
+        {
+            if (!cts.IsCancellationRequested) _opening = false;
         }
     }
 }

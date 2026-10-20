@@ -324,9 +324,15 @@ public partial class PlayerWindow : Window
         UpdateUi();
     }
 
-    private long Duration => Math.Max(0, _mp.Length);
+    private long Duration => _stopping > 0 ? _cachedLength : _cachedLength = Math.Max(0, _mp.Length);
 
-    private long Position => Math.Max(0, _mp.Time);
+    private long Position => _stopping > 0 ? _cachedTime : _cachedTime = Math.Max(0, _mp.Time);
+
+    private void CacheTimes()
+    {
+        _cachedLength = Math.Max(0, _mp.Length);
+        _cachedTime = Math.Max(0, _mp.Time);
+    }
 
     /// <summary>Refreshes everything that depends on time and state.</summary>
     private void UpdateUi()
@@ -408,7 +414,7 @@ public partial class PlayerWindow : Window
             TrySoftwareButton.Visibility = _software ? Visibility.Collapsed : Visibility.Visible;
         }
 
-        if (PanelOpen && _panel == PanelKind.Info && ++_infoTicks % 10 == 0) RefreshPanel();
+        if (PanelOpen && _panel == PanelKind.Info && _stopping == 0 && ++_infoTicks % 10 == 0) RefreshPanel();
     }
 
     private int _infoTicks;

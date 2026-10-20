@@ -114,6 +114,12 @@
                                        VerticalAlignment="Center" HorizontalAlignment="Right" Text="--:--" />
                         </Grid>
                         <DockPanel Margin="0,6,0,0" LastChildFill="True">
+                            <Button x:Name="ExitChip" DockPanel.Dock="Right" Style="{StaticResource P.ChipExit}" ToolTip="Close the player" Click="OnBackClick">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Style="{StaticResource P.Icon}" Data="{StaticResource P.Icon.Close}" Width="18" Height="18" Margin="0,0,8,0" />
+                                    <TextBlock Text="Exit" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
                             <Button x:Name="NextChip" DockPanel.Dock="Right" Style="{StaticResource P.ChipAccent}" Margin="8,0,0,0" Click="OnNextClick">
                                 <StackPanel Orientation="Horizontal">
                                     <Path Style="{StaticResource P.Icon}" Data="{StaticResource P.Icon.Next}" Width="18" Height="18" Margin="0,0,8,0" />
@@ -155,7 +161,7 @@
                                     <Button x:Name="HdrChip" Style="{StaticResource P.Chip}" Click="OnHdrClick" Visibility="Collapsed">
                                         <StackPanel Orientation="Horizontal">
                                             <Path x:Name="HdrChipIcon" Style="{StaticResource P.Icon}" Data="{StaticResource P.Icon.Hdr}" Width="18" Height="18" Margin="0,0,8,0" />
-                                            <TextBlock x:Name="HdrChipText" Text="HDR off" VerticalAlignment="Center" />
+                                            <TextBlock x:Name="HdrChipText" Text="HDR" VerticalAlignment="Center" />
                                         </StackPanel>
                                     </Button>
                                     <Button x:Name="SkipChip" Style="{StaticResource P.Chip}" Click="OnSkipChipClick">

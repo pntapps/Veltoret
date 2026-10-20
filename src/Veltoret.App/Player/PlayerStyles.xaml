@@ -22,6 +22,7 @@
     <SolidColorBrush x:Key="P.Outline" Color="#2C2C35" />
     <SolidColorBrush x:Key="P.OutlineStrong" Color="#3B3B46" />
     <SolidColorBrush x:Key="P.Danger" Color="#FF6B5E" />
+    <SolidColorBrush x:Key="P.Exit" Color="#D63B30" />
     <SolidColorBrush x:Key="P.Chrome" Color="#8C000000" />
     <SolidColorBrush x:Key="P.White10" Color="#1AFFFFFF" />
     <SolidColorBrush x:Key="P.White18" Color="#2EFFFFFF" />
@@ -154,6 +155,12 @@
     <Style x:Key="P.ChipAccent" TargetType="Button" BasedOn="{StaticResource P.Chip}">
         <Setter Property="Background" Value="{StaticResource P.Amber}" />
         <Setter Property="Foreground" Value="{StaticResource P.OnAmber}" />
+    </Style>
+    <!-- Exit: a red chip, easy to find and to hit with a finger. -->
+    <Style x:Key="P.ChipExit" TargetType="Button" BasedOn="{StaticResource P.Chip}">
+        <Setter Property="Background" Value="{StaticResource P.Exit}" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="Margin" Value="8,0,0,0" />
     </Style>
     <Style x:Key="P.ChipOutline" TargetType="Button" BasedOn="{StaticResource P.Chip}">
         <Setter Property="Background" Value="{StaticResource P.SurfaceHighest}" />

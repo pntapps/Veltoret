@@ -160,6 +160,9 @@
                                     </Button>
                                     <Button x:Name="HdrChip" Style="{StaticResource P.Chip}" Click="OnHdrClick" Visibility="Collapsed">
                                         <StackPanel Orientation="Horizontal">
+                                            <!-- Green dot: HDR is on (the chip is amber then too). -->
+                                            <Ellipse x:Name="HdrOnDot" Width="9" Height="9" Fill="{StaticResource P.On}" Stroke="{StaticResource P.OnAmber}" StrokeThickness="1"
+                                                     VerticalAlignment="Center" Margin="0,0,8,0" Visibility="Collapsed" />
                                             <Path x:Name="HdrChipIcon" Style="{StaticResource P.Icon}" Data="{StaticResource P.Icon.Hdr}" Width="18" Height="18" Margin="0,0,8,0" />
                                             <TextBlock x:Name="HdrChipText" Text="HDR" VerticalAlignment="Center" />
                                         </StackPanel>

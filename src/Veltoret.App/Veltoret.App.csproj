@@ -11,7 +11,7 @@
     <RootNamespace>Veltoret.App</RootNamespace>
     <AssemblyName>Veltoret</AssemblyName>
     <Product>Veltoret</Product>
-    <Version>1.1.1</Version>
+    <Version>1.1.2</Version>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>false</SelfContained>
     <!-- LibVLC's native build is ~150 MB; only ship x64. -->

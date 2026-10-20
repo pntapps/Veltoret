@@ -228,6 +228,7 @@ public partial class PlayerWindow : Window
         {
             _controlsVisible = true;
             ApplyChromeVisibility();
+            RefreshHdrChip();
         }
         BumpInteraction();
         UpdateUi();

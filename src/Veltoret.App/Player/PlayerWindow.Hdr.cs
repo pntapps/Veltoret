@@ -109,20 +109,43 @@ public partial class PlayerWindow
                 Notice("Windows didn't allow HDR on this display");
                 return;
             }
-            Notice(on ? "HDR turned on" : "HDR turned off");
-            // Show what was asked for: a slow PC may report the new mode a moment later.
-            UpdateHdrChip(d with { Enabled = on });
+            // A slow PC can take a few seconds to report the new mode: wait for Windows to confirm it, so the chip
+            // shows what the display really does.
+            var now = DisplayHdr();
+            for (var i = 0; i < 6 && now is { } n && n.Enabled != on; i++)
+            {
+                await Task.Delay(500);
+                now = DisplayHdr();
+            }
+            UpdateHdrChip(now);
+            if (now is { } actual && actual.Enabled != on)
+            {
+                Notice(on ? "Windows kept HDR off" : "Windows kept HDR on");
+                return;
+            }
+            // SDR videos look dimmer and flatter with HDR on (Windows shows them at its "SDR content brightness"):
+            // HDR mode is for HDR videos.
+            Notice(!on ? "HDR turned off"
+                : HdrProbe.IsHdr(_hdrFormat) ? $"HDR turned on · {HdrProbe.Label(_hdrFormat)}"
+                : "HDR turned on · this video isn't HDR, so it may look dimmer");
             if (_media != null) RebuildMedia(play: _playWhenReady);
         }
         finally { _hdrBusy = false; }
     }
 
-    /// <summary>The chip is a toggle: amber while HDR is on, plain while it's off; it always reads "HDR".</summary>
+    /// <summary>Controls shown: HDR may have been switched in Windows Settings meanwhile.</summary>
+    private void RefreshHdrChip()
+    {
+        if (!_hdrBusy && HdrChip.Visibility == Visibility.Visible) UpdateHdrChip(DisplayHdr());
+    }
+
+    /// <summary>The chip is a toggle: amber with a green dot while HDR is on, plain while it's off; it reads "HDR".</summary>
     private void UpdateHdrChip(HdrDisplay.State? state)
     {
         HdrChip.Visibility = state is { Supported: true } ? Visibility.Visible : Visibility.Collapsed;
         var on = state is { Enabled: true };
         HdrChip.Style = (Style)Overlay.FindResource(on ? "P.ChipAccent" : "P.Chip");
+        HdrOnDot.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
         var name = on ? "HDR is on. Tap to turn it off" : "HDR is off. Tap to turn it on";
         HdrChip.ToolTip = name;
         AutomationNameSet(HdrChip, name);

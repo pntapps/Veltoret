@@ -17,6 +17,8 @@ public sealed record AppSettings
     public string PreferredSubtitleLanguage { get; init; } = "";
     public float SubtitleScale { get; init; } = 1f;
     public bool SubtitleBackground { get; init; }
+    /// <summary>Windows: turn on HDR on an HDR-capable display while an HDR video plays (back off when the player closes).</summary>
+    public bool AutoHdr { get; init; } = true;
     public long LastScanAt { get; init; }
     /// <summary>Notify on the day a show on the Watchlist airs a new episode.</summary>
     public bool NewEpisodeAlerts { get; init; } = true;

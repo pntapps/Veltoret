@@ -21,6 +21,8 @@ public sealed class FeaturedPager : StackPanel
     private IReadOnlyList<FeaturedItem> _items = Array.Empty<FeaturedItem>();
     private int _index;
     private FrameworkElement? _current;
+    /// <summary>Narrow windows (a tablet held upright) stack the backdrop above the info.</summary>
+    private bool _narrow;
 
     public FeaturedPager()
     {
@@ -29,7 +31,24 @@ public sealed class FeaturedPager : StackPanel
         Children.Add(_host);
         Children.Add(_dots);
         _timer.Tick += (_, _) => { if (_items.Count > 1 && !IsMouseOver) Show((_index + 1) % _items.Count, forward: true); };
+        // Touch: swipe the hero to the next or previous title.
+        TouchScroll.SetSwipe(_host, dir =>
+        {
+            if (_items.Count < 2) return;
+            Show((_index + dir + _items.Count) % _items.Count, forward: dir > 0);
+            Restart();
+        });
         Loaded += (_, _) => Restart();
+        SizeChanged += (_, e) =>
+        {
+            var narrow = e.NewSize.Width < 820;
+            if (narrow == _narrow) return;
+            _narrow = narrow;
+            if (_items.Count == 0) return;
+            _host.Children.Clear();
+            _current = null;
+            Show(_index, forward: true, animate: false);
+        };
         Unloaded += (_, _) => _timer.Stop();
     }
 
@@ -57,7 +76,7 @@ public sealed class FeaturedPager : StackPanel
     {
         if (_items.Count == 0) return;
         _index = index;
-        var page = BuildPage(_items[index]);
+        var page = BuildPage(_items[index], _narrow);
         var old = _current;
         _current = page;
         _host.Children.Add(page);
@@ -119,12 +138,21 @@ public sealed class FeaturedPager : StackPanel
         catch (Exception ex) { App.Log(ex); Toast.Show(ex.Message); }
     }
 
-    private static FrameworkElement BuildPage(FeaturedItem item)
+    private static FrameworkElement BuildPage(FeaturedItem item, bool narrow)
     {
         var grid = new Grid();
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.2, GridUnitType.Star) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        if (narrow)
+        {
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(20) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        }
+        else
+        {
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.2, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        }
 
         var image = new AsyncImage
         {
@@ -143,7 +171,8 @@ public sealed class FeaturedPager : StackPanel
         grid.Children.Add(imageButton);
 
         var info = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-        Grid.SetColumn(info, 2);
+        if (narrow) Grid.SetRow(info, 2);
+        else Grid.SetColumn(info, 2);
         info.Children.Add(UiKit.Text(item.IsShow ? "SERIES" : "FILM", "Text.LabelSmall", "Amber", maxLines: 1));
         var title = UiKit.Text(item.Title, "Text.DisplaySmall", maxLines: 3);
         title.Margin = new Thickness(0, 6, 0, 0);

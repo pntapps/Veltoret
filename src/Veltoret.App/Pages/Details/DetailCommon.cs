@@ -77,6 +77,18 @@ public static class DetailCommon
         var posterHost = new Grid { HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Bottom, Children = { poster } };
         right.Children.Add(posterHost);
         grid.Children.Add(right);
+        // Narrow windows (a tablet held upright): one column, the artwork under the info.
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        grid.SizeChanged += (_, e) =>
+        {
+            var narrow = e.NewSize.Width < 720;
+            grid.ColumnDefinitions[1].Width = narrow ? new GridLength(0) : new GridLength(1.1, GridUnitType.Star);
+            left.Margin = new Thickness(0, 0, narrow ? 0 : 40, 0);
+            Grid.SetRow(right, narrow ? 1 : 0);
+            Grid.SetColumn(right, narrow ? 0 : 1);
+            right.Margin = new Thickness(0, narrow ? 24 : 58, 0, 48);
+        };
         if (entrance)
         {
             Motion.Play(backdrop, 1);

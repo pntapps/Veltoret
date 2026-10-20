@@ -11,7 +11,7 @@
     <RootNamespace>Veltoret.App</RootNamespace>
     <AssemblyName>Veltoret</AssemblyName>
     <Product>Veltoret</Product>
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>false</SelfContained>
     <!-- LibVLC's native build is ~150 MB; only ship x64. -->
@@ -26,6 +26,12 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Veltoret.Core\Veltoret.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Touch through WM_POINTER instead of the legacy WISP stack: the player's controls live in LibVLCSharp's
+         transparent overlay window, and WISP delivers no touches there at all. -->
+    <RuntimeHostConfigurationOption Include="Switch.System.Windows.Input.Stylus.EnablePointerSupport" Value="true" />
   </ItemGroup>
 
   <ItemGroup>

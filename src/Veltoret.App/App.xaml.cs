@@ -33,6 +33,7 @@ public partial class App : Application
         TaskScheduler.UnobservedTaskException += (_, args) => { Log(args.Exception); args.SetObserved(); };
 
         base.OnStartup(e);
+        Controls.TouchInput.Install();
         AppServices.Init();
         var window = new MainWindow();
         MainWindow = window;

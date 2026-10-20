@@ -65,6 +65,14 @@ modules provide (`Accounts/AccountsSection`, `Network/NetworkServersSection`); t
 - Veltoret keeps running in the **notification area** when its window is closed (`RunInBackground`, default on),
   so reminders, new-episode alerts and scans keep working; "Quit" in the tray menu exits.
 - Picture-in-picture becomes an **always-on-top mini player** window.
+- **Touchscreens** (tablets like 2-in-1s): WPF's WM_POINTER touch stack is on (`EnablePointerSupport` in the csproj;
+  the legacy stack delivers no touches to LibVLCSharp's overlay window). `Controls/TouchInput` installs drag-to-scroll
+  with momentum for every ScrollViewer (`TouchScroll`), room for the touch keyboard (`TouchKeyboard`), and Enter →
+  next field. Windows sends the mouse click for a touch *after* the finger lifts, so drags swallow it and the player
+  ignores touch-made mouse events (`TouchInput.IsFromTouch`); its gestures live in `PlayerWindow.Touch.cs`.
+- **HDR**: `HdrProbe` (Core) reads HDR10/HLG/Dolby Vision from MKV/MP4 headers, else the file name. On an HDR-capable
+  display an HDR video turns on Windows HDR before it starts (setting "HDR for HDR videos", default on); the player's
+  "HDR" chip toggles it; closing the player restores the display's previous state (`Player/HdrDisplay`).
 - Playback goes through LibVLC. Local files play by path; Drive and SMB play through a seekable stream
   (`Storage.OpenRead` → `StreamMediaInput`). Hardware decoding with automatic software fallback.
 - Google sign-in: OAuth 2.0 installed-app flow (system browser, loopback redirect, PKCE). Users bring their own

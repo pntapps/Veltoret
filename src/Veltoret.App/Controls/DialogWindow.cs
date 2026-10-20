@@ -83,7 +83,15 @@ public class DialogWindow : Window
         DockPanel.SetDock(_buttons, Dock.Bottom);
         stack.Children.Add(_title);
         stack.Children.Add(_buttons);
-        stack.Children.Add(_body);
+        // The body scrolls when the dialog is taller than the screen (a tablet at 150 %, or with the touch keyboard open).
+        var bodyScroll = new ScrollViewer
+        {
+            Content = _body,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            Focusable = false,
+        };
+        stack.Children.Add(bodyScroll);
         _frame = new Border
         {
             Background = (Brush)Application.Current.FindResource("Brush.SurfaceHigh"),
@@ -100,8 +108,11 @@ public class DialogWindow : Window
             if (e.OriginalSource == _frame || e.OriginalSource == stack || e.OriginalSource == _title) try { DragMove(); } catch (InvalidOperationException) { }
         };
         PreviewKeyDown += OnKey;
+        // Content can grow after it opens (servers found, an error shown): stay on the screen.
+        SizeChanged += (_, _) => { if (IsLoaded && _topBeforeKeyboard == null) FitToScreen(); };
         Loaded += (_, _) =>
         {
+            FitToScreen();
             _frame.Opacity = 0;
             var s = new ScaleTransform(0.96, 0.96);
             _frame.RenderTransformOrigin = new Point(0.5, 0.5);
@@ -114,6 +125,41 @@ public class DialogWindow : Window
             if (_body.Content is UIElement el && el.MoveFocus(new TraversalRequest(FocusNavigationDirection.First))) return;
             _buttons.Children.OfType<Button>().LastOrDefault()?.Focus();
         };
+    }
+
+    private double? _topBeforeKeyboard;
+
+    /// <summary>Never taller than the work area of the screen the dialog is on.</summary>
+    private void FitToScreen()
+    {
+        var work = SystemParameters.WorkArea;
+        MaxHeight = Math.Max(240, work.Height);
+        if (double.IsNaN(Top)) return;
+        if (Top + ActualHeight > work.Bottom) Top = Math.Max(work.Top, work.Bottom - ActualHeight);
+        if (Top < work.Top) Top = work.Top;
+    }
+
+    /// <summary>
+    /// The touch keyboard opened with its top edge at <paramref name="keyboardTop"/> (DIPs; null = it closed):
+    /// move up so the dialog sits above it, and if it still doesn't fit, shrink it so the body scrolls.
+    /// </summary>
+    internal void AvoidKeyboard(double? keyboardTop)
+    {
+        var work = SystemParameters.WorkArea;
+        if (keyboardTop is not { } kb || kb >= Top + ActualHeight)
+        {
+            if (keyboardTop == null && _topBeforeKeyboard is { } top)
+            {
+                MaxHeight = Math.Max(240, work.Height);
+                Top = top;
+                _topBeforeKeyboard = null;
+            }
+            return;
+        }
+        _topBeforeKeyboard ??= Top;
+        var room = kb - work.Top;
+        MaxHeight = Math.Max(200, room);
+        Top = Math.Max(work.Top, kb - Math.Min(ActualHeight, MaxHeight));
     }
 
     public string DialogTitle

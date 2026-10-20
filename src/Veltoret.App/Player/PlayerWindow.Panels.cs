@@ -507,7 +507,7 @@ public partial class PlayerWindow
             InfoRow(items, "Resolution", MediaFormats.Resolution((int)v.Data.Video.Width, (int)v.Data.Video.Height));
             var fps = v.Data.Video.FrameRateDen > 0 ? (double)v.Data.Video.FrameRateNum / v.Data.Video.FrameRateDen : 0;
             InfoRow(items, "Frame rate", MediaFormats.FrameRate(fps));
-            InfoRow(items, "HDR", codec == "Dolby Vision" ? "Dolby Vision" : "SDR");
+            InfoRow(items, "HDR", codec == "Dolby Vision" ? "Dolby Vision" : HdrProbe.Label(_hdrFormat));
             var bitrate = v.Bitrate > 0 ? v.Bitrate : (long)(stats.InputBitrate * 8_000_000);
             InfoRow(items, "Bitrate", MediaFormats.Bitrate(bitrate));
             InfoRow(items, "Decoder", decoder);

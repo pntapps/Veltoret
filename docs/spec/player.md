@@ -218,6 +218,10 @@ Android: double-tap in left third → back, right third → forward, middle thir
   `VideoView`, use libVLC `CropGeometry` to emulate zoom).
 
 ### 3.8 Swipe gestures (touch)
+Windows: implemented for touchscreens (`PlayerWindow.Touch.cs`): tap, double-tap seek (further taps on that side keep
+adding), middle double-tap = full screen, hold = 2×, horizontal swipe seek, right-half volume swipe, pinch zoom 1×–5× with
+two-finger pan, mini player drag. Brightness is dropped.
+
 One finger, decided after touch-slop: horizontal → seek scrub; vertical on left half → brightness; vertical on right
 half → volume. Touches starting within 28 dp of the left/right edge or 56 dp of top/bottom are ignored (system gestures).
 - **Seek scrub**: full width = **180 000 ms**; target clamped 0..duration; HUD `"{+|−}{clock(|delta|)}  ·  {clock(target)}"`

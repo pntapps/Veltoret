@@ -7,6 +7,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using LibVLCSharp.Shared;
+using Veltoret.App.Controls;
 using Veltoret.App.Services;
 using Veltoret.Core.Data;
 using Veltoret.Core.Player;
@@ -101,7 +102,8 @@ public partial class PlayerWindow : Window
         Overlay.PreviewMouseLeftButtonUp += OnOverlayMouseUp;
         Overlay.MouseRightButtonUp += (_, _) => BumpInteraction();
         Overlay.PreviewMouseWheel += OnOverlayWheel;
-        Overlay.MouseLeave += (_, _) => { if (_mini) Fade(MiniControls, 0, 220); };
+        Overlay.MouseLeave += (_, _) => { if (_mini && !TouchInput.RecentTouch) Fade(MiniControls, 0, 220); };
+        HookTouch();
         OnSizeChanged();
         ShowControls();
     }
@@ -190,6 +192,7 @@ public partial class PlayerWindow : Window
         if (_closing) return;
         _closing = true;
         SaveProgress();
+        RestoreDisplayHdr();
     }
 
     private void OnClosedWindow()
@@ -311,6 +314,7 @@ public partial class PlayerWindow : Window
     private void Tick()
     {
         if (_closing) return;
+        DropSilentTouches();
         PollPlayer();
         if (_playWhenReady && !_ended && IsActuallyPlaying && !_castActive && ++_saveTicks >= 100)
         {

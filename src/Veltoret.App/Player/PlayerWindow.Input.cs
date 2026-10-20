@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using Veltoret.App.Controls;
 using Veltoret.Core.Player;
 
 namespace Veltoret.App.Player;
@@ -244,6 +245,8 @@ public partial class PlayerWindow
 
     private void OnOverlayMouseMove(object sender, MouseEventArgs e)
     {
+        // A tap moves the pointer to the finger: that isn't the mouse moving (it would show the controls the tap hides).
+        if (TouchInput.IsFromTouch(e)) return;
         var p = e.GetPosition(Overlay);
         var moved = double.IsNaN(_lastMouse.X) || Math.Abs(p.X - _lastMouse.X) + Math.Abs(p.Y - _lastMouse.Y) > 2;
         _lastMouse = p;
@@ -281,6 +284,13 @@ public partial class PlayerWindow
 
     private void OnOverlayMouseDown(object sender, MouseButtonEventArgs e)
     {
+        // Touches on the video are handled as gestures (PlayerWindow.Touch); on buttons they click as usual.
+        if (TouchInput.IsFromTouch(e))
+        {
+            if (IsVideoHit(e.OriginalSource)) e.Handled = true;
+            else BumpInteraction();
+            return;
+        }
         if (!IsVideoHit(e.OriginalSource))
         {
             _pressOnVideo = false;
@@ -317,6 +327,11 @@ public partial class PlayerWindow
 
     private void OnOverlayMouseUp(object sender, MouseButtonEventArgs e)
     {
+        if (TouchInput.IsFromTouch(e))
+        {
+            if (IsVideoHit(e.OriginalSource)) e.Handled = true;
+            return;
+        }
         _holdTimer.Stop();
         if (_holding)
         {
@@ -343,6 +358,12 @@ public partial class PlayerWindow
     private void StartHold()
     {
         if (_locked || !_pressOnVideo || _panning || !IsActuallyPlaying) return;
+        BeginHold();
+    }
+
+    /// <summary>2× while the mouse button or finger stays down.</summary>
+    private void BeginHold()
+    {
         _holding = true;
         _speedBeforeHold = _speed;
         _mp.SetRate(2f);

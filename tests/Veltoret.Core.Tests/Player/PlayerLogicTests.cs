@@ -153,6 +153,21 @@ public class PlayerFormatTests
     }
 
     [Fact]
+    public void SwipeGestures()
+    {
+        // Full width = 3 minutes, clamped to the video.
+        Assert.Equal((90_000L, 150_000L), PlayerMath.SwipeSeek(60_000, 600_000, 500, 1000));
+        Assert.Equal((-60_000L, 0L), PlayerMath.SwipeSeek(60_000, 600_000, -1000, 1000));
+        Assert.Equal((20_000L, 600_000L), PlayerMath.SwipeSeek(580_000, 600_000, 1000, 1000));
+        Assert.Equal("+1:30  ·  2:30", PlayerFormat.SwipeSeek(90_000, 150_000));
+        Assert.Equal("−0:20  ·  0:40", PlayerFormat.SwipeSeek(-20_000, 40_000));
+        // 70 % of the height = 200 points; up (negative dy) is louder.
+        Assert.Equal(200, PlayerMath.SwipeVolume(100, -700, 1000));
+        Assert.Equal(150, PlayerMath.SwipeVolume(100, -175, 1000));
+        Assert.Equal(0, PlayerMath.SwipeVolume(100, 900, 1000));
+    }
+
+    [Fact]
     public void Labels()
     {
         Assert.Equal("Normal", PlayerFormat.SpeedOption(1f));

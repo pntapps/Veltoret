@@ -39,6 +39,17 @@ public static class SmoothScroll
         sv.BeginAnimation(VerticalProperty, a);
     }
 
+    /// <summary>Ends a running glide where it is (a finger took over).</summary>
+    public static void Stop(ScrollViewer sv)
+    {
+        // Set the base values to the current offsets first, so removing the animations doesn't jump back.
+        sv.SetValue(HorizontalProperty, sv.HorizontalOffset);
+        sv.SetValue(VerticalProperty, sv.VerticalOffset);
+        sv.BeginAnimation(HorizontalProperty, null);
+        sv.BeginAnimation(VerticalProperty, null);
+        sv.SetValue(TargetProperty, double.NaN);
+    }
+
     public static readonly DependencyProperty IsEnabledProperty = DependencyProperty.RegisterAttached(
         "IsEnabled", typeof(bool), typeof(SmoothScroll), new PropertyMetadata(false, (d, e) =>
         {

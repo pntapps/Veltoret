@@ -278,6 +278,9 @@ public partial class PlayerWindow
             VideoChanged?.Invoke();
 
             ApplyLanguagePreferences(out var audioLanguage, out var subtitleLanguage);
+            // An HDR video on an HDR display: switch the display to HDR first (libVLC picks its output at start).
+            await PrepareHdr(ct);
+            ct.ThrowIfCancellationRequested();
             await StartMedia(resumeAt, audioLanguage, subtitleLanguage, ct);
             ShowControls();
 

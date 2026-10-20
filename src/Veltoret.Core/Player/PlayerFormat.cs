@@ -76,6 +76,10 @@ public static class PlayerFormat
     /// <summary>Volume HUD: "Volume 80%", "Volume 150% · Boost".</summary>
     public static string Volume(int percent) => percent > 100 ? $"Volume {percent}% · Boost" : $"Volume {percent}%";
 
+    /// <summary>Swipe-seek HUD: "+1:30  ·  12:04" / "−0:20  ·  0:40".</summary>
+    public static string SwipeSeek(long deltaMs, long targetMs) =>
+        (deltaMs < 0 ? "−" : "+") + Clock(Math.Abs(deltaMs)) + "  ·  " + Clock(targetMs);
+
     public static string Zoom(double zoom) => "Zoom " + zoom.ToString("0.0", CultureInfo.InvariantCulture) + "×";
 
     /// <summary>Sleep detail in the More panel.</summary>
@@ -93,6 +97,19 @@ public static class PlayerMath
         var target = Math.Max(0, position + deltaMs);
         return duration > 0 ? Math.Min(target, duration - 500) : target;
     }
+
+    /// <summary>Touch swipe seek: the full width is 3 minutes; returns the change and the clamped target.</summary>
+    public static (long Delta, long Target) SwipeSeek(long position, long duration, double dx, double width)
+    {
+        var delta = width > 0 ? (long)(dx / width * 180_000) : 0;
+        var target = Math.Max(0, position + delta);
+        if (duration > 0) target = Math.Min(target, duration);
+        return (target - position, target);
+    }
+
+    /// <summary>Touch swipe volume (right half): 70 % of the height covers the whole 0–200 range; up is louder.</summary>
+    public static int SwipeVolume(int startVolume, double dy, double height) =>
+        height > 0 ? (int)Math.Clamp(Math.Round(startVolume - dy / (0.7 * height) * 200), 0, 200) : startVolume;
 
     public static long SkipForward(long position, long duration, int seconds)
     {

@@ -118,13 +118,22 @@ public sealed class SettingsPage : UserControl
 
         // Right.
         _right.Children.Add(Group("Playback"));
-        _right.Children.Add(PanelOf(
+        var playback = new List<UIElement>
+        {
             Switch("Auto-play next episode", "Counts down at the end of an episode", () => S.AutoPlayNext, v => Save(s => s with { AutoPlayNext = v })),
             Choice("Skip button", new[] { 30, 60, 85, 90, 120 }.Select(n => (n, $"+{n}s")).ToList(), () => S.SkipSeconds, v => Save(s => s with { SkipSeconds = v })),
             Choice("Seek step", new[] { 5, 10, 15, 30 }.Select(n => (n, $"{n}s")).ToList(), () => S.SeekSeconds, v => Save(s => s with { SeekSeconds = v })),
             Choice("Preferred audio", Languages.Select(l => (l.Code, l.Name)).ToList(), () => S.PreferredAudioLanguage, v => Save(s => s with { PreferredAudioLanguage = v })),
             Choice("Default subtitles", new[] { ("", "Off") }.Concat(Languages.Select(l => (l.Code, l.Name))).ToList(),
-                () => S.PreferredSubtitleLanguage, v => Save(s => s with { PreferredSubtitleLanguage = v }))));
+                () => S.PreferredSubtitleLanguage, v => Save(s => s with { PreferredSubtitleLanguage = v })),
+        };
+        // Only on PCs with a display that can show HDR.
+        if (Player.HdrDisplay.AnySupported())
+        {
+            playback.Add(Switch("HDR for HDR videos", "Turns on HDR on this display while an HDR video plays, and back off after",
+                () => S.AutoHdr, v => Save(s => s with { AutoHdr = v })));
+        }
+        _right.Children.Add(PanelOf(playback.ToArray()));
 
         _right.Children.Add(Group("Subtitles"));
         _right.Children.Add(PanelOf(

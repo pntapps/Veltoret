@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="Theme.Veltoret" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/veltoret_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:colorAccent">@color/veltoret_amber</item>
+    </style>
+
+    <style name="Theme.Veltoret.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/veltoret_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.Veltoret</item>
+    </style>
+
+    <style name="Theme.Veltoret.Player" parent="Theme.Veltoret">
+        <item name="android:windowBackground">@android:color/black</item>
+    </style>
+</resources>

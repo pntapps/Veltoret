@@ -1,0 +1,32 @@
+# Add project specific R8 rules here.
+# AGP will combine all keep rule files in src/main/keepRules to pass to R8
+#
+# For more details, see
+#   https://d.android.com/r/tools/r8/keep-rules
+
+# If your project uses WebView with JS, uncomment the following
+# and specify the fully qualified class name to the JavaScript interface
+# class:
+#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
+#   public *;
+#}
+# ---- Network shares (smbj, its mbassador event bus, Rapid7 dcerpc) ----
+# Optional desktop-Java features these libraries reference but Veltoret never uses on Android:
+# Kerberos sign-in (org.ietf.jgss), mbassador's EL filters (javax.el) and Java RMI exceptions.
+-dontwarn org.ietf.jgss.**
+-dontwarn javax.el.**
+-dontwarn java.rmi.**
+# smbj delivers connection events through mbassador, which finds @Handler methods by reflection.
+-keepattributes RuntimeVisibleAnnotations
+-keepclassmembers class * {
+    @net.engio.mbassy.listener.Handler <methods>;
+}
+-keep class net.engio.mbassy.** { *; }
+# smbj and dcerpc build protocol messages from enum values and factories; keep them whole rather than
+# risk a stripped class breaking sign-in or share listing in release builds only.
+-keep class com.hierynomus.** { *; }
+-keep class com.rapid7.client.dcerpc.** { *; }
+
+# ---- Chromecast ----
+# Cast finds its options provider by the class name in the manifest.
+-keep class com.pntapps.veltoret.player.cast.CastOptionsProvider { *; }

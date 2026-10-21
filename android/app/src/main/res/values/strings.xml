@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Veltoret</string>
+    <string name="search_hint">Titles, actors, directors</string>
+</resources>

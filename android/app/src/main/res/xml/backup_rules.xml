@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+   Backup rules for Android 11 and older. See https://developer.android.com/guide/topics/data/autobackup
+-->
+<full-backup-content>
+    <!-- Network server passwords are encrypted with a Keystore key that isn't backed up; a restored copy
+         couldn't be decrypted, so it's left out (SmbServerStore.PREFS). Paired TVs and phones
+         ("Play on TV" secrets, TvLinkStore.PREFS) are the same. -->
+    <exclude domain="sharedpref" path="smb_servers.xml"/>
+    <exclude domain="sharedpref" path="tv_link.xml"/>
+</full-backup-content>

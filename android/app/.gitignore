@@ -1,0 +1,3 @@
+/build
+# Signed APKs/bundles from Android Studio land here and may contain a built-in TMDB key
+/release

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Veltoret mark: a serif-like V cut from two strokes, with the amber "projector" dot. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#F3EFE6"
+        android:pathData="M35,36 L42.5,36 L54,66.5 L65.5,36 L73,36 L57.2,76 L50.8,76 Z" />
+    <path
+        android:fillColor="#E8A33D"
+        android:pathData="M76,70 m-4.5,0 a4.5,4.5 0,1 1,9 0 a4.5,4.5 0,1 1,-9 0" />
+</vector>

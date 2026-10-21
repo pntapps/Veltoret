@@ -1,0 +1,29 @@
+*.iml
+.gradle
+/local.properties
+# Android Studio settings are per person (devices, run targets, caches); Studio recreates them on open.
+# Only the shared code style is kept so contributors format code the same way.
+/.idea/*
+!/.idea/codeStyles/
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Kotlin compiler caches
+.kotlin
+
+# Personal Claude Code settings
+/.claude/settings.local.json
+
+# Release signing keys: never commit
+*.jks
+*.keystore
+keystore.properties
+
+# Built apps (a private release build may contain your TMDB key)
+*.apk
+*.aab
+app/src/main/assets/adi-registration.properties

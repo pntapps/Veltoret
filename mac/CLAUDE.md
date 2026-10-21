@@ -1,18 +1,18 @@
 # CLAUDE.md — Veltoret for Mac
 
 A native macOS port (Swift 6 toolchain in Swift 5 language mode, SwiftUI + AppKit, macOS 14+) of Veltoret
-(Android: github.com/pntapps/Veltoret, Windows: github.com/pntapps/Veltoret-Windows, both GPL-3.0). Same features:
+(`../android`, `../windows` in this repository, GPL-3.0). Same features:
 a Movies / TV Shows library from Google Drive, folders on this Mac and SMB network shares, TMDB metadata, a
 full-featured player (VLCKit / LibVLC), Watchlist and reminders, a file manager, ZIP extraction to Drive, Chromecast,
 and Play on TV (sending to Veltoret on an Android TV).
 
 **Sources of truth, in order:**
-1. `docs/spec/*.md` — every feature, string and rule (written for the Windows port; "This PC" → "This Mac",
+1. `../docs/spec/*.md` (shared by all three apps) — every feature, string and rule (written for the Windows port; "This PC" → "This Mac",
    "Click" stays, Windows-only mechanics → the Mac equivalents below).
-2. The Windows app: `../Veltoret-Windows/src` (C#). Port it **line by line** for logic (parser, scanner, TMDB
+2. The Windows app: `../windows/src` (C#). Port it **line by line** for logic (parser, scanner, TMDB
    matching, player logic, Drive, Cast, Plans…). Its `docs/CONTRACTS.md` lists the Windows APIs and deviations.
-3. The Android app: `../Veltoret/app/src` (Kotlin), when the Windows code or spec is unclear.
-Both sibling repos are **read-only**: never edit them.
+3. The Android app: `../android/app/src` (Kotlin), when the Windows code or spec is unclear.
+A change to one app's behaviour, wording or design usually belongs in all three; keep `../docs/spec` true.
 
 ## Build and test
 
@@ -20,7 +20,7 @@ Documents/ is iCloud-synced (File Provider adds Finder info that breaks code sig
 scratch path outside the project**. Each parallel worker uses its own:
 
 ```bash
-cd "/Users/mdimranansari/Documents/PNT Apps/Veltoret/Veltoret-Mac"
+cd mac
 swift build --scratch-path ~/Library/Caches/VeltoretBuild/<you> --target <YourTarget>
 swift test  --scratch-path ~/Library/Caches/VeltoretBuild/<you> --filter <YourTestTarget>
 Scripts/build-app.sh            # dist/Veltoret.app (release, VLCKit embedded, ad-hoc signed)

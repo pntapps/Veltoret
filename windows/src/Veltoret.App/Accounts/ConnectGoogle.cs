@@ -18,7 +18,7 @@ namespace Veltoret.App.AccountsUi;
 public static class ConnectGoogle
 {
     /// <summary>The setup guide (docs/SETUP.md, "Google Drive").</summary>
-    public const string SetupUrl = "https://github.com/pntapps/Veltoret-Windows/blob/main/docs/SETUP.md#google-drive";
+    public const string SetupUrl = "https://github.com/pntapps/Veltoret/blob/main/windows/docs/SETUP.md#google-drive";
 
     /// <summary>Connects a new account (or reconnects <paramref name="reconnectEmail"/>). Null when it didn't happen.</summary>
     public static async Task<AccountEntity?> Run(Window? owner, string? reconnectEmail = null)

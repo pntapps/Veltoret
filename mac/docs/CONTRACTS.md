@@ -7,7 +7,7 @@ with your module name).
 
 ## Translation rule from the Windows contracts
 
-Every API below is the Windows API (`../Veltoret-Windows/docs/CONTRACTS.md`) translated mechanically, so you can
+Every API below is the Windows API (`../../windows/docs/CONTRACTS.md`) translated mechanically, so you can
 code against a module that isn't written yet:
 
 - Names → lowerCamelCase (`ScanAll()` → `scanAll()`, `IsOnline` → `isOnline`, `Db.Changed` → `db.changed`).
@@ -409,7 +409,7 @@ text input, custom sheet), `FolderPicker` (any source through Storage; This Mac 
   client first when none, "Continue in your browser…" dialog with Cancel → cancels the sign-in task, toast "Connected
   {email}", ConnectError → dialog with title/message, setup problems add client details + guide link),
   `ConnectGoogle.importClient(firstTime:) async -> Bool`, `ConnectGoogle.openGuide()`, `ConnectGoogle.setupUrl`
-  (`…/Veltoret-Mac/blob/main/docs/SETUP.md#google-drive` — **lead: docs/SETUP.md doesn't exist yet**).
+  (`…/Veltoret/blob/main/mac/docs/SETUP.md#google-drive`).
   `ExtractDialog.show(account:zipId:zipName:size:parentId:) async -> Bool` (@MainActor; starts `transfers.extract`).
 - (files-ui) Files Back: the shell has no page hook, so FeatureFiles installs its own `NSEvent` local monitor (AppKit
   calls the newest local monitor first, i.e. before `MainShell`'s). While a Files page is current and no dialog is open,

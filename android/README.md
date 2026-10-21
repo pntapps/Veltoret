@@ -163,14 +163,33 @@ Veltoret is developed by **PNT Apps**.
 Official Veltoret builds are published by PNT Apps under the package name `com.pntapps.veltoret`,
 which is registered to PNT Apps with Google. Building it for your own phone or TV is fine as it is.
 If you **share or publish your own build or fork**, change `applicationId` in `app/build.gradle.kts`
-to your own package name (for example `com.yourname.veltoret`). Don't use `com.pntapps` or the PNT Apps
-name, and don't present your build as an official PNT Apps release. See
+to your own package name (for example `com.yourname.veltoret`). Don't use `com.pntapps`, or "Veltoret" /
+"PNT Apps" as your app's name or icon, and don't present your build as an official PNT Apps release. Keep the
+"Developed by PNT Apps" credit (see [Credit to PNT Apps](#credit-to-pnt-apps--required)). See
 [SETUP.md](SETUP.md#-share-veltoret-with-friends-and-family-optional).
+
+## Credit to PNT Apps — required
+
+If you use, fork, modify or redistribute Veltoret, you must keep the credit to PNT Apps:
+
+- in your README or main documentation: **"Developed by PNT Apps — https://www.pntapps.com"**, and
+- inside the app, where users can see it (for example an About or Settings screen): **"Developed by PNT Apps"**
+  linking to https://www.pntapps.com.
+
+You may add your own credits next to it. This is an additional term of the license (GPL-3.0, section 7(b)); see
+[NOTICE](../NOTICE).
+
+A modified version must not be presented as the original Veltoret or as an official PNT Apps release, and the names
+"PNT Apps" and "Veltoret" and their logos/icons may not be used as the name or icon of your app.
 
 ## License
 
-Veltoret is free software under the [GNU General Public License v3.0](LICENSE). You may use, study,
-change and share it; versions you distribute must stay under the same license.
+Copyright © 2026 PNT Apps.
+
+Veltoret for Android is licensed under the [GNU General Public License v3.0](LICENSE) with the additional attribution terms in
+[NOTICE](../NOTICE). In short: you may use, study, change and share it, but if you distribute it or a modified version,
+you must release your source code under the same GPL-3.0 license (including the attribution terms) and keep the
+credit to PNT Apps.
 
 Third-party code:
 

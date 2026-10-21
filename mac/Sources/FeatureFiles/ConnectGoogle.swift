@@ -11,7 +11,7 @@ import VeltoretUI
 /// Cloud and a link to the setup guide.
 public enum ConnectGoogle {
     /// The setup guide (docs/SETUP.md, "Google Drive").
-    public static let setupUrl = "https://github.com/pntapps/Veltoret-Mac/blob/main/docs/SETUP.md#google-drive"
+    public static let setupUrl = "https://github.com/pntapps/Veltoret/blob/main/mac/docs/SETUP.md#google-drive"
 
     private final class Flag { var value = false }
 

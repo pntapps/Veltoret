@@ -139,10 +139,10 @@ final class MenuActions: NSObject {
     }
 
     @objc func setupGuide() {
-        NSWorkspace.shared.open(URL(string: "https://github.com/pntapps/Veltoret-Mac/blob/main/docs/SETUP.md")!)
+        NSWorkspace.shared.open(URL(string: "https://github.com/pntapps/Veltoret/blob/main/mac/docs/SETUP.md")!)
     }
 
     @objc func github() {
-        NSWorkspace.shared.open(URL(string: "https://github.com/pntapps/Veltoret-Mac")!)
+        NSWorkspace.shared.open(URL(string: "https://github.com/pntapps/Veltoret")!)
     }
 }

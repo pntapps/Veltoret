@@ -4,8 +4,8 @@
 
 Developed by [PNT Apps](https://www.pntapps.com) · [pntapps.com](https://www.pntapps.com)
 
-Veltoret for Mac is the native macOS edition of [Veltoret](https://github.com/pntapps/Veltoret) (Android) and
-[Veltoret for Windows](https://github.com/pntapps/Veltoret-Windows). It turns the video files in your Google Drive,
+Veltoret for Mac is the native macOS edition of [Veltoret](https://github.com/pntapps/Veltoret), alongside the [Android](../android) and
+[Windows](../windows) apps in the same repository. It turns the video files in your Google Drive,
 on this Mac and on your network shares into a beautiful Movies and TV Shows library, with posters, cast and episode
 guides from TMDB, and plays them with a full-featured player.
 
@@ -115,18 +115,37 @@ Sources/VeltoretUI/         Design system, navigation, dialogs, main window shel
 Sources/Feature*/           Library pages, player, Files, network & cast UI, settings & notifications
 Sources/Veltoret/           App entry, menus, wiring
 Tests/                      XCTest, including the Android/Windows unit tests ported one for one
-docs/                       Setup guide, porting specs, module contracts
+docs/                       Setup guide, module contracts (shared specs: ../docs/spec)
 ```
 
 ## Official builds and forks
 
 Official Veltoret builds are published by PNT Apps. If you share or publish your own build or fork, give it your own
-name and publisher, don't use the PNT Apps name, and don't present it as an official PNT Apps release.
+name, icon and publisher, and don't present it as an official PNT Apps release. Keep the "Developed by PNT Apps"
+credit (see [Credit to PNT Apps](#credit-to-pnt-apps--required)) and publish your source code under GPL-3.0.
+
+## Credit to PNT Apps — required
+
+If you use, fork, modify or redistribute Veltoret, you must keep the credit to PNT Apps:
+
+- in your README or main documentation: **"Developed by PNT Apps — https://www.pntapps.com"**, and
+- inside the app, where users can see it (for example an About or Settings screen): **"Developed by PNT Apps"**
+  linking to https://www.pntapps.com.
+
+You may add your own credits next to it. This is an additional term of the license (GPL-3.0, section 7(b)); see
+[NOTICE](../NOTICE).
+
+A modified version must not be presented as the original Veltoret or as an official PNT Apps release, and the names
+"PNT Apps" and "Veltoret" and their logos/icons may not be used as the name or icon of your app.
 
 ## License
 
-Veltoret for Mac is free software under the [GNU General Public License v3.0](LICENSE). You may use, study, change
-and share it; versions you distribute must stay under the same license.
+Copyright © 2026 PNT Apps.
+
+Veltoret for Mac is licensed under the [GNU General Public License v3.0](LICENSE) with the additional attribution terms in
+[NOTICE](../NOTICE). In short: you may use, study, change and share it, but if you distribute it or a modified version,
+you must release your source code under the same GPL-3.0 license (including the attribution terms) and keep the
+credit to PNT Apps.
 
 Third-party code:
 

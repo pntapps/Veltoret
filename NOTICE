@@ -1,0 +1,72 @@
+Veltoret
+Copyright © 2026 PNT Apps — https://www.pntapps.com
+
+Veltoret (the Android, Windows and Mac apps in this repository) is free software: you can redistribute it and/or
+modify it under the terms of the GNU General Public License version 3 (see LICENSE), together with the additional
+terms below, which are permitted by section 7 of that license.
+
+-------------------------------------------------------------------------------
+ADDITIONAL TERMS (GNU GPL v3, section 7)
+-------------------------------------------------------------------------------
+
+1. Attribution — section 7(b): preservation of author attributions.
+
+   If you convey Veltoret or any work based on it (a fork, a modified version, a port, or any app that contains
+   its code), you must keep the following credit to PNT Apps:
+
+   a) In the README or main documentation of your version:
+
+          Developed by PNT Apps — https://www.pntapps.com
+
+   b) Inside the app, where users can see it without special effort (for example an About or Settings screen):
+
+          Developed by PNT Apps
+
+      linking to https://www.pntapps.com where the app can open links.
+
+   You may add your own credits next to it (for example "Modified by …"), but you may not remove, hide or reword
+   the credit to PNT Apps.
+
+2. Modified versions — section 7(c): no misrepresentation of origin.
+
+   A modified version must be marked in reasonable ways as different from the original, and must not be presented
+   as the original Veltoret or as an official PNT Apps release.
+
+3. Names and logos — section 7(e): no trademark license.
+
+   This license does not grant any right to use the names "PNT Apps" or "Veltoret", or their logos and icons, as the
+   name, logo or icon of your app or to suggest endorsement by PNT Apps. Give your version its own name and icon.
+   (Keeping the credit required by term 1 is not such a use.)
+
+These terms apply to every copy and to every work based on Veltoret. Recipients may remove only terms that the GPL
+itself allows to be removed; the attribution in term 1 must stay.
+
+-------------------------------------------------------------------------------
+IN SHORT
+-------------------------------------------------------------------------------
+
+You may use, study, change and share Veltoret. If you distribute it or a modified version, you must:
+  - release your complete source code under the same GPL-3.0 license, including these additional terms;
+  - keep "Developed by PNT Apps — https://www.pntapps.com" in your README and "Developed by PNT Apps" in the app;
+  - use your own app name and icon, and not present your version as the original or as an official release.
+
+-------------------------------------------------------------------------------
+THIRD-PARTY COMPONENTS
+-------------------------------------------------------------------------------
+
+These keep their own licenses (each app's README lists them in full):
+
+  Android  AndroidX Media3 (Apache-2.0), Jellyfin media3-ffmpeg-decoder with FFmpeg (GPL-3.0), smbj (Apache-2.0),
+           dcerpc (BSD-3-Clause), ZXing (Apache-2.0)
+  Windows  LibVLC / LibVLCSharp (LGPL-2.1+), SMBLibrary (LGPL-3.0), SharpCompress (MIT), Dapper (Apache-2.0),
+           Microsoft.Data.Sqlite (MIT), CommunityToolkit.Mvvm (MIT), Windows Community Toolkit (MIT),
+           Google.Protobuf (BSD-3-Clause), Makaretu.Dns.Multicast (MIT)
+  Mac      VLCKit / LibVLC (LGPL-2.1+), AMSMB2 / libsmb2 (LGPL-2.1), SQLite (public domain)
+  All      Fraunces and Inter fonts (SIL Open Font License 1.1, see */third_party/fonts/OFL.txt)
+
+Movie and TV metadata and artwork come from The Movie Database (TMDB). This application uses TMDB and the TMDB APIs
+but is not endorsed, certified, or otherwise approved by TMDB.
+
+Google Drive, Chromecast and Google TV are trademarks of Google LLC. Windows is a trademark of Microsoft Corporation.
+Mac and macOS are trademarks of Apple Inc. Veltoret is an independent project and is not affiliated with, endorsed or
+sponsored by Google, Microsoft, Apple or TMDB.

@@ -4,7 +4,7 @@
 
 Developed by [PNT Apps](https://www.pntapps.com) · [pntapps.com](https://www.pntapps.com)
 
-Veltoret for Windows is the native Windows edition of [Veltoret](https://github.com/pntapps/Veltoret). It turns the
+Veltoret for Windows is the native Windows edition of [Veltoret](https://github.com/pntapps/Veltoret) (Android: [`android/`](../android), Mac: [`mac/`](../mac)). It turns the
 video files in your Google Drive, on this PC and on your network shares into a beautiful Movies and TV Shows library,
 with posters, cast and episode guides from TMDB, and plays them with a full-featured player.
 
@@ -13,8 +13,8 @@ with posters, cast and episode guides from TMDB, and plays them with a full-feat
 
 ## Download
 
-Get the installer from **[Releases](https://github.com/pntapps/Veltoret-Windows/releases/latest)**:
-`Veltoret-Setup-<version>-x64.exe`. It installs for your Windows account without admin rights (or for all users, if you
+Get the installer from **[Releases](https://github.com/pntapps/Veltoret/releases)**:
+`Veltoret-Setup-<version>-x64.exe` (tags `windows-v…`). It installs for your Windows account without admin rights (or for all users, if you
 choose), needs Windows 10 version 2004 or later (64-bit), and includes everything it needs — no .NET or codec packs to
 install.
 
@@ -115,18 +115,37 @@ src/Veltoret.Core/     Everything testable, no UI
 src/Veltoret.App/      WPF app: shell, pages, player window, tray icon, notifications
 tests/                 xUnit, including the Android app's unit tests ported one for one
 installer/             Inno Setup script, build script and artwork
-docs/                  Setup guide, porting specs and module contracts
+docs/                  Setup guide and module contracts (shared specs: ../docs/spec)
 ```
 
 ## Official builds and forks
 
 Official Veltoret builds are published by PNT Apps. If you share or publish your own build or fork, give it your own
-name and publisher, don't use the PNT Apps name, and don't present it as an official PNT Apps release.
+name, icon and publisher, and don't present it as an official PNT Apps release. Keep the "Developed by PNT Apps"
+credit (see [Credit to PNT Apps](#credit-to-pnt-apps--required)) and publish your source code under GPL-3.0.
+
+## Credit to PNT Apps — required
+
+If you use, fork, modify or redistribute Veltoret, you must keep the credit to PNT Apps:
+
+- in your README or main documentation: **"Developed by PNT Apps — https://www.pntapps.com"**, and
+- inside the app, where users can see it (for example an About or Settings screen): **"Developed by PNT Apps"**
+  linking to https://www.pntapps.com.
+
+You may add your own credits next to it. This is an additional term of the license (GPL-3.0, section 7(b)); see
+[NOTICE](../NOTICE).
+
+A modified version must not be presented as the original Veltoret or as an official PNT Apps release, and the names
+"PNT Apps" and "Veltoret" and their logos/icons may not be used as the name or icon of your app.
 
 ## License
 
-Veltoret for Windows is free software under the [GNU General Public License v3.0](LICENSE). You may use, study, change
-and share it; versions you distribute must stay under the same license.
+Copyright © 2026 PNT Apps.
+
+Veltoret for Windows is licensed under the [GNU General Public License v3.0](LICENSE) with the additional attribution terms in
+[NOTICE](../NOTICE). In short: you may use, study, change and share it, but if you distribute it or a modified version,
+you must release your source code under the same GPL-3.0 license (including the attribution terms) and keep the
+credit to PNT Apps.
 
 Third-party code:
 

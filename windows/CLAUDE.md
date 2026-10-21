@@ -5,9 +5,9 @@ Same features: a Movies / TV Shows library from Google Drive, folders on this PC
 metadata, a full-featured player (LibVLC), Watchlist and reminders, a file manager, ZIP extraction to Drive,
 Chromecast, and Play on TV (sending to Veltoret on an Android TV).
 
-**Specs:** `docs/spec/*.md` describe every Android feature, string and rule in detail. Read the spec for your
+**Specs:** `../docs/spec/*.md` (shared by all three apps) describe every Android feature, string and rule in detail. Read the spec for your
 area before writing code; it is the source of truth for behaviour and UI text. When a spec is unclear, read the
-Android source (https://github.com/pntapps/Veltoret; clone it outside this repo, read-only).
+Android source in `../android/` (this repository holds android/, windows/ and mac/).
 
 ## Build and test
 

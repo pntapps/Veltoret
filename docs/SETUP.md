@@ -1,17 +1,17 @@
-# Veltoret for Windows · Setup
+# Veltoret for Mac · Setup
 
 Veltoret is open source and ships **without any keys**. To browse Google Drive you connect it to your own (free)
 Google Cloud project, and posters and details need your own (free) TMDB key. Nothing here costs money.
 
 > [!TIP]
-> **Only want to play videos on this PC or a network share?** Skip "Google Drive" and just get a TMDB key.
+> **Only want to play videos on this Mac or a network share?** Skip "Google Drive" and just get a TMDB key.
 
 ---
 
 ## Google Drive
 
 Veltoret signs in with Google's **installed-app flow**: your browser opens Google's sign-in page, and Google sends
-you back to Veltoret on this PC (`http://127.0.0.1`, a random port). For that you create an OAuth client of type
+you back to Veltoret on this Mac (`http://127.0.0.1`, a random port). For that you create an OAuth client of type
 **Desktop app** in your own Google Cloud project and import its JSON file into Veltoret. About 10 minutes, once.
 
 ### 1 · Create a Google Cloud project
@@ -56,7 +56,7 @@ This is the screen Google shows when you sign in. Older consoles call it *OAuth 
 ### 4 · Create a Desktop app OAuth client
 
 1. **Google Auth Platform → Clients → + Create client**.
-2. **Application type:** **Desktop app**. **Name:** `Veltoret for Windows` (only you see it).
+2. **Application type:** **Desktop app**. **Name:** `Veltoret for Mac` (only you see it).
 3. Click **Create**, then **Download JSON** in the dialog. The file is named
    `client_secret_….apps.googleusercontent.com.json`. You can download it again later from the client's page.
 
@@ -68,16 +68,16 @@ This is the screen Google shows when you sign in. Older consoles call it *OAuth 
 
 ### 5 · Import it in Veltoret and connect
 
-1. In Veltoret, open **Settings → Sources → Google sign-in** and click **Import client file** (onboarding offers
+1. In Veltoret, open **Settings → Google accounts → Google sign-in** and click **Import client file** (onboarding offers
    the same when you choose **Connect Google account**). Pick the JSON file you downloaded.
 2. Click **Add Google account**. Your browser opens Google's sign-in page.
 3. Pick your account. On *"Google hasn't verified this app"* click **Continue**, make sure **See, edit, create, and
    delete all of your Google Drive files** is ticked, and click **Continue**.
 4. The browser says **Veltoret is connected**. Close the tab and go back to Veltoret.
 
-The same client file works on every PC: there's no per-machine fingerprint as on Android. Veltoret keeps the
-client and each account's sign-in encrypted for your Windows user (DPAPI) under `%LOCALAPPDATA%\Veltoret\secrets`.
-Removing an account in Settings forgets its sign-in on this PC; it doesn't delete anything from Drive.
+The same client file works on every Mac and PC: there's no per-machine fingerprint as on Android. Veltoret keeps
+the client and each account's sign-in in your **login Keychain** (service `com.pntapps.veltoret`). Removing an
+account in Settings forgets its sign-in on this Mac; it doesn't delete anything from Drive.
 
 > [!CAUTION]
 > Keep the JSON file private and never commit it to a repository. Anyone with it can show *your* app name on
@@ -93,9 +93,22 @@ Removing an account in Settings forgets its sign-in on this PC; it doesn't delet
 | **"Access blocked … has not completed the Google verification process"** or `Error 403: access_denied` | The account isn't a test user | Add it under **Audience → Test users** (step 3). |
 | **"Google didn't grant access"** | The Google page was closed, Drive access was unticked, or nothing came back within 5 minutes | Try again and leave the Drive permission ticked. |
 | An account says it **needs reconnecting** every week | The app is in *Testing* (7-day sign-ins) | Click **Reconnect**, or publish the app (note in step 3). |
-| The browser didn't open, or the page says *"unable to connect"* | A firewall or security tool blocks `127.0.0.1` | Allow Veltoret on the loopback address and try again. |
+| The browser didn't open, or the page says *"unable to connect"* | A firewall or security tool (Little Snitch, LuLu…) blocks `127.0.0.1` | Allow Veltoret on the loopback address and try again. |
 | **"Google Drive refused the download"** while playing | Drive's daily download limit for that file was reached | Wait a while and try again. |
 | **"Google Drive is full"** while extracting a ZIP, or **Extract** is disabled | Extracting needs free space about the size of the ZIP (it stays until the end) | Free up space (Gmail and Google Photos share it) and empty Drive's trash, then extract again: it continues where it stopped. |
+
+---
+
+## Network shares and TVs
+
+**Network servers (SMB)** need no setup: open **Settings → Network servers → Add network server**. Veltoret finds
+servers on your network by itself (or type an address like `smb://192.168.0.10/Movies` or `\\192.168.0.10\Movies`).
+Passwords are kept in your login Keychain.
+
+**Chromecast and Play on TV** find TVs on your home network. The first time, macOS asks whether Veltoret may
+*find and connect to devices on your local network*: click **Allow** (you can change it later in **System Settings →
+Privacy & Security → Local Network**). If the macOS firewall is on and a TV can't load the video, Veltoret offers
+to open **System Settings → Network → Firewall** so you can allow incoming connections for Veltoret.
 
 ---
 
@@ -112,7 +125,7 @@ Posters, descriptions, cast and episode guides come from **[The Movie Database (
 
 > [!NOTE]
 > **Developers:** instead of typing it, set the `VELTORET_TMDB_KEY` environment variable before starting Veltoret
-> (for example `setx VELTORET_TMDB_KEY your-key`, then open a new terminal). Never commit a key to the repository.
+> (for example `VELTORET_TMDB_KEY=your-key open -a Veltoret`, or `launchctl setenv VELTORET_TMDB_KEY your-key`). Never commit a key to the repository.
 
 | What you see | What it means | How to fix it |
 | --- | --- | --- |

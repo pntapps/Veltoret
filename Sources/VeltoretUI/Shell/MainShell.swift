@@ -98,7 +98,7 @@ public struct MainShell: View {
                 PageHost()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .overlay(alignment: .topLeading) { TitleStripBack(visible: nav.canGoBack && !inOnboarding) }
+            // Pages draw their own Back button (as on Windows); ⌘[, Esc, mouse back and swipe still work.
         }
         .overlay(ToastHostView())
         .overlay(DialogHostView())
@@ -254,30 +254,6 @@ private struct PageHost: View {
                        value: nav.current?.id)
         }
         .clipped()
-    }
-}
-
-/// A small back chevron in the title-bar strip above the page (shown when Back is possible).
-private struct TitleStripBack: View {
-    let visible: Bool
-    @State private var hovering = false
-    var body: some View {
-        if visible {
-            Button { ShellCommands.goBack() } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(hovering ? Theme.text : Theme.textMuted)
-                    .frame(width: 28, height: 22)
-                    .background(RoundedRectangle(cornerRadius: 6).fill(hovering ? Theme.hover : .clear))
-            }
-            .buttonStyle(.plain)
-            .onHover { hovering = $0 }
-            .help("Back (⌘[)")
-            .padding(.leading, 10)
-            .padding(.top, 4)
-            .ignoresSafeArea()
-            .transition(.opacity)
-        }
     }
 }
 

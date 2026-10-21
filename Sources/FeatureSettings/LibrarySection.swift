@@ -123,7 +123,7 @@ struct LibrarySection: View {
                 if model.unmatched > 0 {
                     SettingsDivider()
                     SettingRow("Needs a match",
-                               subtitle: "\(model.unmatched) \(model.unmatched == 1 ? "file" : "files") need identifying",
+                               subtitle: "\(model.unmatched) \(model.unmatched == 1 ? "file needs" : "files need") identifying",
                                icon: "exclamationmark.circle") { Navigator.shared.navigate(.fixMatch()) }
                 }
                 if model.ignored > 0 {

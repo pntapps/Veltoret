@@ -21,6 +21,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var started = false
 
     func applicationWillFinishLaunching(_ notification: Notification) {
+        if let dir = ProcessInfo.processInfo.environment["VELTORET_DATA_DIR"], !dir.isEmpty {
+            AppPaths.root = URL(fileURLWithPath: dir, isDirectory: true)   // developer/test data folder
+        }
         do {
             try AppServices.initFoundation()
         } catch {
@@ -55,6 +58,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         startServices()
         if !pendingOpenFiles.isEmpty { openFiles(pendingOpenFiles); pendingOpenFiles = [] }
+        DevSnapshots.runIfRequested { [weak self] in self?.mainWindow }
     }
 
     private func startServices() {

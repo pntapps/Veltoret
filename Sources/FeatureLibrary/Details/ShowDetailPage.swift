@@ -357,7 +357,7 @@ private struct EpisodeRow: View {
         } label: {
             HStack(alignment: .center, spacing: 0) {
                 ZStack {
-                    ArtworkImage(url: e.stillUrl, fallbackText: "E\(e.number)", cornerRadius: Theme.Radius.card, outlined: true, maxPixel: 400)
+                    ArtworkImage(url: e.stillUrl, fallbackText: nil, cornerRadius: Theme.Radius.card, outlined: true, maxPixel: 400)
                     if e.available {
                         Circle().fill(Theme.imageDim).frame(width: 34, height: 34)
                             .overlay(Image(systemName: "play.fill").font(.system(size: 14)).foregroundStyle(Theme.text))

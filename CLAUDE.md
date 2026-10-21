@@ -27,6 +27,11 @@ Scripts/build-app.sh            # dist/Veltoret.app (release, VLCKit embedded, a
 Scripts/fetch-vlckit.sh         # downloads Vendor/VLCKit.xcframework (not committed, 400 MB)
 ```
 
+**Checking UI without Screen Recording permission:** the app renders its own window to PNGs and quits:
+`VELTORET_DATA_DIR=/tmp/v VELTORET_SNAPSHOT_DIR=/tmp/shots VELTORET_SNAPSHOT_ROUTES=home,movies,shows,movie:603,show:1396,search,files,settings,fixmatch dist/Veltoret.app/Contents/MacOS/Veltoret`
+(`Sources/Veltoret/DevSnapshots.swift`; seed `/tmp/v/veltoret.db` with sqlite3 for a populated library). Say what
+you looked at; VLC video and the traffic lights don't appear in these images.
+
 ## Layout and module ownership
 
 ```

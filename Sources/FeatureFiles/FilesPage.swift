@@ -39,8 +39,8 @@ struct FilesPage: View {
             }
             content.padding(.top, 10)
         }
-        .padding(.leading, 32)
-        .padding(.trailing, 24)
+        .padding(.leading, Theme.gutter)
+        .padding(.trailing, Theme.gutter - 8)
         .padding(.top, 24)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .overlay(alignment: .bottomTrailing) { overlay }

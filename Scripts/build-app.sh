@@ -24,6 +24,8 @@ sed -e "s/__VERSION__/$VERSION/" -e "s/__BUILD__/$BUILD/" Resources/Info.plist >
 cp Resources/AppIcon.icns "$APP/Contents/Resources/"
 # SwiftPM resource bundles (fonts, images) go to Contents/Resources; Bundle.module finds them there.
 for b in "$BIN_DIR"/*.bundle; do [ -e "$b" ] && cp -R "$b" "$APP/Contents/Resources/"; done
+# Dynamic library products of package dependencies (AMSMB2).
+for d in "$BIN_DIR"/*.dylib; do [ -e "$d" ] && cp "$d" "$APP/Contents/Frameworks/"; done
 ditto Vendor/VLCKit.xcframework/macos-arm64_x86_64/VLCKit.framework "$APP/Contents/Frameworks/VLCKit.framework"
 cp LICENSE "$APP/Contents/Resources/LICENSE.txt"
 cp third_party/fonts/OFL.txt "$APP/Contents/Resources/OFL.txt"
@@ -31,6 +33,9 @@ cp Vendor/VLCKit-COPYING.txt "$APP/Contents/Resources/VLCKit-COPYING.txt" 2>/dev
 
 xattr -cr "$APP"
 IDENTITY="${VELTORET_SIGN_IDENTITY:--}"
+for d in "$APP"/Contents/Frameworks/*.dylib; do
+  [ -e "$d" ] && codesign --force --sign "$IDENTITY" --options runtime --timestamp=none "$d"
+done
 codesign --force --sign "$IDENTITY" --options runtime --timestamp=none "$APP/Contents/Frameworks/VLCKit.framework"
 codesign --force --sign "$IDENTITY" --options runtime --timestamp=none \
   --entitlements Resources/Veltoret.entitlements "$APP"

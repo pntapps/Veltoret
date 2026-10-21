@@ -153,3 +153,140 @@ text input, custom sheet), `FolderPicker` (any source through Storage; This Mac 
 
 ## Additions
 
+- core-scan: `LibraryScanner(accounts: AccountDao, files: MediaFileDao, catalog: CatalogDao, storage: Storage, tmdb: TmdbMatching,
+  settings: SettingsStore, connectivity: ScanConnectivity)`; `ArtworkPrefetch(catalog: CatalogDao, prefetch: @escaping ([String]) async -> Void)`
+  (wire `prefetch: { await images.prefetch($0) }`), `urls() throws -> [String]`, `run() async throws`;
+  `ScanScheduler(scanner:connectivity: ScanConnectivity, settings:prefetch: ArtworkPrefetch?)` + `start()`, `stop()`,
+  `runNow(_:) async`, `requestAutomatic()`, `cancel()`, `busy`. Seams in `Library/ScanState.swift`: protocol `TmdbMatching`
+  (`TmdbRepository` conforms in `Library/ScanAdapters.swift`, owned by core-scan) and protocol `ScanConnectivity`
+  (`isOnline`, `onlineChanged: Event<Bool>`) — core-data: add `extension Connectivity: ScanConnectivity {}` next to Connectivity.
+  Scanner methods are `async throws`; `ignore/restore/onFilesRemoved` take `[String]`. FilenameParser API: `parseMovie(_:folders:)`,
+  `parseEpisode(_:folders:)`, `movieCandidates/showCandidates(_:folders:)`, `clean(_:isFile:)`, `normalizeForCompare`,
+  `qualityTags(_:height:)`, `isVideo(_:mimeType:)`, `isSubtitle`, `isArchive`, `extension`, `baseName`.
+
+- (plans) `AppServices.plans/upcoming/reminderScheduler`. `PlansRepository(_ dao:, now:)`: SQLite-only calls are sync
+  `throws` (`isInWatchlist(type:id:)`, `watchlist()`, `setWatchlist(type:id:on:)`, `reminders()`, `remindersFor(type:id:)`,
+  `addReminder(type:id:season:episode:title:atMs:addToWatchlist: = true) -> Int64`, `addReminder(...at: Date)`,
+  `snooze(type:id:season:episode:title:)` (now + 1 h, no watchlist), `removeReminder(_:)`, `rescheduleAll() -> [ReminderEntity]`);
+  `fire(_ id:) async throws -> Bool` (fire-once; keeps the row while `notifier.canPostNow` is false), `restore() async throws`.
+  Settable `notifier: PlanNotifier?`, `alarms: ReminderAlarms?`. Re-query on `db.changed` ("watchlist", "reminders").
+- (plans) `protocol PlanNotifier: AnyObject { var canPostNow: Bool; func showReminder(_: ReminderEntity) async throws;
+  func showNewEpisode(_: ShowEntity) async throws }` — the implementation builds title/body/artwork itself (Windows
+  ToastNotifier, spec 5.4) and is set by FeatureSettings with `AppServices.plans.notifier = …` (UpcomingService falls
+  back to it). `NoopPlanNotifier` (can't post). `PlanNotificationIds` (`reminderCategory = "reminder"`,
+  `newEpisodeCategory = "new-episode"`, `playAction = "play"`, `snoozeAction = "snooze"`, titles "Play" / "Snooze 1 hour").
+  `OpenTarget(mediaType:mediaId:season:episode:play:)` with `userInfo` / `init?(userInfo:)` for notification payloads.
+  `protocol ReminderAlarms { schedule(_:); cancel(_:) }`.
+- (plans) `LocalDate` (C# DateOnly: `year/month/day`, `init(_ date:, calendar:)`, `dayNumber`, `adding(days:)`,
+  `description` = "yyyy-MM-dd"). `Plans`: `movie/tv`, `staleAfterMs`, `stillAiring`, `quickTimes(_ now: Date, calendar:)
+  -> [QuickTime(label, at: Date)]`, `airLabel(_:today: LocalDate)`, `isUpcoming(_:today:)`, `reminderLabel(_ at: Int64,
+  now: Date, timeZone:)`, `due(_:now:) -> DueKind(.schedule/.fireNow/.drop)`, `toMillis(_ date: Date)`,
+  `toMillis(_ local: DateComponents, timeZone:)`, `parse(_:) -> LocalDate?`. `PlanFormat.episodeCode/runtime/relative/date`.
+- (plans) `ReminderScheduler(fire:now:)` (wall-clock DispatchSourceTimer, ≤ 30 min re-check, `pendingIds`, `dispose()`).
+  `UpcomingService(plans:catalog:watch:settings:refreshShow:isOnline:localNow:calendar:)`: `start()`, `onOnline()`,
+  `run() async throws`, `notifier`, `static alertKey/prune`, `dispose()`. `VoiceQuery.parse/best` (`Parsed`, `Candidate`).
+- (plans) `VeltoretPlansModule.start()` restores reminders at start, on wake (NSWorkspace.didWakeNotification) and on
+  clock / time zone changes (`SystemChangeMonitor`; replaceable hook `VeltoretPlansModule.observeSystemChanges`),
+  starts UpcomingService once onboarding is complete, and calls `upcoming.onOnline()` on `connectivity.onlineChanged`.
+  `VeltoretPlansModule.restoreReminders()` is public. Showing/hiding the window, the menu bar item and notification clicks
+  are FeatureSettings/lead work (click "Snooze 1 hour" → `AppServices.plans.snooze(...)`; Play/open → navigate + playback).
+- core-data: core API is published and wired (`CoreModule.initialize()/start()/shutdown()`). SQLite-only reads are **sync
+  `throws`** (callers may still write `try await`): all `LibraryRepository` methods (`credits(type:id:)`,
+  `episode(showId:season:episode:)`, `folderCounts() -> [Int64: Int]`, `search(_:) -> (movies:, shows:)`,
+  `addFolder(account:folderId:name:type:) -> Int64?`), `WatchRepository(_ dao:)` (`savePosition(_ file:fallbackFileId:
+  positionMs:durationMs:)`, `setMovieWatched(_:watched:)`, `setEpisodeWatched(showId:season:episode:watched:)`,
+  `setEpisodesWatched(showId:_:watched:)`, `setFileWatched(_:watched:)`, static `isFinished(positionMs:durationMs:)`),
+  `WatchKeys.movie/episode/file/forFile`, `PlaybackResolver` (`movieFile(_:)`, `showTarget(_:)`, `showPlayTarget(_:)`,
+  `episodeFile(showId:season:episode:)` → `EpisodeTarget(file,state,resuming,fresh)`), `PlayTargets.nextEpisode(_:_:)`,
+  `RelatedTitles.parseIds/inLibrary(_:_:selfId:limit:)`. TMDB: `TmdbClient(session:keyProvider:)`, `TmdbClient.buildUrl/
+  makeDecoder()`, errors `TmdbKeyMissingError` and `TmdbError(message,statusCode)`; `TmdbRepository(api:catalog:)` with
+  `findMovie(title:year:exactOnly:)`, `ensureShow(_:seasons:)`, `trailer(type:id:)`, `collection(_:)`; models are
+  structs with camelCase props (`TmdbMovieDetail.collection`, `TmdbTvDetail.nextEpisode`, `country` for iso_3166_1).
+  `TmdbImages.poster/backdrop/still/profile/logo`. `Connectivity(initiallyOnline:)`: `isOnline`, `isMetered`
+  (NWPath isExpensive||isConstrained), `onlineChanged`, `start()/stop()`, `refresh() async -> Bool`, `set(_:)`, hooks
+  `systemCheck`/`meteredCheck`. `ImageCache(directory:session:maxBytes:)`: `file(for:) async -> URL?`, `prefetch(_:) async`,
+  `path(for:) -> URL`, `isCached`, `trim()`. `LocalFileSource.root/folderMime/normalize(_:)`, errors `LocalFileError`
+  (`.folderUnavailable`, `.fileUnavailable`, `message`); Files search filters the current folder only (spec, not recursive).
+  `MimeTypes.forName`. Tests: `FakeHttp.session { request in (status, Data)? }` (Tests/VeltoretKitTests/TmdbTests.swift)
+  fakes URLSession for any test in VeltoretKitTests.
+- (smb) `VeltoretSmbModule.initialize()` creates `AppServices.smbServers = SmbServerStore(url: SmbServerStore.defaultURL
+  /* AppPaths.stores/smb_servers.json */, secrets: AppServices.secrets)`, `smbFiles = SmbFileSource(servers:)` (registered
+  with `storage`) and `smbDiscovery`, and back-fills `smb://host` account rows; `shutdown()` stops discovery and
+  disconnects. `SmbServer(host:port:username:domain:name:)` (`account`, `guest`, `displayName`). `SmbServerStore`:
+  `servers`, `server(_ account:)`, `save(_:password:)` (non-throwing, Keychain key `"smb-" + account`; guests keep no item),
+  `remove(_:)` (also deletes the Keychain item), `password(_:) -> String?` ("" guest; nil = sign in again), `changed:
+  Event<Void>`. `SmbFileSource`: `servers`, `test(server:password:) async throws -> [String]` (share names,
+  `@discardableResult`), `disconnect(_ account:)`, `disconnectAll()`, `static folderMime`; every failure is thrown as
+  `SmbError` (`message` is the user sentence, `underlying` the cause). `openRead` returns `SmbReadStream: ByteSource`
+  (1 MiB chunks, 2 read-ahead, 6 cached, retries once on a dropped connection; `read` fills `count` unless EOF).
+  `SmbPath(host:share:segments:)`: `id`, `sharePath` (\\), `filePath` (/ for AMSMB2), `name`, `parent`, `child(_:)`,
+  `account`, `unc`, `static scheme/isSmb/accountOf/fromUserInput`, `static parse(_:) throws`.
+  `SmbErrors.describe(_:)` + constants `wrongLogin/accountDisabled/couldntReach/unknownHost/connectionLost/fallback/noGuests`
+  (the guest rewrite in "Add server" step 9 is the UI's job). Errors: `SmbError`, `SmbStatusError(SmbStatus, op)`,
+  `SmbTransportError`, `SmbSocketError`. `SmbMime.forName(_:)`. `SmbAccounts.addServerAccount(_ dao:, _ server:) throws`,
+  `ensureServerAccounts(_ dao:, _ store:) throws`. `NetBios.nodeStatusQuery/parseNodeStatus`.
+  `SmbDiscovery`: `start()` (fresh scan; also "Scan again"), `stop()`, `servers: [FoundServer]` (merged by address, sorted
+  routers → named → address), `isScanning`, `changed: Event<Void>` (any thread; also fires when a scan ends),
+  `discover() -> AsyncStream<FoundServer>` (raw), `nameOf(_ address:) async -> String?`, `static merge/subnetHosts/toInt/
+  fromInt`. `FoundServer(address:name:isRouter:)` with `label` ("Your router" / "File server") and `subtitle`
+  ("<ip> · router"). **Lead:** discovery browses Bonjour `_smb._tcp` → Info.plist `NSBonjourServices = ["_smb._tcp"]`
+  and an `NSLocalNetworkUsageDescription` (the subnet sweep on TCP 445 and NetBIOS UDP 137 also need local-network access).
+  Deviations: AMSMB2 doesn't report HIDDEN/SYSTEM attributes, so listings hide dot-files, `$RECYCLE.BIN`,
+  `System Volume Information`, `desktop.ini`, `Thumbs.db`; one AMSMB2 connection per share (not per host); share
+  listing uses a throwaway connection to IPC$; NetBIOS names are asked per hit by unicast (as Windows/Android), no broadcast.
+- (playerkit) **VeltoretPlayerKit API** (Windows names, lowerCamelCase; positional args as in C#):
+  `MediaFormats.normalizeLanguage/languageName/cleanLabel/trackTitles(_ tracks: [(language:, label:)], fallback:, language:)/
+  fourCC(UInt32)/audioCodec/videoCodec/subtitleFormat/channels/resolution(_:_:)/bitrate(Int64)/frameRate(Double)/sampleRate(Int)`
+  (languages via Foundation `Locale`, ISO 639-1 where one exists). `SubtitleEngine`: `maxBytes`, `tooLarge`, `unsupported`,
+  `Kind`, `formatOf(_:)`, `readLimited(_ source: ByteSource) async throws -> Data`, `readLimited(account:id:)`,
+  `normalizeText/decodeText/toUtf8WithBom(_ Data)`, `guessLegacyEncoding(_:) -> String.Encoding`,
+  `windowsCodePage(_ Int) -> String.Encoding` (CFStringEncoding), `parse(_ bytes: Data, fileName:) throws -> [SubtitleCue]`,
+  `activeAt(_ cues:, _ positionMs:, _ offsetMs:)`; `SubtitleCue(startMs:endMs:text:)`; errors are `SubtitleError` (`message`
+  = the user sentence, also `localizedDescription`). `HdrFormat` (`.unknown/.sdr/.hdr10/.hlg/.dolbyVision`), `HdrProbe.detect(_
+  source: ByteSource, fileName:) async -> HdrFormat` (doesn't close it), `detect(account:fileId:fileName:) async`,
+  `fromFileName`, `fromContainer(_:) async throws`, `label`, `isHdr`. `TrackMemory` (struct, `with { $0.x = … }` for C#'s
+  `with`, `encode()`, `static decode(_:)`, `subOff/subEmbedded/subExternal`). `PlayerPrefsStore(url:)` (open class) with
+  `trackMemory(_:)`, `updateTrackMemory(_:_ change: (TrackMemory) -> TrackMemory)`, `audioLanguage(_:)`,
+  `setAudioLanguage(_:_:)`, `subtitleLanguage(_:)`, `setSubtitleLanguage(_:_:)`, `resizeMode`; `PlayerPrefsStore.shared`
+  (at `AppPaths.playerPrefs`) = `AppServices.playerPrefs` (set in `VeltoretPlayerKitModule.initialize()`).
+  `Sidecars.match(_ videoName:, _ files: [T], name: (T) -> String) -> [SidecarMatch<T>]` (`file/name/language`),
+  `Sidecars.isSubtitle(_:)`. `EpisodeNav.next(_ file:, _ showFiles:, online:)`, `previous(…)`, `episodeList(_:)`.
+  `PlayerFormat.clock/bytes/runtime/episodeCode(_:_:)/speedOption/speedChip/trim/syncLabel/loadingHint(_:_:)/volume/
+  swipeSeek(_:_:)/zoom/time(Date)/endsAt(Date) ("Ends at 10:42 PM")/sleepDetail(_ endsAt: Date?, _ endOfVideo:)`.
+  `PlayerMath.seekBy/swipeSeek/swipeVolume/skipForward/resumeAt/skipIntroVisible/upNextVisible/speeds/stepSpeed/
+  accumulateSeek/cropGeometry(_:_:_:_:fill:_:_:_:)` plus Mac additions from the Windows window: `endsAt(now:durationMs:
+  positionMs:speed:) -> Date?`, `clampZoom(_:)` (1–5×, < 1.05 snaps to 1), `wheelZoom(_:notches:)` (×1.1 per notch),
+  `pan(_:delta:size:zoom:)` (drag-to-pan, −1..1).
+- (playerkit) **MediaStreamServer**: `MediaStreamServer.shared` (also `AppServices.mediaStream`):
+  `url(account:fileId:name:mime: String? = nil) async throws -> URL` → `http://127.0.0.1:<port>/<token>/<entry>/<name>`
+  (same URL for the same file until `stop()`; mime defaults from the extension, `static mimeFor(_:)`), `stop()` (closes every
+  connection and its ByteSource; next `url` restarts on a new port/token), `currentPort`, `streamFailed:
+  Event<StreamFailure>` (`account`, `fileId`, `error` — the source's own error, e.g. Drive 403/404 or `SmbError`, for the
+  player's error text) and `lastError(account:fileId:) -> Error?`. Serves GET/HEAD, `Range` (single range: `a-b`, `a-`,
+  `-n`; 206 + Content-Range; 416 when past the end), keep-alive, any number of connections (one ByteSource per connection,
+  reused while it asks for the same file, closed when the connection ends; idle connections close after 120 s), 1 MiB reads
+  with the next chunk read while the current one is sent (no further buffering = backpressure). Open failure → 502 and the
+  connection closes. Unknown length (`length == -1`) → 200 without ranges. `VeltoretPlayerKitModule.shutdown()` stops it.
+- (playerkit) Deviations: `Sidecars` carries its own copy of FilenameParser's `baseName`/subtitle extensions (no dependency
+  on core's parser). Legacy subtitle encodings undefined bytes become U+FFFD; Windows-1250…1258 + 874 are available through
+  `windowsCodePage`, while the guess (as Windows/Android) only picks 1252/1251/1256.
+- cast: **Bonjour service types browsed** (add to Info.plist `NSBonjourServices`, plus `NSLocalNetworkUsageDescription`):
+  `_googlecast._tcp` (Chromecasts), `_veltoret-play._tcp` (Veltoret TVs, "Play on TV"), `_veltoret._tcp` (TVs showing
+  "Use your phone", Send to TV). The Mac also *listens* (CastServer, random TCP port on the LAN address) while casting.
+- cast: API as published (Swift names): `CastController` — `state`, `stateChanged: Event<CastState>`, `devices`,
+  `devicesChanged: Event<Void>`, `receiverUnreachable: Event<Void>`, `startDiscovery()/stopDiscovery()`,
+  `connect(_ device: CastDevice) async throws` (throws `LinkError(code: "unpaired")` for an unpaired Veltoret TV; other
+  failures land in `state.error`), `load(_ media: CastMedia, startMs: Int64) async`, `play()/pause()/togglePlay()`,
+  `seek(to: Int64)/seek(by: Int64)`, `selectSubtitle(_ id: String?)`, `switchAudio(_ track: Int64) async`,
+  `setVolume(_ level: Double)/setMuted(_:)`, `selectLinkAudio(_:)/selectLinkSubtitle(_:)`, `playNext() async`,
+  `disconnect() async -> Int64`, `saveProgress(ended:)`, `refreshPairing()`, `shutdown()`, `tvLink: TvLinkClient`,
+  `media: CastMediaFactory` (`forFile(_:) async`, `forItem(account:fileId:name:) async`, `describe(_:)`,
+  `nextEpisode(_:)`, `subtitles(account:parentId:videoName:offsetUs:) async`), `server: CastServer`.
+  `TvLinkClient`: `find(window:) -> AsyncStream<LinkTv>`, `hello(host:port:)`, `startPairing(_:)`, `pair(_:code:)`,
+  `forget(_:)`, `play/command/status`; errors are `LinkError` (`message`, `code`). `TvLinkStore`: `peers`, `secret(_:)`,
+  `save(_:secret:)`, `remove(_:)`, `deviceId`, `changed`. `SendToTv.find(window:) -> AsyncStream<FoundTv>`,
+  `SendToTv.send(_:code:submission:) async -> SetupReply`, `SendToTv.username(domain:user:)`.
+  `CastSubtitles.toVtt(_ lines: [CastSubtitles.Line], offsetUs:)`, `CastSubtitles.parse(_:fileName:)`, `LanguageNames`.
+- cast: progress goes through `CastProgressStore` (default `WatchProgressStore`, the WatchRepository.savePosition rules
+  over `AppServices.watchDao`), so VeltoretCast doesn't depend on core's WatchRepository being built. TMDB image URLs
+  are built locally with TmdbImages' base URL for the same reason.

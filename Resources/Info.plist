@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key><string>en</string>
+	<key>CFBundleDisplayName</key><string>Veltoret</string>
+	<key>CFBundleExecutable</key><string>Veltoret</string>
+	<key>CFBundleIconFile</key><string>AppIcon</string>
+	<key>CFBundleIdentifier</key><string>com.pntapps.veltoret</string>
+	<key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+	<key>CFBundleName</key><string>Veltoret</string>
+	<key>CFBundlePackageType</key><string>APPL</string>
+	<key>CFBundleShortVersionString</key><string>__VERSION__</string>
+	<key>CFBundleVersion</key><string>__BUILD__</string>
+	<key>LSApplicationCategoryType</key><string>public.app-category.entertainment</string>
+	<key>LSMinimumSystemVersion</key><string>14.0</string>
+	<key>NSHighResolutionCapable</key><true/>
+	<key>NSPrincipalClass</key><string>NSApplication</string>
+	<key>NSSupportsAutomaticGraphicsSwitching</key><true/>
+	<key>NSHumanReadableCopyright</key><string>© PNT Apps. Free software under the GNU GPL v3.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Veltoret finds TVs, Chromecasts and network servers on your home network so you can play and cast your videos.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_googlecast._tcp</string>
+		<string>_smb._tcp</string>
+		<!--BONJOUR_EXTRA-->
+	</array>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Veltoret turns what you say into a search of your library.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Veltoret listens when you use voice search.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<!-- The player and the cast server use plain HTTP on 127.0.0.1 and the home network. -->
+		<key>NSAllowsLocalNetworking</key><true/>
+	</dict>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key><string>Video</string>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.movie</string>
+				<string>public.video</string>
+				<string>org.matroska.mkv</string>
+				<string>org.webmproject.webm</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

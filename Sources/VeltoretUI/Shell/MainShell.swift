@@ -31,8 +31,13 @@ public enum ShellCommands {
     public static func goBack() -> Bool {
         let nav = Navigator.shared
         if nav.currentRoute?.kind == .onboarding { return false }
+        if backInterceptor?() == true { return true }
         return nav.goBack()
     }
+
+    /// A page that handles Back itself first (Files: clear selection → close search → up a folder) returns true
+    /// when it did; every Back path (keys, title-bar chevron, Go menu, swipe) goes through `goBack()`.
+    public static var backInterceptor: (@MainActor () -> Bool)?
 
     /// Rail tab by index (⌘1 … ⌘6). Search pushes (Back returns to where you were).
     public static func selectTab(_ index: Int) {

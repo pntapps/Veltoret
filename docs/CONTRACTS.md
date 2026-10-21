@@ -397,3 +397,32 @@ text input, custom sheet), `FolderPicker` (any source through Storage; This Mac 
   reuses Common's `PopupMenu`, `PosterItems`, `FlowLayout`, `LibraryPosterCard`. Space / Return on a detail page = Play (local
   NSEvent monitor, skipped while a dialog or text field has focus). Onboarding "Build my library" calls `scans.start()` +
   `scans.runNow()`; finishing sets `onboardingComplete` and `Navigator.shared.reset(to: .home)`.
+- (files-ui) **FeatureFiles API**: `FeatureFilesModule.initialize()` (@MainActor) registers `.files(account:folderId:)`
+  (FilesPage) and `.archives` (ArchivesPage) with `PageRegistry`, and the Settings section `id "google-accounts"`,
+  title "Google accounts", order 200 (`AccountsSection()`). `start()/shutdown()` are no-ops. Public:
+  `AccountsSection(showAccounts: Bool = true)` (View: Google accounts with photo/name/email, "Reconnect" when
+  `googleAuth.needsReconnect`, "Remove", "Add Google account", the "Google sign-in" panel: import/change the Desktop
+  client JSON via NSOpenPanel, masked id, setup-guide link); `AccountsSection.confirmAndRemove(_ a: AccountEntity) async
+  -> Bool` (per-source dialog + `library.removeAccount` + `googleAuth.signOut` for Google — **use this to remove a Google
+  account anywhere**; SMB callers must still forget the server themselves) and `AccountsSection.removeDialog(_:) async ->
+  Bool` (dialog only). `ConnectGoogle.run(reconnectEmail: String? = nil) async -> AccountEntity?` (@MainActor; imports a
+  client first when none, "Continue in your browser…" dialog with Cancel → cancels the sign-in task, toast "Connected
+  {email}", ConnectError → dialog with title/message, setup problems add client details + guide link),
+  `ConnectGoogle.importClient(firstTime:) async -> Bool`, `ConnectGoogle.openGuide()`, `ConnectGoogle.setupUrl`
+  (`…/Veltoret-Mac/blob/main/docs/SETUP.md#google-drive` — **lead: docs/SETUP.md doesn't exist yet**).
+  `ExtractDialog.show(account:zipId:zipName:size:parentId:) async -> Bool` (@MainActor; starts `transfers.extract`).
+- (files-ui) Files Back: the shell has no page hook, so FeatureFiles installs its own `NSEvent` local monitor (AppKit
+  calls the newest local monitor first, i.e. before `MainShell`'s). While a Files page is current and no dialog is open,
+  Esc / ⌘[ / mouse back / two-finger swipe right clear the selection → close search → go up a folder, and only at the
+  top is the event passed on to the shell. ⌘F opens the Files search (Drive / this folder); ⌘A, ⌘⌫ (trash/delete),
+  ⌥⌘⌫ (Drive delete permanently), Return (rename one), ⌘↓/⌘O (open), ⌘↑ (up), ⇧⌘N (new folder), Space (Quick Look,
+  This Mac). **Not intercepted:** the title-strip back chevron and a *clicked* Go → Back menu item (they call
+  `ShellCommands.goBack()` directly). Suggested additive UI change: `ShellCommands.backInterceptor: (@MainActor () -> Bool)?`
+  consulted first by `goBack()`; FeatureFiles would then set it and drop its Esc/⌘[ handling.
+- (files-ui) Deviations: single click opens/plays (as Windows); ⌘-click / ⇧-click / ⌘A select; right-click on a
+  multi-selection acts on the selection. One-column list with sortable Name / Date Modified / Size headers (click again
+  to reverse) instead of the 360-pt adaptive grid; the Sort menu is kept. Name sort is Finder-style
+  (`localizedStandardCompare`). Drag and drop from Finder: Drive uploads the files (folders skipped), This Mac offers to
+  add a dropped folder to the library ("What's in …?"), SMB refuses. Transfer cards show Retry / Cancel / Dismiss on hover
+  (and in a context menu). This Mac extras: Quick Look, Show in Finder. Errors from ConnectGoogle show as dialogs (Windows:
+  toasts), user cancel as a toast.

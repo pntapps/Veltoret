@@ -50,9 +50,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Opened at login (SMAppService) → stay in the menu bar, like Windows' "--background".
-        let atLogin = NSAppleEventManager.shared().currentAppleEvent?
-            .paramDescriptor(forKeyword: keyAELaunchedAsLogInItem)?.booleanValue == true
-        if !(atLogin && AppServices.settings.current.onboardingComplete) {
+        if !(LoginItem.launchedAtLogin && AppServices.settings.current.onboardingComplete) {
             showMainWindow()
         }
         startServices()

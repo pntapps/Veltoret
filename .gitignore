@@ -1,0 +1,7 @@
+.build/
+.swiftpm/
+/Vendor/VLCKit.xcframework/
+/dist/
+*.xcodeproj/xcuserdata/
+DerivedData/
+.DS_Store

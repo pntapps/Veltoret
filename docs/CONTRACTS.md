@@ -369,3 +369,31 @@ text input, custom sheet), `FolderPicker` (any source through Storage; This Mac 
   "Open Firewall settings" (x-apple.systempreferences Network-Settings ?Firewall, falling back to the security pane), once per
   run. Discovery in Add server uses the shared `AppServices.smbDiscovery` (start on open, stop on close). Icons are SF Symbols
   except the cast glyph. The bridge tracks the cast-from player by file id (no window identity).
+- (settings-ui) **FeatureSettings API** (all `@MainActor` unless noted). `FeatureSettingsModule.initialize()` (registers the
+  `.settings` page and sections `library` 100 "Library", `playback` 400, `subtitles` 410, `notifications` 600 "Reminders &
+  alerts", `appearance` 700, `app` 800, `tmdb` 850, `about` 900; installs `MacNotifier` as the UNUserNotificationCenter
+  delegate + categories and sets `AppServices.plans.notifier` / `upcoming.notifier` — call it before the app finishes
+  launching), `start()` (menu bar item, `LoginItem.sync()`, permission check), `shutdown()`. `SettingsPage` hosts every
+  `SettingsSections` entry in order (group title = the section's title, uppercased amber — sections shouldn't draw their own);
+  ≥ 840 pt: two columns, FeatureSettings' own ids except `library` on the right, everything else (library, Google accounts,
+  network, Play on TV…) on the left. Reusable rows: `SettingsGroupTitle`, `SettingsPanel`, `SettingsDivider`, `SettingRow`,
+  `SwitchRow`, `ChoiceRow`, `SettingsNote`; `ScanText` (title/step/counts/idle/folder/menuLine).
+  `ReminderDialog.show(type:id:season:episode:title:airDate:) async -> Bool` (@discardableResult). `RemindersDialog.show()`.
+  `VoiceSearch.listen() async -> String?`, `VoiceSearch.isAvailable` (hide the mic when false). `OpenRequests.open(_ OpenTarget)`
+  (shows the window, navigates, plays when `play`; one consumer, in order) and replaceable `OpenRequests.showMainWindow`.
+  `MacNotifier.shared` (not main-actor: `PlanNotifier`, `isSupported` = running from a .app bundle, `status`,
+  `statusChanged`, `refreshStatus()`, `requestAuthorization() async -> Bool`). `MenuBarController.shared` (`start/stop`,
+  follows `showMenuBarItem` live; hooks `MenuBarController.nowPlaying` — **player:** set it to `{ (title, isPlaying, toggle) }`
+  or nil when idle — and `MenuBarController.openMainWindow`). `LoginItem` (`isEnabled`, `needsApproval`, `set(_:) -> Bool`,
+  `sync()`, `launchedAtLogin` — **lead:** read it at launch to stay in the menu bar without showing the window).
+  Notification ids: reminders `r<id>` (category `reminder`, or `reminder-snooze` when nothing is playable), new episodes
+  `e<tmdbId>` (`new-episode`); userInfo = `OpenTarget.userInfo` + `title`, `playSeason/playEpisode`, `snoozeSeason/snoozeEpisode`.
+  Deviations: the idle scan text says "Details are under Library." (no Sources group); "Scan library now" asks for notification
+  permission only while macOS hasn't asked; one attachment per notification (picture, else poster; no square crop); window
+  closing / `runInBackground` / Dock behaviour stays with the lead (AppDelegate).
+- (library-detail) `DetailPages.register()` (in `Sources/FeatureLibrary/Details/DetailCommon.swift`) registers `.movieDetail`,
+  `.showDetail`, `.fixMatch` (ids → Fix match; none → "Needs a match" with Ignored section) and `.onboarding`. Uses
+  `LibraryHooks.reminderDialog` / `connectGoogle` / `addNetworkServer` / `castIfConnected` (nil → item hidden / plays locally),
+  reuses Common's `PopupMenu`, `PosterItems`, `FlowLayout`, `LibraryPosterCard`. Space / Return on a detail page = Play (local
+  NSEvent monitor, skipped while a dialog or text field has focus). Onboarding "Build my library" calls `scans.start()` +
+  `scans.runNow()`; finishing sets `onboardingComplete` and `Navigator.shared.reset(to: .home)`.

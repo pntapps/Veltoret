@@ -290,3 +290,22 @@ text input, custom sheet), `FolderPicker` (any source through Storage; This Mac 
 - cast: progress goes through `CastProgressStore` (default `WatchProgressStore`, the WatchRepository.savePosition rules
   over `AppServices.watchDao`), so VeltoretCast doesn't depend on core's WatchRepository being built. TMDB image URLs
   are built locally with TmdbImages' base URL for the same reason.
+- ui: **VeltoretUI is published** — full guide in `Sources/VeltoretUI/README.md`. Summary: `VeltoretUIModule.initialize()`
+  (@MainActor: fonts, theme, sets `AppServices.toast`/`navigate`) and `start()` (binds `ShellStatus` to connectivity/scanner).
+  Theme: `Theme.*` colors/`Radius`/`gutter`, `Theme.serif(size)`, `Theme.sans(size, weight)`, `Fonts.register()/nsSerif/nsSans`,
+  `ThemeState.shared` (live "Pure black"), `.vPageBackground()`, type modifiers `.vDisplayLarge()`…`.vLabelSmall()`/`.vText(_:color:)`,
+  `.vHairline`, `.vPanel`, `.vCard`, `.vEntrance`. Components: `VButton`/`VButtonStyle`(`.vPrimary` …), `VIconButton`, `VPlainButtonStyle`,
+  `VRowButtonStyle`, `VClickPanel`, `VChip`, `VToggle`, `.vSwitch`/`.vCheckbox` toggle styles, `VTextField`, `VSecureField`, `VProgressBar`,
+  `VSpinner`, `VLoadingBox`, `VPill` (+`.quality`), `VRating`, `VMetaLine`, `VSectionHeader`, `VScreenHeader`, `VEmptyState`, `VScanChip`,
+  `VDivider`, `Wordmark`, `RailLogo`, `AppLogo`, `TmdbAttribution` (+`.notice`), `TmdbLogo`, `ArtworkImage`/`AsyncPoster`/`ArtworkLoader`
+  (through `AppServices.images`), `PosterItem`/`PosterCard`, `PlayItem`/`WideCard`, `WatchedCheck`, `HorizontalRow`, `VAdaptiveGrid`,
+  `VPosterGrid`, `Formats`, `openInBrowser`. Dialogs: `Dialogs.confirm/textInput/choose/alert/present/show`, `VDialog`, `VDialogMessage`,
+  `DialogController`, `DialogHost(View)`; `Toast.show(_:actionTitle:action:)`, `ToastCenter`, `ToastHostView`. `FolderPicker.pick(account:)`,
+  `.pickLibraryFolder(account:)`, `.askLibraryType(folderName:)`, `.pickLocal()`, `.browse(account:title:choices:)`. Navigation:
+  `RouteKind` + `Route.kind`, `PageRegistry.register(_ kind:, _ builder: (Route) -> AnyView?)` (or `view:` typed), `Navigator.shared`
+  (`current`, `backStack`, `canGoBack`, `navigate/push/selectTab/goBack/reset(to:)`, `currentTopLevel`, `lastNavigationWasBack`,
+  `navigated`), `SettingsSections.register(id:title:order:icon:content:)` / `.shared.sections`. Shell: `MainShell()` (configures its
+  window; `MainShell.configure(_:)`), `ShellCommands.goBack/selectTab/openSearch/showMainWindow/handlesShortcuts`, `RailTab.all`,
+  `ShellStatus.shared` (`isOffline`, `scanText`, `scanProgress`, `banner`, `railAccessory` slots).
+  **Lead:** please add `.copy("Resources/Images")` to VeltoretUI's resources (the logo, `Resources/Images/logo.png`, used by `AppLogo`)
+  and `exclude: ["README.md"]` to silence the unhandled-file warnings.

@@ -24,7 +24,8 @@
 	<array>
 		<string>_googlecast._tcp</string>
 		<string>_smb._tcp</string>
-		<!--BONJOUR_EXTRA-->
+		<string>_veltoret._tcp</string>
+		<string>_veltoret-play._tcp</string>
 	</array>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Veltoret turns what you say into a search of your library.</string>

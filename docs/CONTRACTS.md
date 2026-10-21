@@ -287,9 +287,8 @@ text input, custom sheet), `FolderPicker` (any source through Storage; This Mac 
   `save(_:secret:)`, `remove(_:)`, `deviceId`, `changed`. `SendToTv.find(window:) -> AsyncStream<FoundTv>`,
   `SendToTv.send(_:code:submission:) async -> SetupReply`, `SendToTv.username(domain:user:)`.
   `CastSubtitles.toVtt(_ lines: [CastSubtitles.Line], offsetUs:)`, `CastSubtitles.parse(_:fileName:)`, `LanguageNames`.
-- cast: progress goes through `CastProgressStore` (default `WatchProgressStore`, the WatchRepository.savePosition rules
-  over `AppServices.watchDao`), so VeltoretCast doesn't depend on core's WatchRepository being built. TMDB image URLs
-  are built locally with TmdbImages' base URL for the same reason.
+- cast: progress goes through the `CastProgressStore` protocol (default `WatchProgressStore`, which calls
+  `AppServices.watch.savePosition` / `get(WatchKeys.forFile)`), so tests can swap it.
 - ui: **VeltoretUI is published** — full guide in `Sources/VeltoretUI/README.md`. Summary: `VeltoretUIModule.initialize()`
   (@MainActor: fonts, theme, sets `AppServices.toast`/`navigate`) and `start()` (binds `ShellStatus` to connectivity/scanner).
   Theme: `Theme.*` colors/`Radius`/`gutter`, `Theme.serif(size)`, `Theme.sans(size, weight)`, `Fonts.register()/nsSerif/nsSans`,

@@ -335,3 +335,37 @@ text input, custom sheet), `FolderPicker` (any source through Storage; This Mac 
   framework (raw DEFLATE; store too), checking CRC-32. Files already in Drive with the same size are skipped without being
   downloaded. Encrypted entries / other methods fail with the Windows messages; a damaged ZIP fails with
   "The ZIP looks damaged or incomplete (…)". Upload failure for a missing file: "The file is no longer on this Mac".
+- (library-browse) Shared helpers in `Sources/FeatureLibrary/Common/` (internal to FeatureLibrary, public where useful):
+  `LiveQuery<Value>` (@MainActor ObservableObject = Windows LivePage: `init(tables:route:watchOnline:watchScan:load:)` with
+  an `@Sendable async throws` load run off the main thread, re-run throttled 250 ms on `db.changed` / `onlineChanged`,
+  only while `route` is the current page; `value`, `scan`, `error`, `start()`, `invalidate()`, `refresh()`, `onScan`).
+  `CardActions` (Windows CardActions + Mac menus: `play(PosterItem|PlayItem)` (PlayItem casts via
+  `LibraryHooks.castIfConnected`), `playMovie/playShow/playEpisode` (toast when `AppServices.playback` is nil),
+  `open`, `openDetails`, `fixMatch(PosterItem)`, `toggleWatchlist(type:id:)` (toasts "Added to / Removed from your
+  Watchlist"), `setMovieWatched`). `WatchlistMarks.shared` (watchlist key set kept live). View modifier
+  `.posterContextMenu(item)`; `LibraryPosterCard(item)` / `LibraryWideCard(item)` (cards with menus). `PosterItems.movie/
+  show/statesByKey`, `LibraryWidth(width)` (compact <600 / medium <840 / expanded; `posterWidth`, `wideWidth`, `gutter`),
+  `FlowLayout` (wrapping chips), `PopupMenu.show([.item(title, selected:, action:), .separator, .caption("SOURCE")])`.
+- (network-ui) **FeatureNetwork API** (all `@MainActor`): `FeatureNetworkModule.initialize()` registers Settings sections
+  `"network"` "Network servers" (300, `NetworkServersSection()`) and `"play-on-tv"` "Play on TV" (500, `PlayOnTvSection()`);
+  `start()` binds `CastStateModel.shared`, `CastPlayerBridge.start()` and `CastFirewall.watch()`; `shutdown()` closes the cast panel.
+  `AddServerDialog.show(editing: SmbServer? = nil) async -> String?` (server account once saved, also if the folder step is
+  closed with Esc; `AddServerModel` is the ported view model: `attempt(address:guest:username:password:name:)`, `scan()`).
+  `NetworkServersSection` + `static confirmAndRemove(_ account:) async -> Bool` / `static removeServer(_ account:) throws`
+  (library rows + account, connection, password) — **settings-ui:** don't render a generic panel for `smb://` accounts.
+  `CastButton(onImage: Bool = false, size: 42)`, `CastPanel.open()/close()/isOpen` (modeless floating NSPanel: picker → pairing
+  → remote), `CastRemote()`, `CastAudioDialog.ask(deviceName:options:current:) async -> Int64?`, `PlayOnTvSection`,
+  `PlayOnTvPairDialog.run() async`, `CastGlyph(connected:)` (Material cast Shape), `CastStateModel.shared` (`state`, `devices`),
+  `CastFirewall.watch()/openSettings()`, `CastLauncher.castIfConnected(_ file:) async -> Bool` (saved position via
+  `PlayerMath.resumeAt`). **Player hand-off without a FeaturePlayer dependency — lead wires in the app target:**
+  `PlayerHooks.castButton = { CastPlayerBridge.makeCastButton() }`; `CastPlayerBridge.attach(pause: { PlayerWindowController
+  .current?.pauseForCast() }, resume: { PlayerWindowController.current?.resumeAfterCast(positionMs: $0) }, currentVideo: {
+  PlayerWindowController.current.map { CastPlayerVideo(fileId:account:file:title:subtitle:positionMs:) } }, describe: nil)`
+  (`describe` = optional player-built `CastMedia`, Windows ICastMediaSource); `currentVideo` must return nil when no player is
+  open. Also `LibraryHooks.addNetworkServer = { await AddServerDialog.show() }`, `LibraryHooks.castButton = { AnyView(CastButton()) }`,
+  `LibraryHooks.castIfConnected = { await CastLauncher.castIfConnected($0) }`. `CastPlayerBridge.castCurrentPlayer(ask:)`,
+  `castFile(_:startMs:)` are public. Deviations: the firewall hint can't add a rule (no netsh): when `socketfilterfw
+  --getglobalstate` says the firewall is off it shows a network toast, else a dialog "Let the TV reach this Mac?" with
+  "Open Firewall settings" (x-apple.systempreferences Network-Settings ?Firewall, falling back to the security pane), once per
+  run. Discovery in Add server uses the shared `AppServices.smbDiscovery` (start on open, stop on close). Icons are SF Symbols
+  except the cast glyph. The bridge tracks the cast-from player by file id (no window identity).

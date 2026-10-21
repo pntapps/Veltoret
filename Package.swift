@@ -36,8 +36,8 @@ let package = Package(
 
         // ---- UI (SwiftUI + AppKit) ----
         // Design system: tokens, fonts, shared components, navigation, dialogs, toasts.
-        .target(name: "VeltoretUI", dependencies: ["VeltoretKit"],
-                resources: [.copy("Resources/Fonts")], swiftSettings: swift5),
+        .target(name: "VeltoretUI", dependencies: ["VeltoretKit"], exclude: ["README.md"],
+                resources: [.copy("Resources/Fonts"), .copy("Resources/Images")], swiftSettings: swift5),
         // Home, Movies, TV Shows, Search, details, collections, Fix match, onboarding.
         .target(name: "FeatureLibrary", dependencies: ["VeltoretUI", "VeltoretKit", "VeltoretPlans", "VeltoretPlayerKit"],
                 swiftSettings: swift5),

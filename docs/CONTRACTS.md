@@ -309,3 +309,30 @@ text input, custom sheet), `FolderPicker` (any source through Storage; This Mac 
   `ShellStatus.shared` (`isOffline`, `scanText`, `scanProgress`, `banner`, `railAccessory` slots).
   **Lead:** please add `.copy("Resources/Images")` to VeltoretUI's resources (the logo, `Resources/Images/logo.png`, used by `AppLogo`)
   and `exclude: ["README.md"]` to silence the unhandled-file warnings.
+- (drive) API as published (`Sources/VeltoretDrive`): `GoogleAuthService(http: HttpTransport, secrets: SecretStoring, accounts:
+  AccountDao?)` — `hasClient`, `client: OAuthClient?` (`maskedId`), `importClientJson(_ url:) throws` (throws `ClientFileError`
+  with a user message = C# FormatException), `setClient(_:) throws`, `removeClient()`, `signIn(loginHint:) async throws ->
+  AccountEntity` (every failure is a `ConnectError` with `title/message/setupProblem`; cancel the Swift task to cancel →
+  "Sign-in cancelled"), `signOut(_:) async`, `accessToken(_:) async throws` (`AuthRequiredError` after `invalid_grant`,
+  `GoogleSetupError` for `invalid_client`), `invalidate(_:)`, `needsReconnect(_:)`, `remember(_:token:expiresInSeconds:)`,
+  `static secretNameFor(_:)`, `openBrowser` (NSWorkspace), events `reconnectNeeded: Event<String>`, `changed: Event<Void>`.
+  Keychain keys `google-client` and `google-<sha256(lowercased email)>`. `LoopbackReceiver` is a BSD socket on 127.0.0.1.
+- (drive) HTTP seam: `HttpTransport` (`send(URLRequest) -> HttpResponse`, `open(URLRequest) -> HttpStreamResponse`),
+  `URLSessionTransport` (no redirects; streamed bodies with back-pressure), `DriveAuthTransport(tokens:inner:)` (bearer +
+  one retry on 401; the account travels in an internal `X-Veltoret-Account` header that is stripped before sending),
+  `TokenProvider`. Network/Drive failures are `DriveIOError(message)` (C# IOException); full Drive = `DriveStorageFullError`.
+- (drive) `DriveRepository(http:)`: `listChildren(_:folderId:orderBy:)`, `listSharedWithMe`, `search(_:text:)`, `get`, `rename`,
+  `move`, `trash`, `deletePermanently`, `createFolder`, `about`, `freeBytes`, `space`, `download(_:id:_ block:)`,
+  `openRange(_:id:from:) -> HttpStreamResponse?`, `openRead(_:id:) -> ByteSource` (a `DriveRangeStream`), `upload(...)`
+  (input is a `ByteStream`: `FileByteStream`, `DataByteStream`), `static mediaUrl/spaceFrom/escape`. `DriveClient` = the subset
+  uploads/extraction use. `DriveFile.toItem()`. `DriveFormat` also has `baseName`/`fileExtension`.
+- (drive) `TransferService(drive:jobsURL:)`: `upload(account:parentId:urls:)` / `upload(account:parentId:url:)`, `extract(account:
+  zipId:zipName:zipSize:parentId:after: ZipAfterExtract (.keep/.trash/.delete), wifiOnly:)`, `checkExtract(...) async ->
+  ExtractCheck` (`free/resuming/size/tooBig`), `retry/dismiss/cancel`, `latestForZip`, `resume()`, `jobs`, `hasPending`; events
+  `jobChanged`, `jobFinished`, `jobRemoved` fire on background threads. `TransferJob` fields as on Windows. Wired to
+  `connectivity.isOnline/isMetered`, `scans.runNow()` after an extraction, `library.forgetArchive` after trash/delete.
+- (drive) Deviation: ZIP extraction no longer streams the archive forward-only (Windows: SharpCompress ZipReader). It reads the
+  central directory by HTTP range (`ZipArchive.entries`, ZIP64 aware) and inflates each entry's range with the Compression
+  framework (raw DEFLATE; store too), checking CRC-32. Files already in Drive with the same size are skipped without being
+  downloaded. Encrypted entries / other methods fail with the Windows messages; a damaged ZIP fails with
+  "The ZIP looks damaged or incomplete (…)". Upload failure for a missing file: "The file is no longer on this Mac".

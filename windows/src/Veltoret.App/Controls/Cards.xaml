@@ -1,0 +1,84 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:c="clr-namespace:Veltoret.App.Controls">
+    <!-- Card templates (Android PosterCard / WideCard). Width comes from the container. -->
+
+    <DataTemplate x:Key="Template.PosterCard" DataType="{x:Type c:PosterItem}">
+        <Button x:Name="btn" Style="{StaticResource Button.Plain}" Command="{x:Static c:CardActions.OpenPoster}" CommandParameter="{Binding}"
+                c:Motion.PressScale="0.96" Opacity="{Binding CardOpacity}" IsHitTestVisible="{Binding Clickable}"
+                ToolTip="{Binding Title}" ToolTipService.InitialShowDelay="900" Focusable="{Binding Clickable}">
+            <StackPanel>
+                <c:AspectBox Ratio="1.5">
+                    <Grid>
+                        <c:AsyncImage x:Name="img" Url="{Binding PosterUrl}" FallbackText="{Binding Title}" DecodeWidth="342"
+                                      CornerRadius="12" BorderThickness="1" BorderBrush="{StaticResource Brush.Outline}" />
+                        <Border Style="{StaticResource Pill.Solid}" Margin="8" Visibility="{Binding Badge, Converter={x:Static c:Converters.VisibleIfNotNull}}">
+                            <TextBlock Text="{Binding Badge, Converter={x:Static c:Converters.Upper}}" Style="{StaticResource Text.LabelSmall}" TextWrapping="NoWrap" />
+                        </Border>
+                        <Grid Width="22" Height="22" Margin="8" HorizontalAlignment="Right" VerticalAlignment="Top" ToolTip="Watched"
+                              Visibility="{Binding Watched, Converter={x:Static c:Converters.VisibleIfTrue}}">
+                            <Ellipse Fill="{StaticResource Brush.Amber}" />
+                            <c:Icon Data="{StaticResource Icon.Check}" Size="15" Fill="{StaticResource Brush.OnAmber}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Grid>
+                        <ProgressBar Margin="8" VerticalAlignment="Bottom" Value="{Binding ProgressValue, Mode=OneWay}" Background="{StaticResource Brush.ImageDim}"
+                                     Visibility="{Binding HasProgress, Converter={x:Static c:Converters.VisibleIfTrue}}" />
+                        <Border x:Name="hover" CornerRadius="12" BorderThickness="1" BorderBrush="{StaticResource Brush.TextFaint}" Visibility="Collapsed" />
+                    </Grid>
+                </c:AspectBox>
+                <TextBlock Text="{Binding Title}" Style="{StaticResource Text.OneLine}" Margin="0,8,0,0" />
+                <TextBlock Text="{Binding Subtitle}" Style="{StaticResource Text.Muted}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
+                           Visibility="{Binding Subtitle, Converter={x:Static c:Converters.VisibleIfNotNull}}" />
+            </StackPanel>
+        </Button>
+        <DataTemplate.Triggers>
+            <DataTrigger Binding="{Binding IsMouseOver, ElementName=btn}" Value="True">
+                <Setter TargetName="hover" Property="Visibility" Value="Visible" />
+            </DataTrigger>
+        </DataTemplate.Triggers>
+    </DataTemplate>
+
+    <DataTemplate x:Key="Template.WideCard" DataType="{x:Type c:PlayItem}">
+        <Button x:Name="btn" Style="{StaticResource Button.Plain}" Command="{x:Static c:CardActions.Play}" CommandParameter="{Binding}" c:Motion.PressScale="0.96">
+            <Button.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="Play" c:ButtonAssist.Icon="{StaticResource Icon.Play}" Command="{x:Static c:CardActions.Play}" CommandParameter="{Binding}" />
+                    <MenuItem Header="Details" c:ButtonAssist.Icon="{StaticResource Icon.Info}" Command="{x:Static c:CardActions.OpenPlayItem}" CommandParameter="{Binding}" />
+                </ContextMenu>
+            </Button.ContextMenu>
+            <StackPanel>
+                <c:AspectBox Ratio="0.5625">
+                    <Grid>
+                        <c:AsyncImage Url="{Binding ImageUrl}" FallbackText="{Binding Title}" DecodeWidth="780"
+                                      CornerRadius="14" BorderThickness="1" BorderBrush="{StaticResource Brush.Outline}" />
+                        <Grid Width="34" Height="34" Margin="10" HorizontalAlignment="Left" VerticalAlignment="Bottom">
+                            <Ellipse x:Name="disc" Fill="{StaticResource Brush.ImageDim}" />
+                            <c:Icon Data="{StaticResource Icon.Play}" Size="20" Fill="{StaticResource Brush.Text}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Grid>
+                        <Border Style="{StaticResource Pill.Solid}" Margin="8" HorizontalAlignment="Right"
+                                Visibility="{Binding Caption, Converter={x:Static c:Converters.VisibleIfNotNull}}">
+                            <TextBlock Text="{Binding Caption, Converter={x:Static c:Converters.Upper}}" Style="{StaticResource Text.LabelSmall}" TextWrapping="NoWrap" />
+                        </Border>
+                        <Border x:Name="hover" CornerRadius="14" BorderThickness="1" BorderBrush="{StaticResource Brush.TextFaint}" Visibility="Collapsed" />
+                    </Grid>
+                </c:AspectBox>
+                <ProgressBar Margin="0,8,0,0" Value="{Binding ProgressValue, Mode=OneWay}"
+                             Visibility="{Binding HasProgress, Converter={x:Static c:Converters.VisibleIfTrue}}" />
+                <TextBlock Text="{Binding Title}" Style="{StaticResource Text.OneLine}" Margin="0,8,0,0" />
+                <TextBlock Text="{Binding Subtitle}" Style="{StaticResource Text.Muted}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
+                           Visibility="{Binding Subtitle, Converter={x:Static c:Converters.VisibleIfNotNull}}" />
+            </StackPanel>
+        </Button>
+        <DataTemplate.Triggers>
+            <DataTrigger Binding="{Binding IsMouseOver, ElementName=btn}" Value="True">
+                <Setter TargetName="hover" Property="Visibility" Value="Visible" />
+            </DataTrigger>
+        </DataTemplate.Triggers>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type c:PosterItem}">
+        <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource Template.PosterCard}" />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type c:PlayItem}">
+        <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource Template.WideCard}" />
+    </DataTemplate>
+</ResourceDictionary>

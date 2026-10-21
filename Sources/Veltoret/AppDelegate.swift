@@ -106,8 +106,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func openFiles(_ urls: [URL]) {
-        guard let url = urls.first(where: { $0.isFileURL }), let playback = AppServices.playback else { return }
-        Task { await playback.playItem(account: Accounts.device, fileId: url.path, name: url.lastPathComponent) }
+        guard let url = urls.first(where: { $0.isFileURL }) else { return }
+        VeltoretPlaybackLauncher.openLocalFile(url)
     }
 
     // MARK: Main window

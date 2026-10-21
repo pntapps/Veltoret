@@ -1,6 +1,7 @@
 import AppKit
 import VeltoretKit
 import VeltoretUI
+import FeaturePlayer
 
 /// The menu bar (Windows has none; these are the Mac-standard menus plus Veltoret's commands and shortcuts).
 @MainActor
@@ -133,8 +134,8 @@ final class MenuActions: NSObject {
         panel.allowsMultipleSelection = false
         panel.allowedContentTypes = [.movie, .video, .audiovisualContent]
         panel.allowsOtherFileTypes = true
-        guard panel.runModal() == .OK, let url = panel.url, let playback = AppServices.playback else { return }
-        Task { await playback.playItem(account: Accounts.device, fileId: url.path, name: url.lastPathComponent) }
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        VeltoretPlaybackLauncher.openLocalFile(url)
     }
 
     @objc func setupGuide() {

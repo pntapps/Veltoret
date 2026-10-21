@@ -426,3 +426,38 @@ text input, custom sheet), `FolderPicker` (any source through Storage; This Mac 
   add a dropped folder to the library ("What's in …?"), SMB refuses. Transfer cards show Retry / Cancel / Dismiss on hover
   (and in a context menu). This Mac extras: Quick Look, Show in Finder. Errors from ConnectGoogle show as dialogs (Windows:
   toasts), user cancel as a toast.
+- (player) **FeaturePlayer API** (`Sources/FeaturePlayer`). `FeaturePlayerModule.initialize()` sets `AppServices.playback =
+  VeltoretPlaybackLauncher()` (and clears stale subtitle temp copies); `shutdown()` (main thread) saves progress synchronously and
+  closes the player. `VeltoretPlaybackLauncher: PlaybackLauncher` — `playMovie/playShow/playEpisode` via `AppServices.resolver`
+  (device copies first; offline only local), `playFile`, `playItem(account:fileId:name:)`; nothing playable → toast "This video isn't
+  available right now". Static `open(_ args: PlayerArgs)` (any thread) and `openLocalFile(_ url: URL)` (Finder "Open With" / Dock drop
+  — **lead:** call it from `AppDelegate.openFiles`). `PlayerArgs(fileId:account:title:fromStart:)`.
+  `@MainActor PlayerWindowController` (NSWindowController): `static current`, `static open(_:)` (reuses the open window: saves the
+  current video's progress, loads in place, `bringToFront()`), Cast hooks `positionSeconds`, `pauseForCast()` (saves, pauses, stops
+  saving until `resumeAfterCast(positionMs:)`, which seeks and stays paused), `currentFile`, `fileId`, `account`, `videoTitle`,
+  `videoSubtitle`, `videoChanged: Event<Void>` (main actor, each new video), `isPlaying`, `saveProgress()`, plus `close()`,
+  `toggleFullscreen()`, `enterMini()/exitMini()/toggleMini()`, `isFullscreen`, `isMini`. `@MainActor PlayerHooks.castButton:
+  (() -> AnyView)?` (top-bar slot) and `PlayerHooks.windowOpened: ((PlayerWindowController) -> Void)?` (called once per new window).
+  `@MainActor PlayerCommands` (all no-ops without a player): `togglePlayPause/play/pause/skipForward/skipBackward/startOver/skipIntro/
+  nextEpisode/previousEpisode/volumeUp/volumeDown/toggleMute/speedUp/speedDown/normalSpeed/cycleAudio/cycleSubtitles/subtitlesOff/
+  subtitleEarlier/subtitleLater/cycleAspect/toggleFullScreen/toggleMiniPlayer/toggleLock/showVideoInfo/showAudio/showSubtitles/
+  showEpisodes/showSleepTimer/closePlayer/bringPlayerToFront`, state `isPlayerOpen/isPlayerKey/isPlaying/hasNextEpisode/
+  hasPreviousEpisode/isLocked/isMiniPlayer/isMuted`, and `makeMenu() -> NSMenu` (a validated "Playback" menu; only ⌘ shortcuts —
+  ⌘←/⌘→ skip, ⇧⌘←/⇧⌘→ episodes, ⌘↑/⌘↓ volume, ⌥⌘M mini player, ⌘L lock, ⌥⌘I video info — enabled while the player window is
+  key). **Lead:** in `AppWiring.extendMenu(main)` add an item titled "Playback" with `submenu = PlayerCommands.makeMenu()`.
+- (player) Mac player notes / deviations: one dark `NSWindow` (hidden title bar, traffic lights fade with the chrome; frame autosaved as
+  "VeltoretPlayer") hosting `VLCVideoView` (`VLCMediaPlayer(options:)`, its own libVLC instance with the Windows subtitle options) under
+  an `NSHostingView` SwiftUI chrome; keys are taken in `NSWindow.sendEvent` before SwiftUI (Space/K/Return, ←/→/J/L with ripple and
+  held-key acceleration, ↑/↓ volume 0–200 %, M, N/P, F, Esc panel → mini → full screen → close, [ ], S/C/V, A, G/H, Z, I, Home,
+  Tab skip intro, ⌘L lock — the only key while locked); mouse: click toggles controls (260 ms double-click wait), double-click thirds
+  seek/full screen, hold 2×, drag pans when zoomed, scroll volume, ⌘-scroll and trackpad pinch zoom (crop-based, 1–5×). Full screen is
+  native (`toggleFullScreen`). The mini player is the **same window** made floating (`.floating`, all Spaces, aspect-locked, 400 pt
+  wide bottom-right; drag moves it, double-click expands) rather than a separate NSPanel (moving the VLC view between windows isn't
+  safe). Drive/SMB play through `MediaStreamServer` (`:network-caching=3000`, `:http-reconnect`); local by path (`:file-caching=1000`).
+  Hardware decoding = VideoToolbox (`:avcodec-hw=any`); software = `:no-videotoolbox :avcodec-hw=none`; automatic fallback once on a
+  decoder error. HDR: macOS manages EDR itself, so there's no display switch; the top-bar chip only shows the detected format
+  (`HdrProbe`; header probe for local files, file name otherwise). VLCKit 3.7.3 reports buffering continuously while playing and the
+  natural end of a file as **Paused** (not Ended): loading = a buffering event while the clock hasn't moved for 0.6 s; an unexpected pause
+  within 3 s of the end is treated as the end. A remote stream that stops early with a `MediaStreamServer.lastError` shows the error card.
+  Now Playing/media keys via MPNowPlayingInfoCenter + MPRemoteCommandCenter (poster artwork through `AppServices.images`); display sleep
+  blocked with an IOPMAssertion while playing. Subtitle copies live in `AppPaths.temp/subtitles` (deleted on close and at launch).

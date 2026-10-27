@@ -14,8 +14,8 @@
  * limitations under the License.
  *
  * Modified by the Veltoret contributors: a copy of Media3's MatroskaExtractor (1.9.4) that reads
- * Info and Tracks elements stored after the first Cluster and ignores SeekHead entries past the end
- * of the file. Changes are marked with "Veltoret" comments.
+ * Info and Tracks elements stored after the first Cluster, ignores SeekHead entries past the end
+ * of the file and seeks in files without Cues. Changes are marked with "Veltoret" comments.
  */
 package androidx.media3.extractor.mkv;
 
@@ -498,6 +498,9 @@ public class VeltoretMatroskaExtractor implements Extractor {
   private boolean seekForTracks;
   private boolean tracksParsed;
   private long seekPositionAfterTracks = C.INDEX_UNSET;
+  // Veltoret: files without Cues seek by searching Cluster timecodes (VeltoretMatroskaClusterSeeker).
+  private long firstClusterPosition = C.INDEX_UNSET;
+  @Nullable private VeltoretMatroskaClusterSeeker clusterSeeker;
   // Veltoret: Info (timecode scale, duration) located after the first Cluster (found via the SeekHead).
   private long infoContentPosition = C.INDEX_UNSET;
   private boolean seekForInfo;
@@ -626,6 +629,10 @@ public class VeltoretMatroskaExtractor implements Extractor {
     currentCueTrackNumber = C.INDEX_UNSET;
     currentCueClusterPosition = C.INDEX_UNSET;
     currentCueRelativePosition = C.INDEX_UNSET;
+    // Veltoret: position 0 restarts from the top; anything else is a seek the cluster search resolves.
+    if (clusterSeeker != null && position != 0) {
+      clusterSeeker.setSeekTargetUs(timeUs);
+    }
     // To prevent creating duplicate cue points on a re-parse, clear any existing cue data if the
     // seek map has not yet been sent. Once sent, the cue data is considered final, and subsequent
     // Cues elements will be ignored by the parsing logic.
@@ -646,6 +653,9 @@ public class VeltoretMatroskaExtractor implements Extractor {
   public final int read(ExtractorInput input, PositionHolder seekPosition) throws IOException {
     haveOutputSample = false;
     inputLength = input.getLength();
+    if (clusterSeeker != null && clusterSeeker.isSeeking()) { // Veltoret
+      return clusterSeeker.handlePendingSeek(input, seekPosition);
+    }
     boolean continueReading = true;
     while (continueReading && !haveOutputSample) {
       continueReading = reader.read(input);
@@ -835,6 +845,11 @@ public class VeltoretMatroskaExtractor implements Extractor {
         }
         break;
       case ID_CLUSTER:
+        // Veltoret: the floor for seeking without Cues. The Cluster header (ID + size) is at most 12
+        // bytes; starting a little early is fine because the search scans forward for the Cluster ID.
+        if (firstClusterPosition == C.INDEX_UNSET) {
+          firstClusterPosition = max(segmentContentPosition, contentPosition - 12);
+        }
         // Veltoret: no Info yet (so no timecode scale) but the SeekHead knows where it is — read it
         // first; maybeSeekForInfo then carries on with late Tracks and the Cues.
         if (!infoParsed && infoContentPosition != C.INDEX_UNSET) {
@@ -852,9 +867,9 @@ public class VeltoretMatroskaExtractor implements Extractor {
             // We know where the Cues element is located. Seek to request it.
             seekForCues = true;
           } else {
-            // We don't know where the Cues element is located. It's most likely omitted. Allow
-            // playback, but disable seeking.
-            extractorOutput.seekMap(new SeekMap.Unseekable(durationUs));
+            // We don't know where the Cues element is located. It's most likely omitted.
+            // Veltoret: seek by searching Cluster timecodes instead of disabling seeking.
+            extractorOutput.seekMap(seekMapWithoutCues());
             sentSeekMap = true;
           }
         }
@@ -933,7 +948,7 @@ public class VeltoretMatroskaExtractor implements Extractor {
           }
           if (!hasAnyCues || durationUs == C.TIME_UNSET) {
             // Cues are missing, empty, or duration is unknown.
-            extractorOutput.seekMap(new SeekMap.Unseekable(durationUs));
+            extractorOutput.seekMap(seekMapWithoutCues()); // Veltoret
           } else {
             for (int i = 0; i < perTrackCues.size(); i++) {
               Collections.sort(perTrackCues.valueAt(i));
@@ -2150,7 +2165,7 @@ public class VeltoretMatroskaExtractor implements Extractor {
         seekPosition.position = cuesContentPosition;
       } else {
         if (!sentSeekMap) {
-          checkNotNull(extractorOutput).seekMap(new SeekMap.Unseekable(durationUs));
+          checkNotNull(extractorOutput).seekMap(seekMapWithoutCues());
           sentSeekMap = true;
         }
         seekPosition.position = resume;
@@ -2180,7 +2195,7 @@ public class VeltoretMatroskaExtractor implements Extractor {
         seekPosition.position = cuesContentPosition;
       } else {
         if (!sentSeekMap) {
-          checkNotNull(extractorOutput).seekMap(new SeekMap.Unseekable(durationUs));
+          checkNotNull(extractorOutput).seekMap(seekMapWithoutCues());
           sentSeekMap = true;
         }
         seekPosition.position = resume;
@@ -2205,6 +2220,35 @@ public class VeltoretMatroskaExtractor implements Extractor {
       return true;
     }
     return false;
+  }
+
+  /**
+   * Veltoret: the seek map for a file without usable Cues. Upstream makes it unseekable; when the
+   * duration and file size are known, seek by searching Cluster timecodes instead.
+   */
+  private SeekMap seekMapWithoutCues() {
+    long endPosition = inputLength;
+    if (segmentContentPosition != C.INDEX_UNSET && segmentContentSize > 0) {
+      long segmentEnd = segmentContentPosition + segmentContentSize;
+      if (segmentEnd > 0 && (endPosition == C.LENGTH_UNSET || segmentEnd < endPosition)) {
+        endPosition = segmentEnd;
+      }
+    }
+    if (durationUs == C.TIME_UNSET
+        || timecodeScale == C.TIME_UNSET
+        || firstClusterPosition == C.INDEX_UNSET
+        || endPosition == C.LENGTH_UNSET
+        || endPosition <= firstClusterPosition) {
+      Log.d(TAG, "No Cues, unseekable: duration=" + durationUs + " scale=" + timecodeScale
+          + " firstCluster=" + firstClusterPosition + " end=" + endPosition);
+      return new SeekMap.Unseekable(durationUs);
+    }
+    Log.d(TAG, "No Cues, seeking by Cluster search: firstCluster=" + firstClusterPosition
+        + " end=" + endPosition);
+    clusterSeeker =
+        new VeltoretMatroskaClusterSeeker(
+            timecodeScale, durationUs, firstClusterPosition, endPosition);
+    return clusterSeeker.getSeekMap();
   }
 
   private long scaleTimecodeToUs(long unscaledTimecode) throws ParserException {

@@ -29,8 +29,25 @@ foreach ($dir in "visualization", "access_output", "stream_out") {
     $p = "artifacts\publish\libvlc\win-x64\plugins\$dir"
     if (Test-Path $p) { Remove-Item $p -Recurse -Force }
 }
-# LibVLC rebuilds its plugin cache on first run; a stale one would list the removed plugins.
-Remove-Item "artifacts\publish\libvlc\win-x64\plugins\plugins.dat" -ErrorAction SilentlyContinue
+# Rebuild LibVLC's plugin cache for the trimmed set (what vlc-cache-gen does). Without it LibVLC loads every
+# plugin DLL each time it starts, which takes seconds on low-power PCs; the app can't write it under Program Files.
+$vlcDir = (Resolve-Path "artifacts\publish\libvlc\win-x64").Path
+Remove-Item "$vlcDir\plugins\plugins.dat" -ErrorAction SilentlyContinue
+Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class VlcCacheGen
+{
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] public static extern bool SetDllDirectory(string path);
+    [DllImport("libvlc.dll")] public static extern IntPtr libvlc_new(int argc, string[] argv);
+    [DllImport("libvlc.dll")] public static extern void libvlc_release(IntPtr instance);
+}
+'@
+[VlcCacheGen]::SetDllDirectory($vlcDir) | Out-Null
+$vlc = [VlcCacheGen]::libvlc_new(1, @("--reset-plugins-cache"))
+if ($vlc -eq [IntPtr]::Zero) { throw "libvlc_new failed while building the plugin cache" }
+[VlcCacheGen]::libvlc_release($vlc)
+if (-not (Test-Path "$vlcDir\plugins\plugins.dat")) { throw "LibVLC didn't write plugins\plugins.dat" }
 
 Write-Host "Compiling installer ..."
 & $iscc "/DAppVersion=$version" "/Qp" "installer\Veltoret.iss"

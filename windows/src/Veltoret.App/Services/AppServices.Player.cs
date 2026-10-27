@@ -9,6 +9,7 @@ public static partial class AppServices
     {
         // Loads libvlc from the VideoLAN.LibVLC.Windows package (libvlc\win-x64 next to the app).
         LibVLCSharp.Shared.Core.Initialize();
+        LibVlcEngine.Warm();
         Playback = new PlaybackLauncher();
     }
 

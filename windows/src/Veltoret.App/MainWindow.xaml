@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:c="clr-namespace:Veltoret.App.Controls"
         Title="Veltoret" Width="1440" Height="900" MinWidth="640" MinHeight="480"
-        WindowStartupLocation="CenterScreen"
+        WindowStartupLocation="CenterScreen" WindowState="Maximized"
         UseLayoutRounding="True"
         FontFamily="{StaticResource Font.Sans}"
         Foreground="{StaticResource Brush.Text}"

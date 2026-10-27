@@ -60,9 +60,31 @@ public sealed class PlaybackLauncher : IPlaybackLauncher
             current.BringToFront();
             return;
         }
+        if (!LibVlcEngine.Ready.IsCompleted)
+        {
+            // Played in the first seconds after start: LibVLC is still loading its plugins. Open once it's ready
+            // (the latest request wins) instead of waiting for it on the UI thread.
+            var first = _waiting == null;
+            _waiting = args;
+            if (first) _ = OpenWhenReady();
+            return;
+        }
         var window = new PlayerWindow(args);
         window.Show();
         window.Activate();
+    }
+
+    private static PlayerArgs? _waiting;
+
+    private static async Task OpenWhenReady()
+    {
+        await LibVlcEngine.Ready;
+        await Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            var args = _waiting;
+            _waiting = null;
+            if (args != null) Open(args);
+        });
     }
 
     private static void Unavailable()

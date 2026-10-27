@@ -75,6 +75,11 @@ modules provide (`Accounts/AccountsSection`, `Network/NetworkServersSection`); t
   "HDR" chip toggles it; closing the player restores the display's previous state (`Player/HdrDisplay`).
 - Playback goes through LibVLC. Local files play by path; Drive and SMB play through a seekable stream
   (`Storage.OpenRead` → `StreamMediaInput`). Hardware decoding with automatic software fallback.
+- **LibVLC start-up cost**: without `libvlc\win-x64\plugins\plugins.dat` LibVLC loads every plugin DLL on each start
+  (~12 s on a fast PC when cold). `installer\build.ps1` generates the cache after trimming plugins — keep that step.
+  `Player/LibVlcEngine` loads the plugins on a background thread at app start and keeps them loaded, and
+  `PlaybackLauncher` waits for it before creating the first player window, so the UI never blocks on it.
+- The main window opens **maximized**.
 - Google sign-in: OAuth 2.0 installed-app flow (system browser, loopback redirect, PKCE). Users bring their own
   "Desktop app" OAuth client (JSON imported in Settings) and their own TMDB key, as on Android. No server.
 - Play on TV: Windows is the *phone* side only (sends to Veltoret on Android TV). The TV-side listener and the

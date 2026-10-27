@@ -126,7 +126,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             w.delegate = self
             w.contentView = NSHostingView(rootView: MainShell())
             w.setFrameAutosaveName("VeltoretMainWindow")
-            if !w.setFrameUsingName("VeltoretMainWindow") { w.center() }
+            if !w.setFrameUsingName("VeltoretMainWindow") {
+                // First launch: fill the screen (the Windows app opens maximized); later launches reopen at the saved size.
+                if let screen = NSScreen.main { w.setFrame(screen.visibleFrame, display: false) } else { w.center() }
+            }
             w.tabbingMode = .disallowed
             mainWindow = w
         }

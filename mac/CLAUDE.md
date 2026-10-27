@@ -74,7 +74,10 @@ bodies are simple) early, so modules that depend on you can build; then implemen
 - Veltoret keeps running with a **menu bar item** when its window is closed (`runInBackground`, default on), so
   reminders, new-episode alerts and scans keep working; "Quit Veltoret" (⌘Q) exits. "Open at login" uses SMAppService.
 - Picture-in-picture becomes an **always-on-top mini player** window (floating NSPanel), as on Windows.
-- Playback goes through VLCKit 3 (LibVLC). Local files play by path; Drive and SMB play through
+- The main window fills the screen on first launch (the Windows app opens maximized); after that it reopens at the
+  size the user left it (frame autosave), as Mac apps do.
+- Playback goes through VLCKit 3 (LibVLC). VLCKit's modules are linked into its binary, so there's no plugin scan or
+  `plugins.dat` to manage (the Windows app needs one). Local files play by path; Drive and SMB play through
   `MediaStreamServer` (loopback HTTP with Range, random token, 127.0.0.1 only) over `Storage.openRead`.
 - **Now Playing + media keys**: the player publishes MPNowPlayingInfoCenter and handles MPRemoteCommandCenter.
 - Google sign-in: OAuth 2.0 installed-app flow (system browser, loopback redirect, PKCE). Users bring their own
